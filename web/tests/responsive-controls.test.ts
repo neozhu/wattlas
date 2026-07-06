@@ -15,4 +15,14 @@ describe("responsive map controls", () => {
     expect(mobile).toMatch(/\.layer-rail button\s*\{[\s\S]*min-height:\s*44px/);
     expect(mobile).toMatch(/\.layer-rail\s*>\s*\.rail-section:first-child,[\s\S]*\.layer-rail\s*>\s*\.infrastructure-controls\s*\{[\s\S]*flex:\s*1 1 auto/);
   });
+
+  it("keeps the restore control on the left and the composition note on the bottom right", () => {
+    expect(css).toMatch(/\.show-filters\s*\{[\s\S]*justify-self:\s*start/);
+    expect(css).toMatch(/\.map-composition-key\s*\{[\s\S]*right:\s*12px[\s\S]*bottom:\s*34px/);
+  });
+
+  it("hides the desktop inspector resizer in stacked layouts", () => {
+    const tablet = css.match(/@media \(max-width: 1024px\)([\s\S]*?)@media \(max-width: 680px\)/)?.[1] ?? "";
+    expect(tablet).toMatch(/\.inspector-resizer\s*\{[\s\S]*display:\s*none/);
+  });
 });

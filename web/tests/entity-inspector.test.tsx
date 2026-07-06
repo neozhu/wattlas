@@ -52,7 +52,7 @@ describe("EntityInspector", () => {
     expect(screen.getByText(/101 Compute Avenue/)).toBeInTheDocument();
     expect(screen.getByText("48 MW")).toBeInTheDocument();
     const google = screen.getByRole("link", { name: "Search Google for Alpha DC" });
-    expect(new URL(google.getAttribute("href")!).searchParams.get("q")).toContain("Alpha DC");
+    expect(new URL(google.getAttribute("href")!).searchParams.get("q")).toBe("Alpha DC");
     expect(google).toHaveAttribute("target", "_blank");
     expect(google).toHaveAttribute("rel", "noreferrer");
   });
@@ -76,7 +76,7 @@ describe("EntityInspector", () => {
     expect(screen.getByText("480 operational")).toBeInTheDocument();
     expect(screen.getByText("32 planned")).toBeInTheDocument();
     expect(screen.getByText("492 community mapped")).toBeInTheDocument();
-    expect(new URL(screen.getByRole("link", { name: "Search Google for United States" }).getAttribute("href")!).searchParams.get("q")).toContain("United States");
+    expect(new URL(screen.getByRole("link", { name: "Search Google for United States" }).getAttribute("href")!).searchParams.get("q")).toBe("United States");
   });
 
   it("shows regional power balance facts, sources, arithmetic, and honest nullable metrics", () => {
@@ -133,7 +133,7 @@ describe("EntityInspector", () => {
     for (const text of ["Natural gas", "Fuel oil", "500 MW", "2,200 GWh (2,000–2,400)", "Operational", "2015", "GridCo", "Public Power", "50.10000, 8.50000", "91%", "Retirement date unavailable", "Source IDs unavailable"]) expect(screen.getByText(text)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open source record" })).toHaveAttribute("href", "https://generator.example");
     const google = screen.getByRole("link", { name: "Search Google for Main River Plant" });
-    expect(new URL(google.getAttribute("href")!).searchParams.get("q")).toBe("Main River Plant DE gas power generator");
+    expect(new URL(google.getAttribute("href")!).searchParams.get("q")).toBe("Main River Plant");
   });
 
   it("does not render an unsafe generator source URL even for an untrusted typed caller", () => {

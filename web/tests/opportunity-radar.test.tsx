@@ -10,7 +10,7 @@ vi.mock("@/lib/snapshot/generators", async (importOriginal) => ({
   loadRegionalEnergy: mockLoadRegionalEnergy,
 }));
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); localStorage.clear(); });
 
 vi.mock("@/components/map/global-map", () => ({
   GlobalMap: ({ lens, onSelect, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; onSelect: (id: string) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens}<button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM")}>Select Assam</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
@@ -80,11 +80,11 @@ const snapshot: SnapshotData = {
 } as unknown as SnapshotData;
 
 describe("OpportunityRadar", () => {
-  it("renders daily freshness, lenses, year, and source truth", () => {
+  it("renders monthly freshness, lenses, year, and source truth", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
 
     expect(screen.getByText("WATTLAS")).toBeInTheDocument();
-    expect(screen.getByText(/Daily refreshed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Monthly refreshed/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Infrastructure Demand" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Site Attractiveness" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "System Risk" })).toBeInTheDocument();
@@ -97,6 +97,22 @@ describe("OpportunityRadar", () => {
     expect(screen.getAllByText("2030").length).toBeGreaterThan(0);
     expect(screen.queryByText(/^LIVE$/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open source project by Aditya Gupta" })).toHaveAttribute("href", "https://github.com/ad1tyagupta/wattlas");
+  });
+
+  it("resizes the inspector with an accessible persisted desktop separator", async () => {
+    localStorage.setItem("wattlas:inspector-width", "520");
+    render(<OpportunityRadar snapshot={snapshot} />);
+    const separator = screen.getByRole("separator", { name: "Resize details panel" });
+    await waitFor(() => expect(separator).toHaveAttribute("aria-valuenow", "520"));
+    fireEvent.keyDown(separator, { key: "ArrowLeft" });
+    expect(separator).toHaveAttribute("aria-valuenow", "536");
+    expect(localStorage.getItem("wattlas:inspector-width")).toBe("536");
+    expect(separator.closest("main")).toHaveStyle({ "--inspector": "536px" });
+    fireEvent.pointerDown(separator, { clientX: 800, pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 500, pointerId: 1 });
+    fireEvent.pointerUp(window, { pointerId: 1 });
+    expect(separator).toHaveAttribute("aria-valuenow", "600");
+    expect(localStorage.getItem("wattlas:inspector-width")).toBe("600");
   });
 
   it("hides and restores the filter rail without resetting active filters", () => {
@@ -114,7 +130,7 @@ describe("OpportunityRadar", () => {
   it("distinguishes source observation time from check time and states unavailable observations plainly", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Daily refreshed/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Monthly refreshed/i }));
 
     expect(screen.getByText("Observed 27 Jun, 04:12 UTC")).toBeInTheDocument();
     expect(screen.getAllByText("Checked 27 Jun, 04:12 UTC")).toHaveLength(2);

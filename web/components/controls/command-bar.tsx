@@ -25,7 +25,7 @@ export function CommandBar({ manifest, onOpenStatus }: Props) {
       <button className="freshness-control" onClick={onOpenStatus} type="button">
         <span className="freshness-dot" aria-hidden="true" />
         <span>
-          <strong>Daily refreshed</strong>
+          <strong>Monthly refreshed</strong>
           <small>{formatSnapshotTime(manifest.generatedAt)}</small>
         </span>
         {unavailable.length > 0 && (

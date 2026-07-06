@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 import { ComparisonDrawer } from "@/components/comparison/comparison-drawer";
 import { CommandBar } from "@/components/controls/command-bar";
@@ -8,6 +8,7 @@ import { LayerRail, type InfrastructureVisibility } from "@/components/controls/
 import { Timeline } from "@/components/controls/timeline";
 import { EvidenceDossier } from "@/components/inspector/evidence-dossier";
 import { EntityInspector } from "@/components/inspector/entity-inspector";
+import { InspectorResizer } from "@/components/inspector/inspector-resizer";
 import { GlobalMap } from "@/components/map/global-map";
 import { DataStatusDrawer } from "@/components/status/data-status-drawer";
 import { geographyFeatureCollectionSchema } from "@/lib/snapshot/schema";
@@ -15,6 +16,10 @@ import { loadGeneratorIndex, loadGeneratorOverview, loadRegionalEnergy } from "@
 import type { AssetFeature, GenerationTechnology, GeneratorFeature, GeneratorIndex, GeneratorOverviewCollection, GeographyCollection, GeographyFeature, LensKey, RegionalEnergyData, RegionFeature, SnapshotData } from "@/lib/snapshot/types";
 
 type Props = { snapshot: SnapshotData };
+const INSPECTOR_WIDTH_KEY = "wattlas:inspector-width";
+const DEFAULT_INSPECTOR_WIDTH = 368;
+const MIN_INSPECTOR_WIDTH = 300;
+const MAX_INSPECTOR_WIDTH = 600;
 
 export function OpportunityRadar({ snapshot }: Props) {
   const [lens, setLens] = useState<LensKey>("infrastructureDemand");
@@ -26,6 +31,8 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [statusOpen, setStatusOpen] = useState(false);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [filtersVisible, setFiltersVisible] = useState(true);
+  const [inspectorWidth, setInspectorWidth] = useState(DEFAULT_INSPECTOR_WIDTH);
+  const inspectorWidthLoaded = useRef(false);
   const [infrastructure, setInfrastructure] = useState<InfrastructureVisibility>({ dataCentres: true, water: true, generators: true });
   const [technologies, setTechnologies] = useState<Set<GenerationTechnology>>(() => new Set(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"]));
   const [lifecycles, setLifecycles] = useState<Set<string>>(() => new Set(["operational", "under_construction", "announced", "planning_filed", "permitted", "paused", "cancelled", "retired", "decommissioned", "shelved", "unknown"]));
@@ -35,6 +42,18 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [regionalEnergyRetry, setRegionalEnergyRetry] = useState(0);
   const regionalEnergyRevision = useRef(0);
   const [admin1, setAdmin1] = useState<GeographyCollection>(snapshot.admin1);
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const saved = Number(window.localStorage.getItem(INSPECTOR_WIDTH_KEY));
+      inspectorWidthLoaded.current = true;
+      if (Number.isFinite(saved) && saved >= MIN_INSPECTOR_WIDTH && saved <= MAX_INSPECTOR_WIDTH) setInspectorWidth(saved);
+      else window.localStorage.setItem(INSPECTOR_WIDTH_KEY, String(DEFAULT_INSPECTOR_WIDTH));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+  useEffect(() => {
+    if (inspectorWidthLoaded.current) window.localStorage.setItem(INSPECTOR_WIDTH_KEY, String(inspectorWidth));
+  }, [inspectorWidth]);
   useEffect(() => {
     if (snapshot.admin1.features.length) return;
     const controller = new AbortController();
@@ -89,7 +108,7 @@ export function OpportunityRadar({ snapshot }: Props) {
   };
 
   return (
-    <main className={filtersVisible ? "radar-shell" : "radar-shell filters-hidden"}>
+    <main className={filtersVisible ? "radar-shell" : "radar-shell filters-hidden"} style={{ "--inspector": `${inspectorWidth}px` } as CSSProperties}>
       <CommandBar manifest={snapshot.manifest} onOpenStatus={() => setStatusOpen(true)} />
       {filtersVisible ? <LayerRail
         activeLens={lens}
@@ -112,6 +131,7 @@ export function OpportunityRadar({ snapshot }: Props) {
         }}
       /> : <button className="show-filters" type="button" onClick={() => setFiltersVisible(true)} aria-label="Show filters" aria-expanded="false">Filters <span aria-hidden="true">→</span></button>}
       <GlobalMap countries={snapshot.countries} admin1={admin1} regions={snapshot.regions} assets={snapshot.assets} coverage={snapshot.manifest.coverage} lens={lens} year={year} selectedId={selectedId} onSelect={(id) => { setSelectedGenerator(null); setSelectedId(id); }} onSelectGenerator={(generator) => { setSelectedGenerator(generator); setSelectedId(null); }} onVisibleGeneratorsChange={(ids) => setSelectedGenerator((current) => current && !ids.has(current.properties.id) ? null : current)} infrastructure={infrastructure} technologies={technologies} lifecycles={lifecycles} generatorOverview={generatorOverview} generatorIndex={generatorIndex} snapshotRoot={snapshot.manifest.snapshotId ? `snapshots/${snapshot.manifest.snapshotId}` : null} />
+      <InspectorResizer width={inspectorWidth} min={MIN_INSPECTOR_WIDTH} max={MAX_INSPECTOR_WIDTH} onChange={setInspectorWidth} />
       <EntityInspector geography={selectedGeography} asset={selectedAsset} generator={selectedGenerator} regionalEnergy={selectedGeography ? regionalEnergyCurrent[selectedGeography.properties.id] : undefined} regionalEnergyState={lens === "powerBalance" ? regionalEnergyState : "idle"} regionalEnergyError={regionalEnergyLoad.error} onRetryRegionalEnergy={() => { setRegionalEnergyLoad({ path: regionalEnergyPath, state: "loading", data: {}, error: null }); setRegionalEnergyRetry((value) => value + 1); }} generatorOverview={generatorOverview} evidence={snapshot.evidence} lens={lens} year={year} onOpenEvidence={() => setEvidenceOpen(true)} onAddComparison={addComparison} />
       <Timeline years={snapshot.manifest.activeYears} activeYear={year} onChange={setYear} />
       <DataStatusDrawer manifest={snapshot.manifest} open={statusOpen} onClose={() => setStatusOpen(false)} />

@@ -11,7 +11,7 @@ test("renders the map and updates the analytical view", async ({ page }, testInf
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveTitle("Wattlas · Global Infrastructure Opportunity Radar");
-  await expect(page.getByText("Daily refreshed", { exact: true })).toBeVisible();
+  await expect(page.getByText("Monthly refreshed", { exact: true })).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
   await expect(page.locator(".map-container")).toHaveAttribute("data-map-loaded", "true");
   await expect(page.locator(".map-panel")).toHaveAttribute("data-admin1-count", "3229", { timeout: 30_000 });
@@ -25,12 +25,27 @@ test("renders the map and updates the analytical view", async ({ page }, testInf
 
   const search = page.getByRole("link", { name: /Search Google for/i });
   await expect(search).toHaveAttribute("href", /https:\/\/www\.google\.com\/search\?q=/);
+  const selectedName = await page.locator(".inspector-title-row h1").innerText();
+  expect(new URL((await search.getAttribute("href"))!).searchParams.get("q")).toBe(selectedName);
   const expandedWidth = mapBox?.width ?? 0;
   await page.getByRole("button", { name: "Hide filters" }).click();
-  await expect(page.getByRole("button", { name: "Show filters" })).toBeVisible();
+  const showFilters = page.getByRole("button", { name: "Show filters" });
+  await expect(showFilters).toBeVisible();
+  const showFiltersBox = await showFilters.boundingBox();
+  expect(showFiltersBox?.x).toBeLessThan((mapBox?.x ?? 0) + 100);
   await expect.poll(async () => (await page.locator(".map-container").boundingBox())?.width ?? 0).toBeGreaterThan(expandedWidth);
-  await page.getByRole("button", { name: "Show filters" }).click();
+  await showFilters.click();
   await expect(page.getByRole("button", { name: "Hide filters" })).toBeVisible();
+
+  const separator = page.getByRole("separator", { name: "Resize details panel" });
+  const separatorBox = await separator.boundingBox();
+  const inspectorBefore = await page.locator(".region-inspector").boundingBox();
+  if (!separatorBox || !inspectorBefore) throw new Error("Inspector resize controls unavailable");
+  await page.mouse.move(separatorBox.x + separatorBox.width / 2, separatorBox.y + 120);
+  await page.mouse.down();
+  await page.mouse.move(separatorBox.x - 80, separatorBox.y + 120);
+  await page.mouse.up();
+  await expect.poll(async () => (await page.locator(".region-inspector").boundingBox())?.width ?? 0).toBeGreaterThan(inspectorBefore.width);
 
   await page.getByRole("button", { name: "System Risk", exact: true }).click();
   await page.getByRole("button", { name: "2031", exact: true }).click();
