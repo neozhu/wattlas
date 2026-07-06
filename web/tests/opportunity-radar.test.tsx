@@ -96,6 +96,19 @@ describe("OpportunityRadar", () => {
     expect(screen.getByText("Severe pressure")).toBeInTheDocument();
     expect(screen.getAllByText("2030").length).toBeGreaterThan(0);
     expect(screen.queryByText(/^LIVE$/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open source project by Aditya Gupta" })).toHaveAttribute("href", "https://github.com/ad1tyagupta/wattlas");
+  });
+
+  it("hides and restores the filter rail without resetting active filters", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    const solar = screen.getByRole("button", { name: "Solar" });
+    fireEvent.click(solar);
+    expect(solar).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(screen.getByRole("button", { name: "Hide filters" }));
+    expect(screen.queryByRole("complementary", { name: "Map controls" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
+    expect(screen.getByRole("complementary", { name: "Map controls" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Solar" })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("distinguishes source observation time from check time and states unavailable observations plainly", () => {

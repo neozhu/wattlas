@@ -17,11 +17,20 @@ test("renders the map and updates the analytical view", async ({ page }, testInf
   await expect(page.locator(".map-panel")).toHaveAttribute("data-admin1-count", "3229", { timeout: 30_000 });
   await expect(page.locator(".map-meta")).toContainText("246 countries");
   await expect(page.locator(".map-meta")).toContainText(`${latestSnapshot.coverage.assets} infrastructure assets`);
-  await expect(page.getByRole("link", { name: "OpenStreetMap infrastructure attribution" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open source project by Aditya Gupta" })).toBeVisible();
 
   const mapBox = await page.locator(".map-container").boundingBox();
   expect(mapBox?.height).toBeGreaterThan(300);
   expect(mapBox?.width).toBeGreaterThan(300);
+
+  const search = page.getByRole("link", { name: /Search Google for/i });
+  await expect(search).toHaveAttribute("href", /https:\/\/www\.google\.com\/search\?q=/);
+  const expandedWidth = mapBox?.width ?? 0;
+  await page.getByRole("button", { name: "Hide filters" }).click();
+  await expect(page.getByRole("button", { name: "Show filters" })).toBeVisible();
+  await expect.poll(async () => (await page.locator(".map-container").boundingBox())?.width ?? 0).toBeGreaterThan(expandedWidth);
+  await page.getByRole("button", { name: "Show filters" }).click();
+  await expect(page.getByRole("button", { name: "Hide filters" })).toBeVisible();
 
   await page.getByRole("button", { name: "System Risk", exact: true }).click();
   await page.getByRole("button", { name: "2031", exact: true }).click();
@@ -61,18 +70,7 @@ test("keeps the analytical canvas usable in the in-app pane", async ({ page }, t
   expect(layout.map?.right).toBeLessThanOrEqual(layout.inspector?.left ?? 0);
   expect(layout.inspector?.right).toBeLessThanOrEqual(layout.viewport);
 
-  await expect(page.getByRole("link", { name: "United Nations" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "India boundary perspective: Government of India" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Wattlas open-source project by Aditya Gupta" })).toBeVisible();
-
-  const attributionBox = await page.locator(".data-attribution").boundingBox();
-  const navigationBox = await page.locator(".maplibregl-ctrl-bottom-left").boundingBox();
-  expect(attributionBox && navigationBox && (
-    attributionBox.x < navigationBox.x + navigationBox.width
-    && attributionBox.x + attributionBox.width > navigationBox.x
-    && attributionBox.y < navigationBox.y + navigationBox.height
-    && attributionBox.y + attributionBox.height > navigationBox.y
-  )).toBeFalsy();
+  await expect(page.locator(".data-attribution")).toHaveCount(0);
 });
 
 test("stacks the map and inspector without mobile overflow", async ({ page }, testInfo) => {

@@ -51,6 +51,11 @@ function safeHttpUrl(value: unknown): string | null {
 const number = (value: number) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value);
 const metric = (value: { central: number } | null, unit: string) => value ? `${number(value.central)} ${unit}` : "Unavailable";
 
+function GoogleSearchLink({ name, context }: { name: string; context: string[] }) {
+  const query = [name, ...context.filter(Boolean)].join(" ");
+  return <a className="google-search-action" href={`https://www.google.com/search?q=${encodeURIComponent(query)}`} target="_blank" rel="noreferrer" aria-label={`Search Google for ${name}`}>Search <span aria-hidden="true">↗</span></a>;
+}
+
 export function EntityInspector({ geography, asset, generator, regionalEnergy = [], generatorOverview, evidence, regionalEnergyState = "ready", regionalEnergyError, onRetryRegionalEnergy, lens, year, onOpenEvidence, onAddComparison }: Props) {
   if (generator) {
     const properties = generator.properties;
@@ -58,7 +63,7 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
     const sourceUrl = safeHttpUrl(properties.sourceUrl);
     return <aside className="region-inspector facility-inspector generator-inspector">
       <div className="inspector-kicker">Selected power generator · {properties.country}</div>
-      <h1>{name}</h1>
+      <div className="inspector-title-row"><h1>{name}</h1><GoogleSearchLink name={name} context={[properties.country, properties.technologies.join(" "), "power generator"]} /></div>
       <p className="region-meta">{properties.technologies.map(humanize).join(" · ")}</p>
       <div className="facility-detail-groups">
         <section className="facility-detail-group"><h2>Plant</h2><div className="facility-facts">
@@ -89,7 +94,7 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
     return (
       <aside className="region-inspector facility-inspector">
         <div className="inspector-kicker">Selected facility · {properties.country}</div>
-        <h1>{properties.name}</h1>
+        <div className="inspector-title-row"><h1>{properties.name}</h1><GoogleSearchLink name={properties.name} context={[properties.country, properties.category === "data_centre" ? "data centre" : "water infrastructure"]} /></div>
         <p className="region-meta">{properties.operator || "Operator unavailable"}</p>
         <div className="facility-detail-groups">
           <section className="facility-detail-group"><h2>Identity</h2><div className="facility-facts">
@@ -158,7 +163,7 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
   return (
     <aside className="region-inspector">
       <div className="inspector-kicker">Selected region · {properties.country}</div>
-      <h1>{properties.name}</h1>
+      <div className="inspector-title-row"><h1>{properties.name}</h1><GoogleSearchLink name={properties.name} context={[properties.country]} /></div>
       <p className="region-meta">{properties.id} · {formatPopulation(properties.population)}</p>
 
       {lens === "powerBalance" && <section className="power-balance-panel" aria-label="Regional power balance">

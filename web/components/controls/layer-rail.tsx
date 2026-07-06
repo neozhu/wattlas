@@ -11,6 +11,7 @@ const lenses: Array<{ id: LensKey; label: string; description: string }> = [
 export type InfrastructureVisibility = { dataCentres: boolean; water: boolean; generators: boolean };
 type Props = {
   activeLens: LensKey; onChange: (lens: LensKey) => void;
+  onHide?: () => void;
   infrastructure?: InfrastructureVisibility; onInfrastructureChange?: (value: InfrastructureVisibility) => void;
   technologies?: ReadonlySet<GenerationTechnology>; onTechnologiesChange?: (value: Set<GenerationTechnology>) => void;
   lifecycles?: ReadonlySet<string>; onLifecyclesChange?: (value: Set<string>) => void;
@@ -27,9 +28,10 @@ const lifecycleGroups = {
   unknown: { label: "Unknown status", states: ["unknown"] },
 } as const;
 
-export function LayerRail({ activeLens, onChange, infrastructure, onInfrastructureChange, technologies, onTechnologiesChange, lifecycles, onLifecyclesChange }: Props) {
+export function LayerRail({ activeLens, onChange, onHide, infrastructure, onInfrastructureChange, technologies, onTechnologiesChange, lifecycles, onLifecyclesChange }: Props) {
   return (
     <aside className="layer-rail" aria-label="Map controls">
+      {onHide && <button className="rail-toggle" type="button" onClick={onHide} aria-label="Hide filters">Hide filters <span aria-hidden="true">←</span></button>}
       <div className="rail-section">
         <p className="rail-heading">Analytical lens</p>
         <div className="lens-list">

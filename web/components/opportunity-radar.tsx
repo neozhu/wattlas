@@ -25,6 +25,7 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [comparisonIds, setComparisonIds] = useState<string[]>([]);
   const [statusOpen, setStatusOpen] = useState(false);
   const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [filtersVisible, setFiltersVisible] = useState(true);
   const [infrastructure, setInfrastructure] = useState<InfrastructureVisibility>({ dataCentres: true, water: true, generators: true });
   const [technologies, setTechnologies] = useState<Set<GenerationTechnology>>(() => new Set(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"]));
   const [lifecycles, setLifecycles] = useState<Set<string>>(() => new Set(["operational", "under_construction", "announced", "planning_filed", "permitted", "paused", "cancelled", "retired", "decommissioned", "shelved", "unknown"]));
@@ -88,11 +89,12 @@ export function OpportunityRadar({ snapshot }: Props) {
   };
 
   return (
-    <main className="radar-shell">
+    <main className={filtersVisible ? "radar-shell" : "radar-shell filters-hidden"}>
       <CommandBar manifest={snapshot.manifest} onOpenStatus={() => setStatusOpen(true)} />
-      <LayerRail
+      {filtersVisible ? <LayerRail
         activeLens={lens}
         onChange={setLens}
+        onHide={() => setFiltersVisible(false)}
         infrastructure={infrastructure}
         onInfrastructureChange={(next) => {
           setInfrastructure(next);
@@ -108,7 +110,7 @@ export function OpportunityRadar({ snapshot }: Props) {
           setLifecycles(next);
           setSelectedGenerator((current) => current && !next.has(current.properties.lifecycle ?? "unknown") ? null : current);
         }}
-      />
+      /> : <button className="show-filters" type="button" onClick={() => setFiltersVisible(true)} aria-label="Show filters" aria-expanded="false">Filters <span aria-hidden="true">→</span></button>}
       <GlobalMap countries={snapshot.countries} admin1={admin1} regions={snapshot.regions} assets={snapshot.assets} coverage={snapshot.manifest.coverage} lens={lens} year={year} selectedId={selectedId} onSelect={(id) => { setSelectedGenerator(null); setSelectedId(id); }} onSelectGenerator={(generator) => { setSelectedGenerator(generator); setSelectedId(null); }} onVisibleGeneratorsChange={(ids) => setSelectedGenerator((current) => current && !ids.has(current.properties.id) ? null : current)} infrastructure={infrastructure} technologies={technologies} lifecycles={lifecycles} generatorOverview={generatorOverview} generatorIndex={generatorIndex} snapshotRoot={snapshot.manifest.snapshotId ? `snapshots/${snapshot.manifest.snapshotId}` : null} />
       <EntityInspector geography={selectedGeography} asset={selectedAsset} generator={selectedGenerator} regionalEnergy={selectedGeography ? regionalEnergyCurrent[selectedGeography.properties.id] : undefined} regionalEnergyState={lens === "powerBalance" ? regionalEnergyState : "idle"} regionalEnergyError={regionalEnergyLoad.error} onRetryRegionalEnergy={() => { setRegionalEnergyLoad({ path: regionalEnergyPath, state: "loading", data: {}, error: null }); setRegionalEnergyRetry((value) => value + 1); }} generatorOverview={generatorOverview} evidence={snapshot.evidence} lens={lens} year={year} onOpenEvidence={() => setEvidenceOpen(true)} onAddComparison={addComparison} />
       <Timeline years={snapshot.manifest.activeYears} activeYear={year} onChange={setYear} />
