@@ -11,6 +11,7 @@ import { EntityInspector } from "@/components/inspector/entity-inspector";
 import { InspectorResizer } from "@/components/inspector/inspector-resizer";
 import { GlobalMap } from "@/components/map/global-map";
 import { DataStatusDrawer } from "@/components/status/data-status-drawer";
+import { geographyEntityType, trackWattlasAction } from "@/lib/analytics";
 import { geographyFeatureCollectionSchema } from "@/lib/snapshot/schema";
 import { loadGeneratorIndex, loadGeneratorOverview, loadRegionalEnergy } from "@/lib/snapshot/generators";
 import type { AssetFeature, GenerationTechnology, GeneratorFeature, GeneratorIndex, GeneratorOverviewCollection, GeographyCollection, GeographyFeature, LensKey, RegionalEnergyData, RegionFeature, SnapshotData } from "@/lib/snapshot/types";
@@ -103,37 +104,56 @@ export function OpportunityRadar({ snapshot }: Props) {
   const comparisonRegions = useMemo(() => comparisonIds.map((id) => selectableGeographies.find((feature) => feature.properties.id === id)).filter(Boolean) as RegionFeature[], [comparisonIds, selectableGeographies]);
 
   const addComparison = () => {
-    if (!selectedId || selectedAsset) return;
-    setComparisonIds((current) => current.includes(selectedId) ? current : [...current, selectedId]);
+    if (!selectedId || selectedAsset || comparisonIds.includes(selectedId)) return;
+    if (selectedGeography) trackWattlasAction("comparison_added", { entity_name: selectedGeography.properties.name, entity_type: geographyEntityType(selectedGeography.properties) });
+    setComparisonIds((current) => [...current, selectedId]);
+  };
+
+  const selectEntity = (id: string) => {
+    setSelectedGenerator(null);
+    setSelectedId(id);
+    const asset = snapshot.assets.features.find((feature) => feature.properties.id === id);
+    if (asset) {
+      trackWattlasAction("entity_selected", { entity_type: asset.properties.category, entity_name: asset.properties.name, country: asset.properties.country });
+      return;
+    }
+    const geography = selectableGeographies.find((feature) => feature.properties.id === id);
+    if (geography) trackWattlasAction("entity_selected", { entity_type: geographyEntityType(geography.properties), entity_name: geography.properties.name, country: geography.properties.country });
   };
 
   return (
     <main className={filtersVisible ? "radar-shell" : "radar-shell filters-hidden"} style={{ "--inspector": `${inspectorWidth}px` } as CSSProperties}>
-      <CommandBar manifest={snapshot.manifest} onOpenStatus={() => setStatusOpen(true)} />
+      <CommandBar manifest={snapshot.manifest} onOpenStatus={() => { setStatusOpen(true); trackWattlasAction("data_status_opened"); }} />
       {filtersVisible ? <LayerRail
         activeLens={lens}
-        onChange={setLens}
-        onHide={() => setFiltersVisible(false)}
+        onChange={(next) => { setLens(next); if (next !== lens) trackWattlasAction("lens_changed", { lens: next }); }}
+        onHide={() => { setFiltersVisible(false); trackWattlasAction("filters_hidden"); }}
         infrastructure={infrastructure}
         onInfrastructureChange={(next) => {
+          const changed = (Object.keys(next) as Array<keyof InfrastructureVisibility>).find((key) => next[key] !== infrastructure[key]);
           setInfrastructure(next);
           if (!next.generators) setSelectedGenerator(null);
+          if (changed) trackWattlasAction("filter_changed", { filter_name: changed, filter_value: next[changed] ? "enabled" : "disabled" });
         }}
         technologies={technologies}
         onTechnologiesChange={(next) => {
+          const changed = [...new Set([...technologies, ...next])].find((technology) => next.has(technology) !== technologies.has(technology));
           setTechnologies(next);
           setSelectedGenerator((current) => current && !current.properties.technologies.some((technology) => next.has(technology)) ? null : current);
+          if (changed) trackWattlasAction("filter_changed", { filter_name: "generator_technology", filter_value: `${changed}:${next.has(changed) ? "enabled" : "disabled"}` });
         }}
         lifecycles={lifecycles}
         onLifecyclesChange={(next) => {
+          const changed = [...new Set([...lifecycles, ...next])].filter((lifecycle) => next.has(lifecycle) !== lifecycles.has(lifecycle));
           setLifecycles(next);
           setSelectedGenerator((current) => current && !next.has(current.properties.lifecycle ?? "unknown") ? null : current);
+          if (changed.length) trackWattlasAction("filter_changed", { filter_name: "generator_lifecycle", filter_value: changed.map((lifecycle) => `${lifecycle}:${next.has(lifecycle) ? "enabled" : "disabled"}`).join(",") });
         }}
-      /> : <button className="show-filters" type="button" onClick={() => setFiltersVisible(true)} aria-label="Show filters" aria-expanded="false">Filters <span aria-hidden="true">→</span></button>}
-      <GlobalMap countries={snapshot.countries} admin1={admin1} regions={snapshot.regions} assets={snapshot.assets} coverage={snapshot.manifest.coverage} lens={lens} year={year} selectedId={selectedId} onSelect={(id) => { setSelectedGenerator(null); setSelectedId(id); }} onSelectGenerator={(generator) => { setSelectedGenerator(generator); setSelectedId(null); }} onVisibleGeneratorsChange={(ids) => setSelectedGenerator((current) => current && !ids.has(current.properties.id) ? null : current)} infrastructure={infrastructure} technologies={technologies} lifecycles={lifecycles} generatorOverview={generatorOverview} generatorIndex={generatorIndex} snapshotRoot={snapshot.manifest.snapshotId ? `snapshots/${snapshot.manifest.snapshotId}` : null} />
-      <InspectorResizer width={inspectorWidth} min={MIN_INSPECTOR_WIDTH} max={MAX_INSPECTOR_WIDTH} onChange={setInspectorWidth} />
-      <EntityInspector geography={selectedGeography} asset={selectedAsset} generator={selectedGenerator} regionalEnergy={selectedGeography ? regionalEnergyCurrent[selectedGeography.properties.id] : undefined} regionalEnergyState={lens === "powerBalance" ? regionalEnergyState : "idle"} regionalEnergyError={regionalEnergyLoad.error} onRetryRegionalEnergy={() => { setRegionalEnergyLoad({ path: regionalEnergyPath, state: "loading", data: {}, error: null }); setRegionalEnergyRetry((value) => value + 1); }} generatorOverview={generatorOverview} evidence={snapshot.evidence} lens={lens} year={year} onOpenEvidence={() => setEvidenceOpen(true)} onAddComparison={addComparison} />
-      <Timeline years={snapshot.manifest.activeYears} activeYear={year} onChange={setYear} />
+      /> : <button className="show-filters" type="button" onClick={() => { setFiltersVisible(true); trackWattlasAction("filters_shown"); }} aria-label="Show filters" aria-expanded="false">Filters <span aria-hidden="true">→</span></button>}
+      <GlobalMap countries={snapshot.countries} admin1={admin1} regions={snapshot.regions} assets={snapshot.assets} coverage={snapshot.manifest.coverage} lens={lens} year={year} selectedId={selectedId} onSelect={selectEntity} onSelectGenerator={(generator) => { setSelectedGenerator(generator); setSelectedId(null); trackWattlasAction("entity_selected", { entity_type: "generator", entity_name: generator.properties.name ?? generator.properties.id, country: generator.properties.country, technology: generator.properties.technologies.join(",") }); }} onVisibleGeneratorsChange={(ids) => setSelectedGenerator((current) => current && !ids.has(current.properties.id) ? null : current)} infrastructure={infrastructure} technologies={technologies} lifecycles={lifecycles} generatorOverview={generatorOverview} generatorIndex={generatorIndex} snapshotRoot={snapshot.manifest.snapshotId ? `snapshots/${snapshot.manifest.snapshotId}` : null} />
+      <InspectorResizer width={inspectorWidth} min={MIN_INSPECTOR_WIDTH} max={MAX_INSPECTOR_WIDTH} onChange={setInspectorWidth} onCommit={(width) => trackWattlasAction("inspector_resized", { panel_width: width })} />
+      <EntityInspector geography={selectedGeography} asset={selectedAsset} generator={selectedGenerator} regionalEnergy={selectedGeography ? regionalEnergyCurrent[selectedGeography.properties.id] : undefined} regionalEnergyState={lens === "powerBalance" ? regionalEnergyState : "idle"} regionalEnergyError={regionalEnergyLoad.error} onRetryRegionalEnergy={() => { setRegionalEnergyLoad({ path: regionalEnergyPath, state: "loading", data: {}, error: null }); setRegionalEnergyRetry((value) => value + 1); }} generatorOverview={generatorOverview} evidence={snapshot.evidence} lens={lens} year={year} onOpenEvidence={() => { setEvidenceOpen(true); if (selectedGeography) trackWattlasAction("evidence_opened", { entity_name: selectedGeography.properties.name, entity_type: geographyEntityType(selectedGeography.properties) }); }} onAddComparison={addComparison} />
+      <Timeline years={snapshot.manifest.activeYears} activeYear={year} onChange={(next) => { setYear(next); if (next !== year) trackWattlasAction("year_changed", { year: next }); }} />
       <DataStatusDrawer manifest={snapshot.manifest} open={statusOpen} onClose={() => setStatusOpen(false)} />
       <EvidenceDossier region={selectedGeography as RegionFeature | null} evidence={snapshot.evidence} open={evidenceOpen && !selectedAsset} onClose={() => setEvidenceOpen(false)} />
       <ComparisonDrawer regions={comparisonRegions} lens={lens} year={year} regionalEnergy={regionalEnergyCurrent} onClose={() => setComparisonIds([])} onRemove={(id) => setComparisonIds((current) => current.filter((item) => item !== id))} />

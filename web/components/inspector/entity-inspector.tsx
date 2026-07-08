@@ -1,5 +1,6 @@
 import { formatPopulation } from "@/lib/format";
 import { PowerBalanceChart } from "@/components/inspector/power-balance-chart";
+import { geographyEntityType, trackWattlasAction } from "@/lib/analytics";
 import type { AssetFeature, EvidenceData, GeneratorFeature, GeneratorOverviewCollection, GeographyFeature, LensKey, RegionalEnergyForecast, RegionalEnergyRow, RegionFeature } from "@/lib/snapshot/types";
 
 const lensLabels: Record<LensKey, string> = {
@@ -51,8 +52,8 @@ function safeHttpUrl(value: unknown): string | null {
 const number = (value: number) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value);
 const metric = (value: { central: number } | null, unit: string) => value ? `${number(value.central)} ${unit}` : "Unavailable";
 
-function GoogleSearchLink({ name }: { name: string }) {
-  return <a className="google-search-action" href={`https://www.google.com/search?q=${encodeURIComponent(name)}`} target="_blank" rel="noreferrer" aria-label={`Search Google for ${name}`}>Search <span aria-hidden="true">↗</span></a>;
+function GoogleSearchLink({ name, entityType, country }: { name: string; entityType: string; country: string }) {
+  return <a className="google-search-action" href={`https://www.google.com/search?q=${encodeURIComponent(name)}`} target="_blank" rel="noreferrer" aria-label={`Search Google for ${name}`} onClick={() => trackWattlasAction("google_search_opened", { entity_name: name, entity_type: entityType, country })}>Search <span aria-hidden="true">↗</span></a>;
 }
 
 export function EntityInspector({ geography, asset, generator, regionalEnergy = [], generatorOverview, evidence, regionalEnergyState = "ready", regionalEnergyError, onRetryRegionalEnergy, lens, year, onOpenEvidence, onAddComparison }: Props) {
@@ -62,7 +63,7 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
     const sourceUrl = safeHttpUrl(properties.sourceUrl);
     return <aside className="region-inspector facility-inspector generator-inspector">
       <div className="inspector-kicker">Selected power generator · {properties.country}</div>
-      <div className="inspector-title-row"><h1>{name}</h1><GoogleSearchLink name={name} /></div>
+      <div className="inspector-title-row"><h1>{name}</h1><GoogleSearchLink name={name} entityType="generator" country={properties.country} /></div>
       <p className="region-meta">{properties.technologies.map(humanize).join(" · ")}</p>
       <div className="facility-detail-groups">
         <section className="facility-detail-group"><h2>Plant</h2><div className="facility-facts">
@@ -93,7 +94,7 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
     return (
       <aside className="region-inspector facility-inspector">
         <div className="inspector-kicker">Selected facility · {properties.country}</div>
-        <div className="inspector-title-row"><h1>{properties.name}</h1><GoogleSearchLink name={properties.name} /></div>
+        <div className="inspector-title-row"><h1>{properties.name}</h1><GoogleSearchLink name={properties.name} entityType={properties.category} country={properties.country} /></div>
         <p className="region-meta">{properties.operator || "Operator unavailable"}</p>
         <div className="facility-detail-groups">
           <section className="facility-detail-group"><h2>Identity</h2><div className="facility-facts">
@@ -162,7 +163,7 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
   return (
     <aside className="region-inspector">
       <div className="inspector-kicker">Selected region · {properties.country}</div>
-      <div className="inspector-title-row"><h1>{properties.name}</h1><GoogleSearchLink name={properties.name} /></div>
+      <div className="inspector-title-row"><h1>{properties.name}</h1><GoogleSearchLink name={properties.name} entityType={geographyEntityType(properties)} country={properties.country} /></div>
       <p className="region-meta">{properties.id} · {formatPopulation(properties.population)}</p>
 
       {lens === "powerBalance" && <section className="power-balance-panel" aria-label="Regional power balance">

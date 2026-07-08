@@ -1,10 +1,16 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { EntityInspector } from "@/components/inspector/entity-inspector";
 import type { AssetFeature, GeneratorFeature, GeographyFeature, GeneratorOverviewCollection, RegionalEnergyForecast } from "@/lib/snapshot/types";
 
-afterEach(cleanup);
+const mockTrackWattlasAction = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/analytics", () => ({
+  trackWattlasAction: mockTrackWattlasAction,
+  geographyEntityType: (properties: { level?: string }) => properties.level === "country" ? "country" : properties.level === "admin_1" ? "state" : "region",
+}));
+
+afterEach(() => { cleanup(); mockTrackWattlasAction.mockClear(); });
 
 const energy = (year: number, netBalanceGwh: RegionalEnergyForecast["metrics"]["netBalanceGwh"] = null, observedUnmetDemandGwh: number | null = null): RegionalEnergyForecast => ({
   geographyId: "US-CA", year,
@@ -55,6 +61,8 @@ describe("EntityInspector", () => {
     expect(new URL(google.getAttribute("href")!).searchParams.get("q")).toBe("Alpha DC");
     expect(google).toHaveAttribute("target", "_blank");
     expect(google).toHaveAttribute("rel", "noreferrer");
+    fireEvent.click(google);
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("google_search_opened", { entity_name: "Alpha DC", entity_type: "data_centre", country: "US" });
   });
 
   it("shows country facility coverage splits", () => {
@@ -134,6 +142,8 @@ describe("EntityInspector", () => {
     expect(screen.getByRole("link", { name: "Open source record" })).toHaveAttribute("href", "https://generator.example");
     const google = screen.getByRole("link", { name: "Search Google for Main River Plant" });
     expect(new URL(google.getAttribute("href")!).searchParams.get("q")).toBe("Main River Plant");
+    fireEvent.click(google);
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("google_search_opened", { entity_name: "Main River Plant", entity_type: "generator", country: "DE" });
   });
 
   it("does not render an unsafe generator source URL even for an untrusted typed caller", () => {

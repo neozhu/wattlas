@@ -5,12 +5,17 @@ import { OpportunityRadar } from "@/components/opportunity-radar";
 import type { SnapshotData } from "@/lib/snapshot/types";
 
 const mockLoadRegionalEnergy = vi.hoisted(() => vi.fn());
+const mockTrackWattlasAction = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/snapshot/generators", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/snapshot/generators")>()),
   loadRegionalEnergy: mockLoadRegionalEnergy,
 }));
+vi.mock("@/lib/analytics", () => ({
+  trackWattlasAction: mockTrackWattlasAction,
+  geographyEntityType: (properties: { level?: string }) => properties.level === "country" ? "country" : properties.level === "admin_1" ? "state" : "region",
+}));
 
-afterEach(() => { cleanup(); localStorage.clear(); });
+afterEach(() => { cleanup(); localStorage.clear(); mockTrackWattlasAction.mockClear(); });
 
 vi.mock("@/components/map/global-map", () => ({
   GlobalMap: ({ lens, onSelect, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; onSelect: (id: string) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens}<button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM")}>Select Assam</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
@@ -113,6 +118,7 @@ describe("OpportunityRadar", () => {
     fireEvent.pointerUp(window, { pointerId: 1 });
     expect(separator).toHaveAttribute("aria-valuenow", "600");
     expect(localStorage.getItem("wattlas:inspector-width")).toBe("600");
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("inspector_resized", { panel_width: 600 });
   });
 
   it("hides and restores the filter rail without resetting active filters", () => {
@@ -136,6 +142,41 @@ describe("OpportunityRadar", () => {
     expect(screen.getAllByText("Checked 27 Jun, 04:12 UTC")).toHaveLength(2);
     expect(screen.getByText("Observation unavailable")).toBeInTheDocument();
     expect(screen.getByText("Token missing")).toBeInTheDocument();
+  });
+
+  it("tracks meaningful control, selection, evidence, and comparison actions", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    expect(mockTrackWattlasAction).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Site Attractiveness" }));
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("lens_changed", { lens: "siteAttractiveness" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Data centres" }));
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("filter_changed", { filter_name: "dataCentres", filter_value: "disabled" });
+    fireEvent.click(screen.getByRole("button", { name: "Solar" }));
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("filter_changed", { filter_name: "generator_technology", filter_value: "solar:disabled" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Hide filters" }));
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("filters_hidden");
+    fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("filters_shown");
+
+    fireEvent.click(screen.getByRole("button", { name: "2031" }));
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("year_changed", { year: 2031 });
+    fireEvent.click(screen.getByRole("button", { name: /Monthly refreshed/i }));
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("data_status_opened");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select facility" }));
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("entity_selected", { entity_type: "data_centre", entity_name: "Alpha DC", country: "US" });
+    fireEvent.click(screen.getByRole("button", { name: "Select Assam" }));
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("entity_selected", { entity_type: "state", entity_name: "Assam", country: "IN" });
+    fireEvent.click(screen.getByRole("button", { name: "Open evidence dossier" }));
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("evidence_opened", { entity_name: "Assam", entity_type: "state" });
+    fireEvent.click(screen.getByRole("button", { name: "Add to comparison" }));
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("comparison_added", { entity_name: "Assam", entity_type: "state" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select generator" }));
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("entity_selected", { entity_type: "generator", entity_name: "Rhine Solar", country: "DE", technology: "solar" });
   });
 
   it("selects and inspects an individual facility", () => {
