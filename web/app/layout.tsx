@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import {
   IBM_Plex_Mono,
   IBM_Plex_Sans,
@@ -28,18 +29,21 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Wattlas · Global Infrastructure Opportunity Radar",
   description:
-    "A daily-refreshed, explainable view of global electricity demand from data centres and water infrastructure.",
+    "A monthly-refreshed, explainable view of global electricity demand from data centres and water infrastructure.",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+
   return (
     <html
       lang="en"
       className={`${plexSans.variable} ${plexCondensed.variable} ${plexMono.variable}`}
     >
       <body>{children}</body>
+      {measurementId && <GoogleAnalytics gaId={measurementId} />}
     </html>
   );
 }
