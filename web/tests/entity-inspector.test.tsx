@@ -87,6 +87,40 @@ describe("EntityInspector", () => {
     expect(new URL(screen.getByRole("link", { name: "Search Google for United States" }).getAttribute("href")!).searchParams.get("q")).toBe("United States");
   });
 
+  it("shows a year-specific demand and supply forecast breakdown below the selected region details", () => {
+    const geography = {
+      type: "Feature", id: "US-CA", geometry: { type: "Polygon", coordinates: [] }, properties: {
+        id: "US-CA", name: "California", country: "US", level: "admin_1", parentId: "US", peerLevel: "admin_1", scoreYear: 2030,
+        scores: { infrastructureDemand: 70, siteAttractiveness: 60, systemRisk: 50, powerBalance: 58 }, scoresByYear: { "2028": { infrastructureDemand: 70, siteAttractiveness: 60, systemRisk: 50, powerBalance: 58 } },
+        categoryScoresByYear: {}, demandMwByYear: { "2028": { data_centre: { low: 70, central: 80, high: 90 }, water_infrastructure: { low: 25, central: 30, high: 35 }, combined: { low: 95, central: 110, high: 125 } } },
+        confidence: 72, coverage: 80, valueKind: "estimated", updatedAt: "2026-06-28T00:00:00Z", contributions: [], contributionsByYear: {}, sourceIds: ["energy-source"], assetCount: 0,
+        assetSummary: { total: 0, operational: 0, planned: 0, dataCentres: 0, waterInfrastructure: 0, officialVerified: 0, communityMapped: 0 },
+      },
+    } as GeographyFeature;
+    const overview = { type: "FeatureCollection", features: [{ type: "Feature", id: "US-CA", geometry: { type: "Point", coordinates: [-120, 37] }, properties: { geographyId: "US-CA", country: "US", count: 5, capacityMw: 500, operatingCapacityMw: 300, plannedCapacityMw: 200, technologyMixMw: { solar: 180, gas: 120 }, dominantTechnology: "solar", lifecycleCounts: { operational: 3, under_construction: 1, announced: 1, retired: 1 } } }] } as GeneratorOverviewCollection;
+
+    render(<EntityInspector geography={geography} asset={null} lens="infrastructureDemand" year={2028} regionalEnergy={[energy(2026), energy(2028)]} generatorOverview={overview} onOpenEvidence={vi.fn()} onAddComparison={vi.fn()} />);
+
+    expect(screen.getByRole("heading", { name: "Demand and supply forecast" })).toBeInTheDocument();
+    expect(screen.getByText("Forecast horizon")).toBeInTheDocument();
+    expect(screen.getByText("2028")).toBeInTheDocument();
+    expect(screen.getByText("Current baseline demand")).toBeInTheDocument();
+    expect(screen.getAllByText("1,000 GWh").length).toBeGreaterThan(0);
+    expect(screen.getByText("Current dependable supply")).toBeInTheDocument();
+    expect(screen.getByText("225 MW")).toBeInTheDocument();
+    expect(screen.getByText("New data-centre demand")).toBeInTheDocument();
+    expect(screen.getByText("+80 MW")).toBeInTheDocument();
+    expect(screen.getByText("New water infrastructure demand")).toBeInTheDocument();
+    expect(screen.getByText("+30 MW")).toBeInTheDocument();
+    expect(screen.getByText("Planned generation capacity")).toBeInTheDocument();
+    expect(screen.getByText("+200 MW nameplate")).toBeInTheDocument();
+    expect(screen.getByText("Retiring generation")).toBeInTheDocument();
+    expect(screen.getByText(/1 retired or decommissioned record/i)).toBeInTheDocument();
+    expect(screen.getByText("Forecast pressure")).toBeInTheDocument();
+    expect(screen.getByText("+200 GWh local generation gap")).toBeInTheDocument();
+    expect(screen.getByText(/Forecast pressure is not a guaranteed shortage/i)).toBeInTheDocument();
+  });
+
   it("shows regional power balance facts, sources, arithmetic, and honest nullable metrics", () => {
     const geography = {
       type: "Feature", id: "US-CA", geometry: { type: "Polygon", coordinates: [] }, properties: {
@@ -107,8 +141,8 @@ describe("EntityInspector", () => {
     expect(screen.getAllByText(/1,000 GWh/).length).toBeGreaterThan(0);
     expect(screen.getByText(/160 MW/)).toBeInTheDocument();
     expect(screen.getAllByText(/800 GWh/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/225 MW/)).toBeInTheDocument();
-    expect(screen.getByText(/local generation gap/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/225 MW/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/local generation gap/i).length).toBeGreaterThan(0);
     expect(screen.queryByText(/deficit/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/net balance/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/observed unmet/i)).not.toBeInTheDocument();

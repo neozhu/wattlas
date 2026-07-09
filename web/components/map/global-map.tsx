@@ -30,6 +30,7 @@ type Props = {
   lens: LensKey;
   year: number;
   selectedId: string | null;
+  focusTarget?: { nonce: number; coordinates?: [number, number]; bbox?: [number, number, number, number] } | null;
   onSelect: (id: string) => void;
   coverage: SnapshotManifest["coverage"];
   infrastructure?: InfrastructureVisibility;
@@ -80,7 +81,7 @@ function activeRegions(regions: GeographyCollection, lens: LensKey, year: number
 const EMPTY_GENERATORS: GeneratorCollection = { type: "FeatureCollection", features: [] };
 const EMPTY_OVERVIEW: GeneratorOverviewCollection = { type: "FeatureCollection", features: [] };
 
-export function GlobalMap({ countries, admin1, regions, assets, lens, year, selectedId, onSelect, coverage, infrastructure = { dataCentres: true, water: true, generators: true }, technologies = new Set<GenerationTechnology>(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"]), lifecycles = new Set(["operational", "under_construction", "announced", "planning_filed", "permitted", "paused", "cancelled", "retired", "decommissioned", "shelved", "unknown"]), generatorOverview = null, generatorIndex = null, snapshotRoot = null, onSelectGenerator, onVisibleGeneratorsChange }: Props) {
+export function GlobalMap({ countries, admin1, regions, assets, lens, year, selectedId, focusTarget = null, onSelect, coverage, infrastructure = { dataCentres: true, water: true, generators: true }, technologies = new Set<GenerationTechnology>(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"]), lifecycles = new Set(["operational", "under_construction", "announced", "planning_filed", "permitted", "paused", "cancelled", "retired", "decommissioned", "shelved", "unknown"]), generatorOverview = null, generatorIndex = null, snapshotRoot = null, onSelectGenerator, onVisibleGeneratorsChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -444,6 +445,20 @@ export function GlobalMap({ countries, admin1, regions, assets, lens, year, sele
       map.setPaintProperty("admin1-outline", "line-width", ["case", ["any", ["==", ["get", "id"], selectedId ?? ""], ["boolean", ["feature-state", "hover"], false]], 2.6, 0]);
     }
   }, [selectedId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focusTarget) return;
+    if (focusTarget.coordinates) {
+      map.easeTo({ center: focusTarget.coordinates, zoom: Math.max(map.getZoom(), 7), duration: 700 });
+      return;
+    }
+    if (focusTarget.bbox) {
+      const [west, south, east, north] = focusTarget.bbox;
+      if (west === east && south === north) map.easeTo({ center: [west, south], zoom: Math.max(map.getZoom(), 6), duration: 700 });
+      else map.fitBounds([[west, south], [east, north]], { padding: 72, maxZoom: 7, duration: 700 });
+    }
+  }, [focusTarget]);
 
   const label = lens === "infrastructureDemand"
     ? "Infrastructure Demand"

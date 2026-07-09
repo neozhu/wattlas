@@ -18,7 +18,7 @@ vi.mock("@/lib/analytics", () => ({
 afterEach(() => { cleanup(); localStorage.clear(); mockTrackWattlasAction.mockClear(); });
 
 vi.mock("@/components/map/global-map", () => ({
-  GlobalMap: ({ lens, onSelect, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; onSelect: (id: string) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens}<button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM")}>Select Assam</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
+  GlobalMap: ({ lens, year, onSelect, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; year: number; onSelect: (id: string) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens} · year {year}<button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM")}>Select Assam</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
 }));
 
 const generator = { type: "Feature", id: "generator-1", geometry: { type: "Point", coordinates: [8, 50] }, properties: { id: "generator-1", name: "Rhine Solar", category: "power_generation", country: "DE", geographyId: "DE-X", lifecycle: "operational", technologies: ["solar"], capacityMw: 80, operatingCapacityMw: 80, plannedCapacityMw: 0, technologyMixMw: { solar: 80 }, sourceIds: ["registry"] } } as import("@/lib/snapshot/types").GeneratorFeature;
@@ -99,7 +99,8 @@ describe("OpportunityRadar", () => {
     expect(screen.getByTestId("global-map")).toHaveTextContent("powerBalance");
     expect(screen.getByText("Comfortable margin")).toBeInTheDocument();
     expect(screen.getByText("Severe pressure")).toBeInTheDocument();
-    expect(screen.getAllByText("2030").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("global-map")).toHaveTextContent("year 2026");
+    expect(screen.getAllByText("2026").length).toBeGreaterThan(0);
     expect(screen.queryByText(/^LIVE$/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open source project by Aditya Gupta" })).toHaveAttribute("href", "https://github.com/ad1tyagupta/wattlas");
   });
@@ -123,6 +124,7 @@ describe("OpportunityRadar", () => {
 
   it("hides and restores the filter rail without resetting active filters", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
+    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
     const solar = screen.getByRole("button", { name: "Solar" });
     fireEvent.click(solar);
     expect(solar).toHaveAttribute("aria-pressed", "false");
@@ -130,7 +132,26 @@ describe("OpportunityRadar", () => {
     expect(screen.queryByRole("complementary", { name: "Map controls" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
     expect(screen.getByRole("complementary", { name: "Map controls" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
     expect(screen.getByRole("button", { name: "Solar" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("searches places and facilities, then opens the matching inspector", async () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    const search = screen.getByRole("combobox", { name: "Search Wattlas" });
+
+    fireEvent.change(search, { target: { value: "ass" } });
+    fireEvent.click(await screen.findByRole("option", { name: /Assam/i }));
+    expect(screen.getByRole("heading", { name: "Assam" })).toBeInTheDocument();
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("search_result_selected", {
+      entity_name: "Assam",
+      entity_type: "state",
+      country: "IN",
+    });
+
+    fireEvent.change(search, { target: { value: "alpha" } });
+    fireEvent.click(await screen.findByRole("option", { name: /Alpha DC/i }));
+    expect(screen.getByRole("heading", { name: "Alpha DC" })).toBeInTheDocument();
   });
 
   it("distinguishes source observation time from check time and states unavailable observations plainly", () => {
@@ -153,8 +174,10 @@ describe("OpportunityRadar", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Data centres" }));
     expect(mockTrackWattlasAction).toHaveBeenCalledWith("filter_changed", { filter_name: "dataCentres", filter_value: "disabled" });
+    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
     fireEvent.click(screen.getByRole("button", { name: "Solar" }));
     expect(mockTrackWattlasAction).toHaveBeenCalledWith("filter_changed", { filter_name: "generator_technology", filter_value: "solar:disabled" });
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("advanced_filters_opened");
 
     fireEvent.click(screen.getByRole("button", { name: "Hide filters" }));
     expect(mockTrackWattlasAction).toHaveBeenCalledWith("filters_hidden");
@@ -211,6 +234,7 @@ describe("OpportunityRadar", () => {
     select(); fireEvent.click(screen.getByRole("button", { name: "Power generators" }));
     expect(screen.queryByRole("heading", { name: "Rhine Solar" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Power generators" }));
+    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
     select(); fireEvent.click(screen.getByRole("button", { name: "Solar" }));
     expect(screen.queryByRole("heading", { name: "Rhine Solar" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Solar" }));
@@ -220,6 +244,7 @@ describe("OpportunityRadar", () => {
 
   it("offers independent infrastructure layers and accessible generator filters", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
+    expect(screen.getByText("All infrastructure")).toBeInTheDocument();
     for (const name of ["Data centres", "Water infrastructure", "Power generators"]) {
       const toggle = screen.getByRole("button", { name });
       expect(toggle).toHaveAttribute("aria-pressed", "true");
@@ -227,6 +252,8 @@ describe("OpportunityRadar", () => {
       expect(toggle).toHaveAttribute("aria-pressed", "false");
     }
     fireEvent.click(screen.getByRole("button", { name: "Power generators" }));
+    expect(screen.queryByRole("button", { name: "Solar" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
     const solar = screen.getByRole("button", { name: "Solar" });
     expect(solar).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(solar);

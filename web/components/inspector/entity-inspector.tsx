@@ -51,9 +51,49 @@ function safeHttpUrl(value: unknown): string | null {
 
 const number = (value: number) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value);
 const metric = (value: { central: number } | null, unit: string) => value ? `${number(value.central)} ${unit}` : "Unavailable";
+const signedMetric = (value: number | null | undefined, unit: string, suffix = "") => typeof value === "number" ? `${value >= 0 ? "+" : ""}${number(value)} ${unit}${suffix}` : "Unavailable";
 
 function GoogleSearchLink({ name, entityType, country }: { name: string; entityType: string; country: string }) {
   return <a className="google-search-action" href={`https://www.google.com/search?q=${encodeURIComponent(name)}`} target="_blank" rel="noreferrer" aria-label={`Search Google for ${name}`} onClick={() => trackWattlasAction("google_search_opened", { entity_name: name, entity_type: entityType, country })}>Search <span aria-hidden="true">↗</span></a>;
+}
+
+function retiredGeneratorLabel(overview?: GeneratorOverviewCollection["features"][number]["properties"]): string {
+  const retired = (overview?.lifecycleCounts?.retired ?? 0) + (overview?.lifecycleCounts?.decommissioned ?? 0);
+  if (!retired) return "Unavailable";
+  return `${retired} retired or decommissioned ${retired === 1 ? "record" : "records"}`;
+}
+
+function DemandSupplyForecast({ geography, regionalEnergy, generatorOverview, year }: { geography: GeographyFeature | RegionFeature; regionalEnergy: RegionalEnergyRow[]; generatorOverview?: GeneratorOverviewCollection | null; year: number }) {
+  const properties = geography.properties;
+  const activeEnergy = regionalEnergy.find((row) => row.year === year);
+  const metrics = activeEnergy && activeEnergy.metrics !== null ? activeEnergy.metrics : null;
+  const overview = generatorOverview?.features.find((feature) => feature.properties.geographyId === properties.id)?.properties;
+  const demand = "demandMwByYear" in properties ? properties.demandMwByYear[String(year)] : undefined;
+  const hasAnyForecastInput = metrics || overview || demand?.combined || demand?.data_centre || demand?.water_infrastructure;
+  if (!hasAnyForecastInput) return null;
+
+  return (
+    <section className="forecast-breakdown" aria-label="Demand and supply forecast">
+      <div className="section-heading">
+        <h2>Demand and supply forecast</h2>
+        <small>baseline → new demand → supply → pressure</small>
+      </div>
+      <div className="forecast-year">
+        <span>Forecast horizon</span>
+        <strong>{year}</strong>
+      </div>
+      <div className="forecast-grid">
+        <div className="forecast-row baseline"><span>Current baseline demand</span><strong>{metric(metrics?.demandGwh ?? null, "GWh")}</strong><small>{activeEnergy?.valueKind ? `${humanize(activeEnergy.valueKind)} regional electricity demand` : "Regional demand unavailable"}</small></div>
+        <div className="forecast-row baseline"><span>Current dependable supply</span><strong>{metric(metrics?.dependableCapacityMw ?? null, "MW")}</strong><small>{metrics?.installedCapacityMw != null ? `${number(metrics.installedCapacityMw)} MW installed capacity` : "Installed capacity unavailable"}</small></div>
+        <div className="forecast-row demand"><span>New data-centre demand</span><strong>{signedMetric(demand?.data_centre?.central, "MW")}</strong><small>Mapped and modelled forward load by selected year</small></div>
+        <div className="forecast-row demand"><span>New water infrastructure demand</span><strong>{signedMetric(demand?.water_infrastructure?.central, "MW")}</strong><small>Desalination, reuse, pumping, and water assets where public evidence exists</small></div>
+        <div className="forecast-row supply"><span>Planned generation capacity</span><strong>{signedMetric(overview?.plannedCapacityMw, "MW", overview?.plannedCapacityMw != null ? " nameplate" : "")}</strong><small>Nameplate capacity is not treated as full dependable supply</small></div>
+        <div className="forecast-row retirement"><span>Retiring generation</span><strong>{retiredGeneratorLabel(overview)}</strong><small>Retirements increase pressure when public records tie them to the region</small></div>
+        <div className="forecast-row pressure"><span>Forecast pressure</span><strong>{signedMetric(metrics?.localGenerationGapGwh?.central, "GWh", metrics?.localGenerationGapGwh ? " local generation gap" : "")}</strong><small>Positive values indicate demand pressure if dependable supply and grid capacity do not keep pace</small></div>
+      </div>
+      <p className="method-note">Forecast pressure is not a guaranteed shortage. Wattlas compares baseline demand, mapped new infrastructure load, planned supply, and retirements using public evidence; unavailable values are not treated as zero.</p>
+    </section>
+  );
 }
 
 export function EntityInspector({ geography, asset, generator, regionalEnergy = [], generatorOverview, evidence, regionalEnergyState = "ready", regionalEnergyError, onRetryRegionalEnergy, lens, year, onOpenEvidence, onAddComparison }: Props) {
@@ -211,6 +251,8 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
         <span>Coverage <strong>{properties.coverage}%</strong></span>
         <span className={`value-kind ${properties.valueKind}`}>{properties.valueKind}</span>
       </div>
+
+      <DemandSupplyForecast geography={geography} regionalEnergy={regionalEnergy} generatorOverview={generatorOverview} year={year} />
 
       {lens !== "powerBalance" && <section className="driver-section">
         <div className="section-heading"><span>Score drivers</span><small>visible arithmetic</small></div>

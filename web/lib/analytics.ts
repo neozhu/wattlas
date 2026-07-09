@@ -6,6 +6,8 @@ export type WattlasAction =
   | "lens_changed"
   | "filter_changed"
   | "entity_selected"
+  | "search_result_selected"
+  | "advanced_filters_opened"
   | "google_search_opened"
   | "evidence_opened"
   | "comparison_added"
