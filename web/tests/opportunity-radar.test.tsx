@@ -124,16 +124,14 @@ describe("OpportunityRadar", () => {
 
   it("hides and restores the filter rail without resetting active filters", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
-    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
-    const solar = screen.getByRole("button", { name: "Solar" });
+    const solar = screen.getByRole("switch", { name: "Solar" });
     fireEvent.click(solar);
-    expect(solar).toHaveAttribute("aria-pressed", "false");
+    expect(solar).toHaveAttribute("aria-checked", "false");
     fireEvent.click(screen.getByRole("button", { name: "Hide filters" }));
     expect(screen.queryByRole("complementary", { name: "Map controls" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
     expect(screen.getByRole("complementary", { name: "Map controls" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
-    expect(screen.getByRole("button", { name: "Solar" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("switch", { name: "Solar" })).toHaveAttribute("aria-checked", "false");
   });
 
   it("searches places and facilities, then opens the matching inspector", async () => {
@@ -172,11 +170,11 @@ describe("OpportunityRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Site Attractiveness" }));
     expect(mockTrackWattlasAction).toHaveBeenCalledWith("lens_changed", { lens: "siteAttractiveness" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Data centres" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Data centres" }));
     expect(mockTrackWattlasAction).toHaveBeenCalledWith("filter_changed", { filter_name: "dataCentres", filter_value: "disabled" });
-    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Solar" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Solar" }));
     expect(mockTrackWattlasAction).toHaveBeenCalledWith("filter_changed", { filter_name: "generator_technology", filter_value: "solar:disabled" });
+    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
     expect(mockTrackWattlasAction).toHaveBeenCalledWith("advanced_filters_opened");
 
     fireEvent.click(screen.getByRole("button", { name: "Hide filters" }));
@@ -232,13 +230,12 @@ describe("OpportunityRadar", () => {
   it("clears a stale generator inspector when its layer, filter, or visible shard excludes it", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     const select = () => fireEvent.click(screen.getByRole("button", { name: "Select generator" }));
-    select(); fireEvent.click(screen.getByRole("button", { name: "Power generators" }));
+    select(); fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
     expect(screen.queryByRole("heading", { name: "Rhine Solar" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Power generators" }));
-    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
-    select(); fireEvent.click(screen.getByRole("button", { name: "Solar" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
+    select(); fireEvent.click(screen.getByRole("switch", { name: "Solar" }));
     expect(screen.queryByRole("heading", { name: "Rhine Solar" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Solar" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Solar" }));
     select(); fireEvent.click(screen.getByRole("button", { name: "Move away" }));
     expect(screen.queryByRole("heading", { name: "Rhine Solar" })).not.toBeInTheDocument();
   });
@@ -247,20 +244,23 @@ describe("OpportunityRadar", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     expect(screen.getByText("All infrastructure")).toBeInTheDocument();
     for (const name of ["Data centres", "Water infrastructure", "Power generators"]) {
-      const toggle = screen.getByRole("button", { name });
-      expect(toggle).toHaveAttribute("aria-pressed", "true");
+      const toggle = screen.getByRole("switch", { name });
+      expect(toggle).toHaveAttribute("aria-checked", "true");
       fireEvent.click(toggle);
-      expect(toggle).toHaveAttribute("aria-pressed", "false");
+      expect(toggle).toHaveAttribute("aria-checked", "false");
     }
-    fireEvent.click(screen.getByRole("button", { name: "Power generators" }));
-    expect(screen.queryByRole("button", { name: "Solar" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
-    const solar = screen.getByRole("button", { name: "Solar" });
-    expect(solar).toHaveAttribute("aria-pressed", "true");
+    // Technologies hide with the generators layer and reappear with it — no extra step needed.
+    expect(screen.queryByRole("switch", { name: "Solar" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
+    const solar = screen.getByRole("switch", { name: "Solar" });
+    expect(solar).toHaveAttribute("aria-checked", "true");
     fireEvent.click(solar);
-    expect(solar).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Operational" })).toBeInTheDocument();
-    for (const lifecycle of ["Under construction", "Planned", "Paused", "Cancelled or shelved", "Retired or decommissioned", "Unknown status"]) expect(screen.getByRole("button", { name: lifecycle })).toBeInTheDocument();
+    expect(solar).toHaveAttribute("aria-checked", "false");
+    // Plant-status filters stay behind the advanced toggle.
+    expect(screen.queryByRole("switch", { name: "Operational" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
+    expect(screen.getByRole("switch", { name: "Operational" })).toBeInTheDocument();
+    for (const lifecycle of ["Under construction", "Planned", "Paused", "Cancelled or shelved", "Retired or decommissioned", "Unknown status"]) expect(screen.getByRole("switch", { name: lifecycle })).toBeInTheDocument();
   });
 
   it("clears stale regional energy on snapshot path change and exposes a recoverable error", async () => {

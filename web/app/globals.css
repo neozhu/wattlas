@@ -400,8 +400,7 @@ button {
   border-top: 1px solid var(--line);
 }
 
-.search-result-group p,
-.generator-filters p {
+.search-result-group p {
   margin: 0 0 6px;
   color: var(--muted);
   font: 8px var(--font-plex-mono), monospace;
@@ -468,40 +467,153 @@ button {
   font: 9px var(--font-plex-mono), monospace;
 }
 
-.infrastructure-controls > button,
-.generator-filters button,
-.advanced-filter-toggle {
-  min-height: 30px;
-  margin: 8px 5px 0 0;
-  padding: 5px 8px;
+/* Infrastructure layer cards with icon tiles and toggle switches */
+.layer-list {
+  margin-top: 10px;
+  padding: 4px;
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 2%);
+}
+
+.layer-row {
+  display: grid;
+  grid-template-columns: 26px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 7px;
   background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font: 10px var(--font-plex-mono), monospace;
-}
-
-.infrastructure-controls button[aria-pressed="true"],
-.generator-filters button[aria-pressed="true"] {
-  border-color: var(--mint);
   color: var(--text);
-  background: rgb(114 217 189 / 8%);
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s ease;
 }
 
-.generator-filters {
-  margin-top: 8px;
+.layer-row:hover { background: rgb(114 217 189 / 6%); }
+
+.layer-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  transition: opacity .15s ease;
+}
+
+.layer-icon svg { width: 15px; height: 15px; }
+
+.layer-row.dataCentres .layer-icon { background: rgb(143 174 255 / 15%); color: var(--periwinkle); }
+.layer-row.water .layer-icon { background: rgb(114 217 189 / 13%); color: var(--mint); }
+.layer-row.generators .layer-icon { background: rgb(226 180 92 / 15%); color: var(--amber); }
+
+.layer-row[aria-checked="false"] .layer-name { color: var(--muted); }
+.layer-row[aria-checked="false"] .layer-icon { filter: saturate(.15); opacity: .5; }
+
+.layer-name { font: 13px var(--font-plex-condensed), sans-serif; }
+
+/* Toggle switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 30px;
+  height: 16px;
+  border: 1px solid var(--line-bright);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 4%);
+  transition: background .18s ease, border-color .18s ease;
+}
+
+.switch i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform .18s ease, background .18s ease;
+}
+
+.switch.on {
+  border-color: var(--mint);
+  background: rgb(114 217 189 / 24%);
+}
+
+.switch.on i {
+  background: var(--mint);
+  transform: translateX(14px);
+}
+
+/* Nested technology / status tree under Power generators */
+.tech-tree {
+  margin: 2px 4px 4px 20px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+
+.tech-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  padding: 4px 8px 4px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s ease;
+}
+
+.tech-row::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -12px;
+  width: 9px;
+  height: 1px;
+  background: var(--line);
+}
+
+.tech-row:hover { background: rgb(114 217 189 / 6%); }
+.tech-row[aria-checked="false"] .tech-name { color: var(--muted); }
+.tech-row[aria-checked="false"] .generator-swatch { opacity: .3; }
+
+.tech-name { font: 12px var(--font-plex-condensed), sans-serif; }
+
+.lifecycle-tree .tech-row { grid-template-columns: 1fr auto; }
+
+.lifecycle-tree p {
+  margin: 8px 0 2px;
+  color: var(--muted);
+  font: 8px var(--font-plex-mono), monospace;
+  letter-spacing: .09em;
+  text-transform: uppercase;
 }
 
 .advanced-filter-toggle {
   display: flex;
-  width: 100%;
+  width: calc(100% - 8px);
   align-items: center;
   justify-content: space-between;
-  margin-top: 12px;
-  border-color: var(--line-bright);
-  color: var(--text);
+  min-height: 30px;
+  margin: 8px 4px 4px;
+  padding: 5px 8px;
+  border: 1px solid var(--line-bright);
+  border-radius: 5px;
   background: rgb(255 255 255 / 3%);
+  color: var(--text);
+  cursor: pointer;
+  font: 10px var(--font-plex-mono), monospace;
 }
 
 .advanced-filter-toggle:hover {
@@ -513,7 +625,6 @@ button {
   display: inline-block;
   width: 8px;
   height: 8px;
-  margin-right: 5px;
   border: 1px solid rgb(241 246 244 / 65%);
   border-radius: 50%;
 }
@@ -1885,9 +1996,17 @@ button {
   }
 
   .layer-rail > .rail-section:first-child { flex: 0 0 650px; }
-  .layer-rail > .infrastructure-controls { flex: 0 0 1580px; white-space: nowrap; }
+  .layer-rail > .infrastructure-controls { flex: 0 0 auto; white-space: nowrap; }
   .layer-rail > .map-legend { flex: 0 0 150px; }
-  .infrastructure-controls .generator-filters { display: inline; margin-left: 8px; }
+
+  /* In the horizontal rail band the layer cards and technology tree flow inline. */
+  .infrastructure-controls .layer-list { display: flex; align-items: center; gap: 4px; }
+  .infrastructure-controls .layer-row { min-height: 36px; grid-template-columns: 24px auto auto; }
+  .infrastructure-controls .tech-tree { display: flex; align-items: center; margin: 0 0 0 6px; padding-left: 8px; }
+  .infrastructure-controls .tech-row { min-height: 36px; }
+  .infrastructure-controls .tech-row::before { display: none; }
+  .infrastructure-controls .advanced-filter-toggle { width: auto; margin: 0 4px; }
+  .infrastructure-controls .lifecycle-tree p { margin: 0 6px 0 0; }
 
   .rail-section {
     min-width: 0;
@@ -2051,7 +2170,8 @@ button {
   .layer-rail > .rail-section:first-child,
   .layer-rail > .infrastructure-controls { flex: 1 1 auto; min-width: 0; white-space: normal; }
 
-  .infrastructure-controls .generator-filters { display: flex; flex-wrap: wrap; margin-left: 0; }
+  .infrastructure-controls .layer-list { display: block; }
+  .infrastructure-controls .tech-tree { display: block; margin: 2px 4px 4px 20px; }
 
   .layer-rail button { min-height: 44px; }
 
