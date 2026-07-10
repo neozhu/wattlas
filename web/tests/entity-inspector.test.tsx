@@ -47,7 +47,9 @@ describe("EntityInspector", () => {
     expect(screen.getByRole("heading", { name: "Alpha DC" })).toBeInTheDocument();
     expect(screen.getByText("Community mapped")).toBeInTheDocument();
     expect(screen.getByText("Operational")).toBeInTheDocument();
-    expect(screen.getByText("Not publicly available")).toBeInTheDocument();
+    expect(screen.getByText("48 MW")).toBeInTheDocument();
+    // Empty fields (e.g. Demand MW) are collapsed into a single muted line instead of a wall of "unavailable".
+    expect(screen.getAllByText(/field unavailable/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "Open source record" })).toHaveAttribute("href", "https://www.openstreetmap.org/node/101");
     expect(screen.getByRole("heading", { name: "Identity" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Location" })).toBeInTheDocument();
@@ -80,11 +82,49 @@ describe("EntityInspector", () => {
 
     render(<EntityInspector geography={geography} asset={null} lens="infrastructureDemand" year={2030} onOpenEvidence={vi.fn()} onAddComparison={vi.fn()} />);
 
+    // Score leads; the full coverage breakdown lives behind the Facilities tab.
+    expect(screen.getByText("70")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Facilities" }));
     expect(screen.getByText("512 facilities")).toBeInTheDocument();
     expect(screen.getByText("480 operational")).toBeInTheDocument();
     expect(screen.getByText("32 planned")).toBeInTheDocument();
     expect(screen.getByText("492 community mapped")).toBeInTheDocument();
     expect(new URL(screen.getByRole("link", { name: "Search Google for United States" }).getAttribute("href")!).searchParams.get("q")).toBe("United States");
+  });
+
+  it("leads with the score and confidence before offering detail tabs", () => {
+    const geography = {
+      type: "Feature", id: "US", geometry: { type: "Polygon", coordinates: [] },
+      properties: {
+        id: "US", name: "United States", country: "US", level: "country", parentId: null, peerLevel: "country",
+        scoreYear: 2030, scores: { infrastructureDemand: 70, siteAttractiveness: 60, systemRisk: 50 },
+        scoresByYear: {
+          "2028": { infrastructureDemand: 55, siteAttractiveness: 58, systemRisk: 48 },
+          "2030": { infrastructureDemand: 70, siteAttractiveness: 60, systemRisk: 50 },
+        },
+        categoryScoresByYear: {}, demandMwByYear: {}, confidence: 75, coverage: 90, valueKind: "estimated",
+        updatedAt: "2026-06-27T12:00:00Z", contributions: [], contributionsByYear: {
+          "2030": [
+            { id: "load", label: "Projected electrical load", rawValue: 52, unit: "index", points: 32, maxPoints: 60, valueKind: "estimated", sourceIds: [], normalization: "linear", methodVersion: "v1" },
+            { id: "timing", label: "Delivery timing", rawValue: 90, unit: "index", points: 13, maxPoints: 15, valueKind: "estimated", sourceIds: [], normalization: "linear", methodVersion: "v1" },
+          ],
+        }, sourceIds: [],
+        assetCount: 10, assetSummary: { total: 10, operational: 9, planned: 1, dataCentres: 8, waterInfrastructure: 2, officialVerified: 2, communityMapped: 8 },
+      },
+    } as GeographyFeature;
+
+    render(<EntityInspector geography={geography} asset={null} lens="infrastructureDemand" year={2030} onOpenEvidence={vi.fn()} onAddComparison={vi.fn()} />);
+
+    // Score + confidence render immediately, not behind a tab.
+    expect(screen.getByText("70")).toBeInTheDocument();
+    expect(screen.getByText("75%")).toBeInTheDocument();
+    // Trajectory sparkline summarises the horizon change (+15 from 2028 to 2030).
+    expect(screen.getByRole("img", { name: "Infrastructure Demand trajectory 2028–2030" })).toBeInTheDocument();
+    expect(screen.getByText("+15")).toBeInTheDocument();
+    // Drivers are one tab away; weighted bars encode each driver's max weight.
+    fireEvent.click(screen.getByRole("tab", { name: "Drivers" }));
+    expect(screen.getByText("Projected electrical load")).toBeInTheDocument();
+    expect(screen.getByText("Delivery timing")).toBeInTheDocument();
   });
 
   it("shows a year-specific demand and supply forecast breakdown below the selected region details", () => {
@@ -101,6 +141,7 @@ describe("EntityInspector", () => {
 
     render(<EntityInspector geography={geography} asset={null} lens="infrastructureDemand" year={2028} regionalEnergy={[energy(2026), energy(2028)]} generatorOverview={overview} onOpenEvidence={vi.fn()} onAddComparison={vi.fn()} />);
 
+    fireEvent.click(screen.getByRole("tab", { name: "Energy" }));
     expect(screen.getByRole("heading", { name: "Demand and supply forecast" })).toBeInTheDocument();
     expect(screen.getByText("Forecast horizon")).toBeInTheDocument();
     expect(screen.getByText("2028")).toBeInTheDocument();
@@ -135,6 +176,7 @@ describe("EntityInspector", () => {
     const overview = { type: "FeatureCollection", features: [{ type: "Feature", id: "US-CA", geometry: { type: "Point", coordinates: [-120, 37] }, properties: { geographyId: "US-CA", country: "US", count: 5, capacityMw: 300, operatingCapacityMw: 250, plannedCapacityMw: 50, technologyMixMw: { solar: 180, gas: 120 }, dominantTechnology: "solar", lifecycleCounts: { operational: 3, under_construction: 1, announced: 1 } } }] } as GeneratorOverviewCollection;
     render(<EntityInspector geography={geography} asset={null} lens="powerBalance" year={2030} regionalEnergy={Array.from({ length: 6 }, (_, i) => energy(2026 + i))} generatorOverview={overview} evidence={{ sources: [{ id: "energy-source", name: "Public Energy Office", tier: "A", url: "https://energy.example/source", publishedAt: "2025-01-01" }], claims: [] }} onOpenEvidence={vi.fn()} onAddComparison={vi.fn()} />);
 
+    fireEvent.click(screen.getByRole("tab", { name: "Energy" }));
     expect(screen.getByText(/39 million/)).toBeInTheDocument();
     expect(screen.getByText(/source year 2024/i)).toBeInTheDocument();
     expect(screen.getByText(/forecast growth/i)).toBeInTheDocument();
@@ -165,6 +207,7 @@ describe("EntityInspector", () => {
   it("shows net balance and observed unmet demand only when reported", () => {
     const geography = { type: "Feature", id: "US-CA", geometry: { type: "Polygon", coordinates: [] }, properties: { id: "US-CA", name: "California", country: "US", level: "admin_1", parentId: "US", peerLevel: "admin_1", scoreYear: 2030, scores: { infrastructureDemand: null, siteAttractiveness: null, systemRisk: null, powerBalance: 40 }, scoresByYear: { "2030": { infrastructureDemand: null, siteAttractiveness: null, systemRisk: null, powerBalance: 40 } }, categoryScoresByYear: {}, demandMwByYear: {}, confidence: 60, coverage: 60, valueKind: "reported", updatedAt: "2026-01-01", contributions: [], contributionsByYear: {}, sourceIds: [], assetCount: 0, assetSummary: { total: 0, operational: 0, planned: 0, dataCentres: 0, waterInfrastructure: 0, officialVerified: 0, communityMapped: 0 } } } as GeographyFeature;
     render(<EntityInspector geography={geography} asset={null} lens="powerBalance" year={2030} regionalEnergy={[energy(2030, { low: -120, central: -100, high: -80 }, 12)]} onOpenEvidence={vi.fn()} onAddComparison={vi.fn()} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Energy" }));
     expect(screen.getByText(/Net balance/)).toBeInTheDocument();
     expect(screen.getByText(/Observed unmet demand/)).toBeInTheDocument();
   });
@@ -172,7 +215,10 @@ describe("EntityInspector", () => {
   it("shows the complete generator record with plain-language unavailable values", () => {
     const generator = { type: "Feature", id: "g-1", geometry: { type: "Point", coordinates: [8.5, 50.1] }, properties: { id: "g-1", name: "Main River Plant", category: "power_generation", country: "DE", geographyId: "DE-HE", lifecycle: "operational", technologies: ["gas"], primaryFuel: "Natural gas", secondaryFuel: "Fuel oil", capacityMw: 500, operatingCapacityMw: 500, plannedCapacityMw: 0, technologyMixMw: { gas: 500 }, annualGenerationGwh: { low: 2000, central: 2200, high: 2400 }, commissioningYear: 2015, retirementYear: null, operator: "GridCo", owner: "Public Power", confidence: 91, sourceUrl: "https://generator.example", sourceIds: [] } } as GeneratorFeature;
     render(<EntityInspector geography={null} asset={null} generator={generator} lens="infrastructureDemand" year={2030} onOpenEvidence={vi.fn()} onAddComparison={vi.fn()} />);
-    for (const text of ["Natural gas", "Fuel oil", "500 MW", "2,200 GWh (2,000–2,400)", "Operational", "2015", "GridCo", "Public Power", "50.10000, 8.50000", "91%", "Retirement date unavailable", "Source IDs unavailable"]) expect(screen.getByText(text)).toBeInTheDocument();
+    for (const text of ["Natural gas", "Fuel oil", "500 MW", "2,200 GWh (2,000–2,400)", "Operational", "2015", "GridCo", "Public Power", "50.10000, 8.50000", "91%"]) expect(screen.getByText(text)).toBeInTheDocument();
+    // Empty fields (retirement year, source IDs) are collapsed into muted per-group summaries.
+    expect(screen.queryByText("Retirement date unavailable")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/field unavailable/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: "Open source record" })).toHaveAttribute("href", "https://generator.example");
     const google = screen.getByRole("link", { name: "Search Google for Main River Plant" });
     expect(new URL(google.getAttribute("href")!).searchParams.get("q")).toBe("Main River Plant");

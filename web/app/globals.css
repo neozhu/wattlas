@@ -265,15 +265,26 @@ button {
 }
 
 .source-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   margin-left: auto;
-  padding: 4px 6px;
-  border: 1px solid rgb(226 180 92 / 42%);
+  padding: 4px 7px;
+  border: 1px solid rgb(226 180 92 / 55%);
   border-radius: 2px;
+  background: rgb(226 180 92 / 10%);
   color: var(--amber);
   font-family: var(--font-plex-mono), monospace;
   font-size: 8px;
   letter-spacing: .04em;
   text-transform: uppercase;
+}
+
+.source-count-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--amber);
 }
 
 /* Left analytical rail */
@@ -411,9 +422,14 @@ button {
 }
 
 .search-result-group button:hover,
-.search-result-group button:focus {
+.search-result-group button:focus,
+.search-result-group button.active {
   outline: 0;
   background: rgb(114 217 189 / 9%);
+}
+
+.search-result-group button.active {
+  box-shadow: inset 2px 0 0 var(--mint);
 }
 
 .search-result-group strong,
@@ -1176,14 +1192,23 @@ button {
 }
 
 .driver-bar {
-  height: 3px;
-  background: var(--line);
+  height: 4px;
+  background: transparent;
 }
 
-.driver-bar i {
+.driver-track {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.driver-fill {
   display: block;
   height: 100%;
   background: var(--amber);
+  border-radius: 2px;
 }
 
 .driver-row > strong {
@@ -1253,6 +1278,127 @@ button {
 .primary-action:hover,
 .secondary-action:hover {
   filter: brightness(1.08);
+}
+
+/* Score trajectory sparkline */
+.score-trend {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 12px 0 4px;
+}
+
+.score-trend .trend-head {
+  grid-column: 1;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 8px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.score-trend svg {
+  grid-column: 1;
+  grid-row: 2;
+  width: 100%;
+  height: 34px;
+  display: block;
+}
+
+.score-trend .trend-line {
+  stroke: var(--amber);
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+  opacity: .9;
+}
+
+.score-trend .trend-point { fill: var(--muted); }
+
+.score-trend .trend-active {
+  fill: var(--amber);
+  stroke: var(--ground);
+  stroke-width: 1;
+}
+
+.trend-caption {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  font-family: var(--font-plex-mono), monospace;
+}
+
+.trend-caption strong { font-size: 18px; font-weight: 600; }
+.trend-caption small { color: var(--muted); font-size: 8px; text-transform: uppercase; letter-spacing: .06em; }
+.trend-caption .trend-up { color: var(--amber); }
+.trend-caption .trend-down { color: var(--rust); }
+
+/* Inspector detail tabs */
+.inspector-tabs {
+  display: flex;
+  gap: 2px;
+  margin-top: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.inspector-tab {
+  padding: 9px 11px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 10px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.inspector-tab:hover { color: var(--text); }
+
+.inspector-tab.active {
+  color: var(--mint);
+  border-bottom-color: var(--mint);
+}
+
+.inspector-panel { padding-top: 4px; }
+
+.overview-facilities-teaser {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.overview-facilities-teaser button {
+  padding: 0;
+  background: transparent;
+  color: var(--mint);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.facts-omitted {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 9px;
+  font-style: italic;
+  opacity: .7;
 }
 
 /* Timeline */

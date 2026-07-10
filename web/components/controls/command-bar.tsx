@@ -29,8 +29,9 @@ export function CommandBar({ manifest, onOpenStatus }: Props) {
           <small>{formatSnapshotTime(manifest.generatedAt)}</small>
         </span>
         {unavailable.length > 0 && (
-          <span className="source-count" title={unavailable.map((item) => connectorLabel(item.id)).join(", ")}>
-            {unavailable.length} source note
+          <span className="source-count" title={unavailable.map((item) => connectorLabel(item.id)).join(", ")} aria-label={`${unavailable.length} data ${unavailable.length === 1 ? "source needs" : "sources need"} attention`}>
+            <span className="source-count-dot" aria-hidden="true" />
+            {unavailable.length} {unavailable.length === 1 ? "source" : "sources"} need attention
           </span>
         )}
       </button>

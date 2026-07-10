@@ -60,6 +60,10 @@ export function OpportunityRadar({ snapshot }: Props) {
     if (inspectorWidthLoaded.current) window.localStorage.setItem(INSPECTOR_WIDTH_KEY, String(inspectorWidth));
   }, [inspectorWidth]);
   useEffect(() => {
+    // On phones the stacked filter rail pushes the map below the fold, so start it collapsed.
+    if (typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 680px)").matches) setFiltersVisible(false);
+  }, []);
+  useEffect(() => {
     if (snapshot.admin1.features.length) return;
     const controller = new AbortController();
     fetch(`/data/${snapshot.manifest.artifacts.admin1}`, { signal: controller.signal })

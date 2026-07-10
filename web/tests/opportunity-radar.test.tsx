@@ -217,6 +217,7 @@ describe("OpportunityRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select Assam" }));
 
     expect(screen.getByRole("heading", { name: "Assam" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Facilities" }));
     expect(screen.getByText("1 facilities")).toBeInTheDocument();
   });
 
@@ -269,6 +270,7 @@ describe("OpportunityRadar", () => {
     const next = { ...snapshot, manifest: { ...snapshot.manifest, snapshotId: "new", artifacts: { ...snapshot.manifest.artifacts, regionalEnergy: "snapshots/new/regional-energy.json" } } };
     const { rerender } = render(<OpportunityRadar snapshot={first} />);
     fireEvent.click(screen.getByRole("button", { name: "Power Balance" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Energy" }));
     expect((await screen.findAllByText("100 GWh")).length).toBeGreaterThan(0);
     rerender(<OpportunityRadar snapshot={next} />);
     await waitFor(() => expect(screen.queryAllByText("100 GWh")).toHaveLength(0));
