@@ -88,9 +88,9 @@ describe("OpportunityRadar", () => {
   it("preserves production controls and adds independent context layers", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     expect(screen.getByRole("combobox", { name: "Search Wattlas" })).toBeInTheDocument();
-    for (const name of ["Cities · 1M+", "German Großstädte", "Grid intelligence"]) {
-      expect(screen.getByRole("switch", { name })).toBeInTheDocument();
-    }
+    expect(screen.getByRole("switch", { name: "Grid intelligence" })).toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Cities · 1M+" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "German Großstädte" })).not.toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: "Bavaria official map" })).not.toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: "TenneT network" })).not.toBeInTheDocument();
   });

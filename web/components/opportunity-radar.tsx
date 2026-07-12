@@ -38,7 +38,7 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [inspectorWidth, setInspectorWidth] = useState(DEFAULT_INSPECTOR_WIDTH);
   const inspectorWidthLoaded = useRef(false);
   const [infrastructure, setInfrastructure] = useState<InfrastructureVisibility>({ dataCentres: true, water: true, generators: true });
-  const [context, setContext] = useState<ContextVisibility>({ millionCities: true, germanCities: true, grid: true });
+  const [context, setContext] = useState<ContextVisibility>({ grid: true });
   const [cities, setCities] = useState<CityCollection>({ type: "FeatureCollection", features: [] });
   const [grid, setGrid] = useState<GridCollection>({ type: "FeatureCollection", features: [] });
   const [technologies, setTechnologies] = useState<Set<GenerationTechnology>>(() => new Set(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"]));

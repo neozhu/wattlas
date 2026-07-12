@@ -10,7 +10,7 @@ const lenses: Array<{ id: LensKey; label: string; description: string }> = [
 ];
 
 export type InfrastructureVisibility = { dataCentres: boolean; water: boolean; generators: boolean };
-export type ContextVisibility = { millionCities: boolean; germanCities: boolean; grid: boolean };
+export type ContextVisibility = { grid: boolean };
 type Props = {
   activeLens: LensKey; onChange: (lens: LensKey) => void;
   onHide?: () => void;
@@ -128,16 +128,12 @@ export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvanced
       {context && onContextChange && <div className="rail-section infrastructure-controls contextual-controls">
         <p className="rail-heading">Context layers</p>
         <div className="layer-list">
-          {([
-            ["millionCities", "Cities · 1M+"],
-            ["germanCities", "German Großstädte"],
-            ["grid", "Grid intelligence"],
-          ] as Array<[keyof ContextVisibility, string]>).map(([id, label]) => <button key={id} type="button" className={`layer-row context-${id}`} role="switch" aria-label={label} aria-checked={context[id]} onClick={() => onContextChange({ ...context, [id]: !context[id] })}>
-            <span className="layer-icon context-mark" aria-hidden="true">{id === "grid" ? "⌁" : "●"}</span>
+          {([["grid", "Grid intelligence"]] as Array<[keyof ContextVisibility, string]>).map(([id, label]) => <button key={id} type="button" className={`layer-row context-${id}`} role="switch" aria-label={label} aria-checked={context[id]} onClick={() => onContextChange({ ...context, [id]: !context[id] })}>
+            <span className="layer-icon context-mark" aria-hidden="true">⌁</span>
             <span className="layer-name">{label}</span><Switch checked={context[id]} />
           </button>)}
         </div>
-        <p className="legend-note">Grid intelligence shows reported queue and congestion records. Queue capacity is not grid headroom. Bavaria official cartography and TenneT topology appear automatically when zoomed into their coverage.</p>
+        <p className="legend-note">Shows reported queue and congestion observations where coordinates are public. Queue capacity is contracted generation—not available grid headroom. Bavaria cartography and TenneT topology appear automatically in coverage.</p>
       </div>}
       <div className="rail-section">
         <p className="rail-heading">View</p>
