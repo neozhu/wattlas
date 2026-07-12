@@ -14,6 +14,9 @@ import httpx
 from grid_scope.config import (
     CURATED_PATH,
     GLOBAL_ADMIN1_PATH,
+    CITIES_PATH,
+    GRID_INTELLIGENCE_PATH,
+    COOLING_EVIDENCE_PATH,
     GLOBAL_ASSETS_PATH,
     MODEL_VERSION,
     PUBLISH_DIR,
@@ -1495,6 +1498,9 @@ def refresh() -> Path:
         population_records=(
             model_artifacts["population"].get("records", [])
         ),
+        cities=_read_json(CITIES_PATH),
+        grid=_read_json(GRID_INTELLIGENCE_PATH),
+        cooling=_read_json(COOLING_EVIDENCE_PATH),
     )
 
     statuses = [
@@ -1532,6 +1538,9 @@ def refresh() -> Path:
             "regionalEnergy": f"snapshots/{snapshot_id}/regional-energy.json",
             "generatorOverview": f"snapshots/{snapshot_id}/generator-overview.geojson",
             "generatorIndex": f"snapshots/{snapshot_id}/generators/index.json",
+            "cities": f"snapshots/{snapshot_id}/cities.geojson",
+            "grid": f"snapshots/{snapshot_id}/grid.geojson",
+            "cooling": f"snapshots/{snapshot_id}/cooling.json",
         },
         "coverage": {
             "countries": country_count,
@@ -1563,6 +1572,9 @@ def refresh() -> Path:
             "demandWeightsBuildFingerprint": (
                 model_artifacts["demandWeights"].get("buildFingerprint")
             ),
+            "cities": len(_read_json(CITIES_PATH).get("features", [])),
+            "gridRecords": len(_read_json(GRID_INTELLIGENCE_PATH).get("features", [])),
+            "coolingRecords": len(_read_json(COOLING_EVIDENCE_PATH).get("records", [])),
         },
         "boundaryDisclaimer": json.loads(artifacts["countries.geojson"]).get("metadata", {}).get("disclaimer"),
         "connectors": [],

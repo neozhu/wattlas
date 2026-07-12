@@ -142,14 +142,14 @@ class SnapshotPublisher:
         required = {
             "countries.geojson", "admin1.geojson", "regions.geojson", "assets.geojson",
             "regional-energy.json", "generator-overview.geojson", "generators/index.json",
-            "evidence.json",
+            "evidence.json", "cities.geojson", "grid.geojson", "cooling.json",
         }
         missing = required - artifacts.keys()
         if missing:
             raise ValueError(f"missing required artifacts: {', '.join(sorted(missing))}")
         for filename in (
             "countries.geojson", "admin1.geojson", "regions.geojson", "assets.geojson",
-            "generator-overview.geojson",
+            "generator-overview.geojson", "cities.geojson", "grid.geojson",
         ):
             collection = json.loads(artifacts[filename])
             if collection.get("type") != "FeatureCollection":

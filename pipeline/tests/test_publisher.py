@@ -17,6 +17,9 @@ def global_artifacts() -> dict[str, bytes]:
         "generator-overview.geojson": b'{"type":"FeatureCollection","features":[]}',
         "generators/index.json": b'{"countries":{},"totals":{"featureCount":0,"capacityMw":0}}',
         "evidence.json": b'{"sources":[],"claims":[]}',
+        "cities.geojson": b'{"type":"FeatureCollection","features":[]}',
+        "grid.geojson": b'{"type":"FeatureCollection","features":[]}',
+        "cooling.json": b'{"records":[]}',
     }
 
 

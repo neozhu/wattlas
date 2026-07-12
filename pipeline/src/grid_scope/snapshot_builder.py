@@ -364,6 +364,9 @@ def build_global_snapshot_artifacts(
     regional_energy: dict[str, list[dict[str, Any]]] | None = None,
     power_plants: list[dict[str, Any]] | None = None,
     population_records: list[dict[str, Any]] | None = None,
+    cities: dict[str, Any] | None = None,
+    grid: dict[str, Any] | None = None,
+    cooling: dict[str, Any] | None = None,
 ) -> dict[str, bytes]:
     admin1 = admin1 or {"type": "FeatureCollection", "features": []}
     region_features = [
@@ -602,6 +605,9 @@ def build_global_snapshot_artifacts(
             allow_nan=False,
         ).encode(),
         "evidence.json": json.dumps({"sources": registry["sources"], "claims": claims}, separators=(",", ":"), ensure_ascii=False).encode(),
+        "cities.geojson": json.dumps(cities or {"type": "FeatureCollection", "features": []}, separators=(",", ":"), ensure_ascii=False).encode(),
+        "grid.geojson": json.dumps(grid or {"type": "FeatureCollection", "features": []}, separators=(",", ":"), ensure_ascii=False).encode(),
+        "cooling.json": json.dumps(cooling or {"records": []}, separators=(",", ":"), ensure_ascii=False).encode(),
     }
     artifacts.update(generator_artifacts)
     return artifacts

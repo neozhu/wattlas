@@ -9,6 +9,9 @@ import {
   manifestSchema,
   regionalEnergySchema,
   scoreContributionSchema,
+  cityFeatureCollectionSchema,
+  gridFeatureCollectionSchema,
+  coolingEvidenceCollectionSchema,
 } from "@/lib/snapshot/schema";
 import { loadSnapshot, serverSnapshotArtifactPaths } from "@/lib/snapshot/load";
 import {
@@ -487,6 +490,11 @@ describe("lazy snapshot layers", () => {
 });
 
 describe("global snapshot entities", () => {
+  it("validates city, grid, and cooling evidence contracts", () => {
+    expect(cityFeatureCollectionSchema.parse({ type: "FeatureCollection", features: [{ type: "Feature", id: "ghsl-1", geometry: { type: "Point", coordinates: [13.4, 52.5] }, properties: { id: "ghsl-1", name: "Berlin", country: "DE", population: 4100000, populationYear: 2025, populationDefinition: "urban_centre", classes: ["million_plus"], sourceId: "ghsl", observedAt: "2025-07-31T00:00:00Z" } }] }).features).toHaveLength(1);
+    expect(gridFeatureCollectionSchema.parse({ type: "FeatureCollection", features: [] }).features).toEqual([]);
+    expect(coolingEvidenceCollectionSchema.parse({ records: [{ id: "eu-pue", scope: "regional_metric", metric: "PUE", value: 1.42, valueKind: "reported", confidence: 80, sourceIds: ["eu"], observedAt: "2025-01-01T00:00:00Z", reasons: [] }] }).records).toHaveLength(1);
+  });
   it("accepts a sourced water-infrastructure asset", () => {
     const asset = assetPropertiesSchema.parse({
       id: "asset-ae-desal-1",

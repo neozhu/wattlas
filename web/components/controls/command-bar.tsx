@@ -21,6 +21,7 @@ export function CommandBar({ manifest, onOpenStatus }: Props) {
         <span>Global</span>
         <span className="command-divider" />
         <span>Opportunity Radar</span>
+        <a className="methodology-link" href="/methodology" aria-label="Methodology and sources">Methodology &amp; Sources</a>
       </div>
       <button className="freshness-control" onClick={onOpenStatus} type="button">
         <span className="freshness-dot" aria-hidden="true" />

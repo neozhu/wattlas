@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, HttpUrl, computed_field, model_validator
 from pydantic.alias_generators import to_camel
@@ -110,6 +111,49 @@ class SourceType(StrEnum):
     OFFICIAL_VERIFIED = "official_verified"
     RESEARCH_VERIFIED = "research_verified"
     MODELLED = "modelled"
+
+
+class CityProperties(ContractModel):
+    id: str
+    name: str
+    country: str = Field(min_length=2, max_length=2)
+    population: int = Field(ge=100_000)
+    population_year: int = Field(ge=1900, le=2100)
+    population_definition: Literal["urban_centre", "municipality"]
+    classes: list[Literal["million_plus", "german_large_city"]]
+    source_id: str
+    observed_at: AwareDatetime
+
+
+class GridRecord(ContractModel):
+    id: str
+    source_operator: str
+    source_record_id: str
+    record_type: Literal["connection_queue", "congestion", "outage", "transfer_capacity", "redispatch", "topology"]
+    market: str
+    capacity_value: float | None = Field(default=None, ge=0)
+    capacity_unit: str | None = None
+    status: str | None = None
+    voltage_kv: float | None = Field(default=None, ge=0)
+    evidence_class: Literal["reported", "derived", "modelled"]
+    confidence: float = Field(ge=0, le=100)
+    licence: str
+    observed_at: AwareDatetime
+    quality_flags: list[str] = Field(default_factory=list)
+    native: dict[str, Any] = Field(default_factory=dict)
+
+
+class CoolingEvidence(ContractModel):
+    id: str
+    scope: Literal["facility_fact", "regional_metric", "model_input"]
+    metric: str
+    value: float | str
+    value_kind: Literal["reported", "derived", "modelled"]
+    confidence: float = Field(ge=0, le=100)
+    source_ids: list[str] = Field(min_length=1)
+    observed_at: AwareDatetime
+    model_version: str | None = None
+    reasons: list[str] = Field(default_factory=list)
 
 
 Score = float | None

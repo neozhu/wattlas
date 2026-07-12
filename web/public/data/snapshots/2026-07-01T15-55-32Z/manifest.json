@@ -15,7 +15,10 @@
     "generatorIndex": "snapshots/2026-07-01T15-55-32Z/generators/index.json",
     "generatorOverview": "snapshots/2026-07-01T15-55-32Z/generator-overview.geojson",
     "regionalEnergy": "snapshots/2026-07-01T15-55-32Z/regional-energy.json",
-    "regions": "snapshots/2026-07-01T15-55-32Z/regions.geojson"
+    "regions": "snapshots/2026-07-01T15-55-32Z/regions.geojson",
+    "cities": "snapshots/2026-07-01T15-55-32Z/cities.geojson",
+    "grid": "snapshots/2026-07-01T15-55-32Z/grid.geojson",
+    "cooling": "snapshots/2026-07-01T15-55-32Z/cooling.json"
   },
   "boundaryDisclaimer": "The boundaries and names shown and the designations used on this map do not imply official endorsement or acceptance by the United Nations.",
   "checksums": {
@@ -209,7 +212,10 @@
     "generators/ZW.geojson": "135c1a2769c3aaa81d10cb39de1ee08e9079ea56d8dbf8667761a06c0142b4fc",
     "generators/index.json": "35744943f96813501e9e96733f1dee3d4a00dd128ab55b38b56d135d207deff9",
     "regional-energy.json": "713f13a3dfba8c30d1c79a51c2cc5374bd7d60ade42ed20eaa17911f5064c9b2",
-    "regions.geojson": "e14d743ad60348c1f2dd0bb6b966fcf5e809a160382d65d0e5c76cd5d6f60e9b"
+    "regions.geojson": "e14d743ad60348c1f2dd0bb6b966fcf5e809a160382d65d0e5c76cd5d6f60e9b",
+    "cities.geojson": "f1e086b299a7cf34a0e6233e248a1bef788fa36c446e48adf4b4165c6763ac4e",
+    "grid.geojson": "c8bb698e0d6b23d1eb141b1482e39b3e00528822f2e048a2083104cd270ba221",
+    "cooling.json": "272b33f980a75f040478368e7159acaef899ec8a7235714ded397f56fdf21edb"
   },
   "connectors": [
     {
@@ -368,7 +374,10 @@
     "publishedPowerPlants": 53252,
     "regionalEnergyRegions": 3185,
     "regions": 334,
-    "waterInfrastructure": 101
+    "waterInfrastructure": 101,
+    "cities": 575,
+    "gridRecords": 1,
+    "coolingRecords": 2
   },
   "generatedAt": "2026-07-01T15:55:32Z",
   "modelVersion": "2.1.0",

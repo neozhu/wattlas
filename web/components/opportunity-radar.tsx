@@ -14,9 +14,9 @@ import { GlobalMap } from "@/components/map/global-map";
 import { DataStatusDrawer } from "@/components/status/data-status-drawer";
 import { geographyEntityType, trackWattlasAction } from "@/lib/analytics";
 import { buildSearchIndex, type SearchResult } from "@/lib/search";
-import { geographyFeatureCollectionSchema } from "@/lib/snapshot/schema";
+import { cityFeatureCollectionSchema, geographyFeatureCollectionSchema } from "@/lib/snapshot/schema";
 import { loadGeneratorCountry, loadGeneratorIndex, loadGeneratorOverview, loadRegionalEnergy } from "@/lib/snapshot/generators";
-import type { AssetFeature, GenerationTechnology, GeneratorFeature, GeneratorIndex, GeneratorOverviewCollection, GeographyCollection, GeographyFeature, LensKey, RegionalEnergyData, RegionFeature, SnapshotData } from "@/lib/snapshot/types";
+import type { AssetFeature, CityCollection, GenerationTechnology, GeneratorFeature, GeneratorIndex, GeneratorOverviewCollection, GeographyCollection, GeographyFeature, LensKey, RegionalEnergyData, RegionFeature, SnapshotData } from "@/lib/snapshot/types";
 
 type Props = { snapshot: SnapshotData };
 const INSPECTOR_WIDTH_KEY = "wattlas:inspector-width";
@@ -37,8 +37,9 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [filtersVisible, setFiltersVisible] = useState(true);
   const [inspectorWidth, setInspectorWidth] = useState(DEFAULT_INSPECTOR_WIDTH);
   const inspectorWidthLoaded = useRef(false);
-  const [infrastructure, setInfrastructure] = useState<InfrastructureVisibility>({ dataCentres: true, water: true, generators: true });
-  const [technologies, setTechnologies] = useState<Set<GenerationTechnology>>(() => new Set(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"]));
+  const [infrastructure, setInfrastructure] = useState<InfrastructureVisibility>({ dataCentres: true, water: true, generators: false });
+  const [cities, setCities] = useState<CityCollection>({ type: "FeatureCollection", features: [] });
+  const [technologies, setTechnologies] = useState<Set<GenerationTechnology>>(() => new Set());
   const [lifecycles, setLifecycles] = useState<Set<string>>(() => new Set(["operational", "under_construction", "announced", "planning_filed", "permitted", "paused", "cancelled", "retired", "decommissioned", "shelved", "unknown"]));
   const [generatorOverview, setGeneratorOverview] = useState<GeneratorOverviewCollection | null>(null);
   const [generatorIndex, setGeneratorIndex] = useState<GeneratorIndex | null>(null);
@@ -47,6 +48,15 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [regionalEnergyRetry, setRegionalEnergyRetry] = useState(0);
   const regionalEnergyRevision = useRef(0);
   const [admin1, setAdmin1] = useState<GeographyCollection>(snapshot.admin1);
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = async () => {
+      const cityResponse = snapshot.manifest.artifacts.cities ? await fetch(`/data/${snapshot.manifest.artifacts.cities}`, { signal: controller.signal }) : null;
+      if (cityResponse?.ok) setCities(cityFeatureCollectionSchema.parse(await cityResponse.json()));
+    };
+    void load().catch((error: unknown) => { if (!(error instanceof DOMException && error.name === "AbortError")) console.error(error); });
+    return () => controller.abort();
+  }, [snapshot.manifest.artifacts.cities]);
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       const saved = Number(window.localStorage.getItem(INSPECTOR_WIDTH_KEY));
@@ -132,8 +142,8 @@ export function OpportunityRadar({ snapshot }: Props) {
   const selectedAsset = useMemo(() => snapshot.assets.features.find((feature) => feature.properties.id === selectedId) as AssetFeature | undefined ?? null, [snapshot.assets.features, selectedId]);
   const comparisonRegions = useMemo(() => comparisonIds.map((id) => selectableGeographies.find((feature) => feature.properties.id === id)).filter(Boolean) as RegionFeature[], [comparisonIds, selectableGeographies]);
   const searchIndex = useMemo(
-    () => buildSearchIndex({ geographies: selectableGeographies, assets: snapshot.assets.features as AssetFeature[], generators: searchGenerators }),
-    [searchGenerators, selectableGeographies, snapshot.assets.features],
+    () => buildSearchIndex({ geographies: selectableGeographies, assets: snapshot.assets.features as AssetFeature[], generators: searchGenerators, cities: cities.features }),
+    [cities.features, searchGenerators, selectableGeographies, snapshot.assets.features],
   );
 
   const addComparison = () => {
@@ -156,6 +166,7 @@ export function OpportunityRadar({ snapshot }: Props) {
   const selectSearchResult = (result: SearchResult) => {
     trackWattlasAction("search_result_selected", { entity_name: result.label, entity_type: result.entityType, country: result.country });
     if (result.coordinates || result.bbox) setMapFocusTarget((current) => ({ nonce: (current?.nonce ?? 0) + 1, coordinates: result.coordinates, bbox: result.bbox }));
+    if (result.entityType === "city") return;
     if (result.generator) {
       setSelectedGenerator(result.generator);
       setSelectedId(null);
@@ -178,13 +189,17 @@ export function OpportunityRadar({ snapshot }: Props) {
         onInfrastructureChange={(next) => {
           const changed = (Object.keys(next) as Array<keyof InfrastructureVisibility>).find((key) => next[key] !== infrastructure[key]);
           setInfrastructure(next);
-          if (!next.generators) setSelectedGenerator(null);
+          if (changed === "generators") {
+            if (!next.generators) { setTechnologies(new Set()); setSelectedGenerator(null); }
+            else if (technologies.size === 0) setTechnologies(new Set(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"]));
+          }
           if (changed) trackWattlasAction("filter_changed", { filter_name: changed, filter_value: next[changed] ? "enabled" : "disabled" });
         }}
         technologies={technologies}
         onTechnologiesChange={(next) => {
           const changed = [...new Set([...technologies, ...next])].find((technology) => next.has(technology) !== technologies.has(technology));
           setTechnologies(next);
+          setInfrastructure((current) => ({ ...current, generators: next.size > 0 }));
           setSelectedGenerator((current) => current && !current.properties.technologies.some((technology) => next.has(technology)) ? null : current);
           if (changed) trackWattlasAction("filter_changed", { filter_name: "generator_technology", filter_value: `${changed}:${next.has(changed) ? "enabled" : "disabled"}` });
         }}
@@ -196,7 +211,7 @@ export function OpportunityRadar({ snapshot }: Props) {
           if (changed.length) trackWattlasAction("filter_changed", { filter_name: "generator_lifecycle", filter_value: changed.map((lifecycle) => `${lifecycle}:${next.has(lifecycle) ? "enabled" : "disabled"}`).join(",") });
         }}
       /> : <button className="show-filters" type="button" onClick={() => { setFiltersVisible(true); trackWattlasAction("filters_shown"); }} aria-label="Show filters" aria-expanded="false">Filters <span aria-hidden="true">→</span></button>}
-      <GlobalMap countries={snapshot.countries} admin1={admin1} regions={snapshot.regions} assets={snapshot.assets} coverage={snapshot.manifest.coverage} lens={lens} year={year} selectedId={selectedId} focusTarget={mapFocusTarget} onSelect={selectEntity} onSelectGenerator={(generator) => { setSelectedGenerator(generator); setSelectedId(null); trackWattlasAction("entity_selected", { entity_type: "generator", entity_name: generator.properties.name ?? generator.properties.id, country: generator.properties.country, technology: generator.properties.technologies.join(",") }); }} onVisibleGeneratorsChange={(ids) => setSelectedGenerator((current) => current && !ids.has(current.properties.id) ? null : current)} infrastructure={infrastructure} technologies={technologies} lifecycles={lifecycles} generatorOverview={generatorOverview} generatorIndex={generatorIndex} snapshotRoot={snapshot.manifest.snapshotId ? `snapshots/${snapshot.manifest.snapshotId}` : null} />
+      <GlobalMap countries={snapshot.countries} admin1={admin1} regions={snapshot.regions} assets={snapshot.assets} cities={cities} coverage={snapshot.manifest.coverage} lens={lens} year={year} selectedId={selectedId} focusTarget={mapFocusTarget} onSelect={selectEntity} onSelectGenerator={(generator) => { setSelectedGenerator(generator); setSelectedId(null); trackWattlasAction("entity_selected", { entity_type: "generator", entity_name: generator.properties.name ?? generator.properties.id, country: generator.properties.country, technology: generator.properties.technologies.join(",") }); }} onVisibleGeneratorsChange={(ids) => setSelectedGenerator((current) => current && !ids.has(current.properties.id) ? null : current)} infrastructure={infrastructure} technologies={technologies} lifecycles={lifecycles} generatorOverview={generatorOverview} generatorIndex={generatorIndex} snapshotRoot={snapshot.manifest.snapshotId ? `snapshots/${snapshot.manifest.snapshotId}` : null} />
       <InspectorResizer width={inspectorWidth} min={MIN_INSPECTOR_WIDTH} max={MAX_INSPECTOR_WIDTH} onChange={setInspectorWidth} onCommit={(width) => trackWattlasAction("inspector_resized", { panel_width: width })} />
       <EntityInspector geography={selectedGeography} asset={selectedAsset} generator={selectedGenerator} regionalEnergy={selectedGeography ? regionalEnergyCurrent[selectedGeography.properties.id] : undefined} regionalEnergyState={lens === "powerBalance" ? regionalEnergyState : "idle"} regionalEnergyError={regionalEnergyLoad.error} onRetryRegionalEnergy={() => { setRegionalEnergyLoad({ path: regionalEnergyPath, state: "loading", data: {}, error: null }); setRegionalEnergyRetry((value) => value + 1); }} generatorOverview={generatorOverview} evidence={snapshot.evidence} lens={lens} year={year} onOpenEvidence={() => { setEvidenceOpen(true); if (selectedGeography) trackWattlasAction("evidence_opened", { entity_name: selectedGeography.properties.name, entity_type: geographyEntityType(selectedGeography.properties) }); }} onAddComparison={addComparison} />
       <Timeline years={snapshot.manifest.activeYears} activeYear={year} onChange={(next) => { setYear(next); if (next !== year) trackWattlasAction("year_changed", { year: next }); }} />
