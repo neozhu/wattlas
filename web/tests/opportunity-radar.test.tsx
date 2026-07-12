@@ -136,12 +136,12 @@ describe("OpportunityRadar", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     const solar = screen.getByRole("switch", { name: "Solar" });
     fireEvent.click(solar);
-    expect(solar).toHaveAttribute("aria-checked", "false");
+    expect(solar).toHaveAttribute("aria-checked", "true");
     fireEvent.click(screen.getByRole("button", { name: "Hide filters" }));
     expect(screen.queryByRole("complementary", { name: "Map controls" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
     expect(screen.getByRole("complementary", { name: "Map controls" })).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "Solar" })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("switch", { name: "Solar" })).toHaveAttribute("aria-checked", "true");
   });
 
   it("searches places and facilities, then opens the matching inspector", async () => {
@@ -183,7 +183,7 @@ describe("OpportunityRadar", () => {
     fireEvent.click(screen.getByRole("switch", { name: "Data centres" }));
     expect(mockTrackWattlasAction).toHaveBeenCalledWith("filter_changed", { filter_name: "dataCentres", filter_value: "disabled" });
     fireEvent.click(screen.getByRole("switch", { name: "Solar" }));
-    expect(mockTrackWattlasAction).toHaveBeenCalledWith("filter_changed", { filter_name: "generator_technology", filter_value: "solar:disabled" });
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("filter_changed", { filter_name: "generator_technology", filter_value: "solar:enabled" });
     fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
     expect(mockTrackWattlasAction).toHaveBeenCalledWith("advanced_filters_opened");
 
@@ -240,6 +240,7 @@ describe("OpportunityRadar", () => {
   it("clears a stale generator inspector when its layer, filter, or visible shard excludes it", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     const select = () => fireEvent.click(screen.getByRole("button", { name: "Select generator" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
     select(); fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
     expect(screen.queryByRole("heading", { name: "Rhine Solar" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
@@ -252,13 +253,14 @@ describe("OpportunityRadar", () => {
 
   it("offers independent infrastructure layers and accessible generator filters", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
-    for (const name of ["Data centres", "Water infrastructure", "Power generators"]) {
+    for (const name of ["Data centres", "Water infrastructure"]) {
       const toggle = screen.getByRole("switch", { name });
       expect(toggle).toHaveAttribute("aria-checked", "true");
       fireEvent.click(toggle);
       expect(toggle).toHaveAttribute("aria-checked", "false");
     }
-    // The master switch clears technologies but keeps every child visible for one-click recovery.
+    expect(screen.getByRole("switch", { name: "Power generators" })).toHaveAttribute("aria-checked", "false");
+    // Power technologies start off but remain visible for one-click activation.
     const solar = screen.getByRole("switch", { name: "Solar" });
     expect(solar).toHaveAttribute("aria-checked", "false");
     fireEvent.click(solar);

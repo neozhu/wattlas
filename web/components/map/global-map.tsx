@@ -7,7 +7,6 @@ import maplibregl, { type ExpressionSpecification, type GeoJSONSource, type MapG
 
 import { baseMapStyle } from "@/components/map/map-style";
 import type { InfrastructureVisibility } from "@/components/controls/layer-rail";
-import { BAVARIA_BOUNDS, BAVARIA_SERVICES } from "@/lib/map/bavaria-services";
 import { generatorColorExpression, generatorTechnologyExpression } from "@/lib/map/generator-colors";
 import { countriesInBounds, createGeneratorShardController, filterGeneratorOverview, filterGenerators, generatorSelection, type MapBounds } from "@/lib/map/generator-shards";
 import { admin1LineOpacityExpression, admin1LineWidthExpression, assetColor, assetStrokeColorExpression, countryBorderWidthExpression, mapColorExpression } from "@/lib/map/expressions";
@@ -86,7 +85,7 @@ const EMPTY_OVERVIEW: GeneratorOverviewCollection = { type: "FeatureCollection",
 const EMPTY_CITIES: CityCollection = { type: "FeatureCollection", features: [] };
 const cityClass = (cities: CityCollection, value: "million_plus" | "german_large_city"): CityCollection => ({ ...cities, features: cities.features.filter((feature) => feature.properties.classes.includes(value)) });
 
-export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_CITIES, lens, year, selectedId, focusTarget = null, onSelect, coverage, infrastructure = { dataCentres: true, water: true, generators: true }, technologies = new Set<GenerationTechnology>(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"]), lifecycles = new Set(["operational", "under_construction", "announced", "planning_filed", "permitted", "paused", "cancelled", "retired", "decommissioned", "shelved", "unknown"]), generatorOverview = null, generatorIndex = null, snapshotRoot = null, onSelectGenerator, onVisibleGeneratorsChange }: Props) {
+export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_CITIES, lens, year, selectedId, focusTarget = null, onSelect, coverage, infrastructure = { dataCentres: true, water: true, generators: false }, technologies = new Set<GenerationTechnology>(), lifecycles = new Set(["operational", "under_construction", "announced", "planning_filed", "permitted", "paused", "cancelled", "retired", "decommissioned", "shelved", "unknown"]), generatorOverview = null, generatorIndex = null, snapshotRoot = null, onSelectGenerator, onVisibleGeneratorsChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -145,8 +144,6 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
       map.addSource("regions", { type: "geojson", data: regionsRef.current, promoteId: "id" });
       map.addSource("million-cities", { type: "geojson", data: cityClass(cities, "million_plus") });
       map.addSource("german-cities", { type: "geojson", data: cityClass(cities, "german_large_city") });
-      map.addSource(BAVARIA_SERVICES.basemap.id, { type: "raster", tiles: [...BAVARIA_SERVICES.basemap.tiles], tileSize: 256, bounds: BAVARIA_BOUNDS, attribution: BAVARIA_SERVICES.basemap.attribution });
-      map.addSource(BAVARIA_SERVICES.tennet.id, { type: "raster", tiles: [...BAVARIA_SERVICES.tennet.tiles], tileSize: 256, bounds: BAVARIA_BOUNDS, attribution: BAVARIA_SERVICES.tennet.attribution });
       map.addSource("assets", {
         type: "geojson",
         data: visibleAssets(assets, infrastructureRef.current),
@@ -170,8 +167,6 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
           other: ["+", ["case", ["in", "other", ["get", "technologies"]], 1, 0]],
         },
       });
-      map.addLayer({ id: "bavaria-official", type: "raster", source: BAVARIA_SERVICES.basemap.id, minzoom: BAVARIA_SERVICES.basemap.minzoom, maxzoom: BAVARIA_SERVICES.basemap.maxzoom, paint: { "raster-opacity": 0.72 } });
-      map.addLayer({ id: "tennet-network", type: "raster", source: BAVARIA_SERVICES.tennet.id, minzoom: BAVARIA_SERVICES.tennet.minzoom, maxzoom: BAVARIA_SERVICES.tennet.maxzoom, paint: { "raster-opacity": 0.86 } });
       map.addLayer({
         id: "countries-fill",
         type: "fill",
