@@ -18,6 +18,32 @@ from grid_scope.models import (
 )
 
 
+def test_city_grid_and_cooling_contracts_preserve_evidence() -> None:
+    from grid_scope.models import CityProperties, CoolingEvidence, GridRecord
+
+    city = CityProperties(
+        id="ghsl-berlin", name="Berlin", country="DE", population=4_100_000,
+        population_year=2025, population_definition="urban_centre",
+        classes=["million_plus"], source_id="ghsl_ucdb", observed_at="2025-07-31T00:00:00Z",
+    )
+    grid = GridRecord(
+        id="neso-tec-1", source_operator="NESO", source_record_id="TEC-1",
+        record_type="connection_queue", market="GB", capacity_value=500,
+        capacity_unit="MW", evidence_class="reported", confidence=90,
+        licence="NESO Open Licence", observed_at="2026-07-12T00:00:00Z",
+        native={"gate": "Gate 2"},
+    )
+    cooling = CoolingEvidence(
+        id="eu-pue", scope="regional_metric", metric="PUE", value=1.42,
+        value_kind="reported", confidence=80, source_ids=["eu_dc_reporting"],
+        observed_at="2025-01-01T00:00:00Z",
+    )
+
+    assert city.population == 4_100_000
+    assert grid.native == {"gate": "Gate 2"}
+    assert cooling.value_kind == "reported"
+
+
 def test_region_rejects_score_outside_range() -> None:
     with pytest.raises(ValidationError):
         RegionProperties(

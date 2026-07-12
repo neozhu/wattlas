@@ -129,6 +129,12 @@ export type AssetProperties = {
 export type AssetFeature = GeoJSON.Feature<GeoJSON.Point, AssetProperties> & { id: string };
 export type AssetCollection = GeoJSON.FeatureCollection<GeoJSON.Point, AssetProperties>;
 
+export type CityProperties = { id: string; name: string; country: string; population: number; populationYear: number; populationDefinition: "urban_centre" | "municipality"; classes: Array<"million_plus" | "german_large_city">; sourceId: string; observedAt: string };
+export type CityCollection = GeoJSON.FeatureCollection<GeoJSON.Point, CityProperties>;
+export type GridProperties = { id: string; sourceOperator: string; sourceRecordId: string; recordType: "connection_queue" | "congestion" | "outage" | "transfer_capacity" | "redispatch" | "topology"; market: string; capacityValue?: number | null; capacityUnit?: string | null; status?: string | null; voltageKv?: number | null; evidenceClass: "reported" | "derived" | "modelled"; confidence: number; licence: string; observedAt: string; qualityFlags: string[]; native: Record<string, unknown> };
+export type GridCollection = GeoJSON.FeatureCollection<GeoJSON.Point | null, GridProperties>;
+export type CoolingEvidence = { id: string; scope: "facility_fact" | "regional_metric" | "model_input"; metric: string; value: number | string; valueKind: "reported" | "derived" | "modelled"; confidence: number; sourceIds: string[]; observedAt: string; modelVersion?: string | null; reasons: string[] };
+
 export type ProjectProperties = {
   id: string;
   name: string;

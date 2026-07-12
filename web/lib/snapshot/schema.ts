@@ -332,6 +332,40 @@ export const assetFeatureCollectionSchema = z.object({
   })),
 });
 
+export const cityPropertiesSchema = z.object({
+  id: z.string(), name: z.string(), country: z.string().length(2),
+  population: z.number().int().min(100_000), populationYear: z.number().int(),
+  populationDefinition: z.enum(["urban_centre", "municipality"]),
+  classes: z.array(z.enum(["million_plus", "german_large_city"])),
+  sourceId: z.string(), observedAt: z.string().datetime(),
+});
+
+export const cityFeatureCollectionSchema = z.object({
+  type: z.literal("FeatureCollection"),
+  features: z.array(z.object({ type: z.literal("Feature"), id: z.string(), geometry: z.object({ type: z.literal("Point"), coordinates: z.tuple([z.number(), z.number()]) }), properties: cityPropertiesSchema })),
+});
+
+export const gridPropertiesSchema = z.object({
+  id: z.string(), sourceOperator: z.string(), sourceRecordId: z.string(),
+  recordType: z.enum(["connection_queue", "congestion", "outage", "transfer_capacity", "redispatch", "topology"]),
+  market: z.string(), capacityValue: z.number().nonnegative().nullable().optional(), capacityUnit: z.string().nullable().optional(),
+  status: z.string().nullable().optional(), voltageKv: z.number().nonnegative().nullable().optional(),
+  evidenceClass: z.enum(["reported", "derived", "modelled"]), confidence: z.number().min(0).max(100),
+  licence: z.string(), observedAt: z.string().datetime(), qualityFlags: z.array(z.string()).default([]), native: z.record(z.string(), z.unknown()).default({}),
+});
+
+export const gridFeatureCollectionSchema = z.object({
+  type: z.literal("FeatureCollection"),
+  features: z.array(z.object({ type: z.literal("Feature"), id: z.string(), geometry: z.object({ type: z.literal("Point"), coordinates: z.tuple([z.number(), z.number()]) }).nullable(), properties: gridPropertiesSchema })),
+});
+
+export const coolingEvidenceSchema = z.object({
+  id: z.string(), scope: z.enum(["facility_fact", "regional_metric", "model_input"]), metric: z.string(), value: z.union([z.number(), z.string()]),
+  valueKind: z.enum(["reported", "derived", "modelled"]), confidence: z.number().min(0).max(100), sourceIds: z.array(z.string()).min(1),
+  observedAt: z.string().datetime(), modelVersion: z.string().nullable().optional(), reasons: z.array(z.string()).default([]),
+});
+export const coolingEvidenceCollectionSchema = z.object({ records: z.array(coolingEvidenceSchema) });
+
 export const evidenceSchema = z.object({
   sources: z.array(z.object({
     id: z.string(),
