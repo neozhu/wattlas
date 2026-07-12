@@ -88,9 +88,11 @@ describe("OpportunityRadar", () => {
   it("preserves production controls and adds independent context layers", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     expect(screen.getByRole("combobox", { name: "Search Wattlas" })).toBeInTheDocument();
-    for (const name of ["Cities · 1M+", "German Großstädte", "Grid intelligence", "Bavaria official map", "TenneT network"]) {
+    for (const name of ["Cities · 1M+", "German Großstädte", "Grid intelligence"]) {
       expect(screen.getByRole("switch", { name })).toBeInTheDocument();
     }
+    expect(screen.queryByRole("switch", { name: "Bavaria official map" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "TenneT network" })).not.toBeInTheDocument();
   });
   it("renders monthly freshness, lenses, year, and source truth", () => {
     render(<OpportunityRadar snapshot={snapshot} />);

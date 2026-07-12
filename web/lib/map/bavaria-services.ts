@@ -10,7 +10,7 @@ export const BAVARIA_SERVICES = {
   },
   tennet: {
     id: "tennet-grid",
-    tiles: ["https://geowms.tennet.eu/server/services/open/Leitungsnetz/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&LAYERS=0&BBOX={bbox-epsg-3857}"],
+    tiles: ["https://geowms.tennet.eu/server/services/open/Leitungsnetz/MapServer/WMSServer?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap&FORMAT=image/png&TRANSPARENT=true&CRS=EPSG:3857&WIDTH=256&HEIGHT=256&LAYERS=Leitungen%2CUW-Standorte&BBOX={bbox-epsg-3857}"],
     attribution: "TenneT TSO GmbH",
     minzoom: 5,
     maxzoom: 18,

@@ -1,6 +1,6 @@
-import type { AssetFeature, GeneratorFeature, GeographyFeature, RegionFeature } from "@/lib/snapshot/types";
+import type { AssetFeature, CityCollection, GeneratorFeature, GeographyFeature, RegionFeature } from "@/lib/snapshot/types";
 
-export type SearchEntityType = "country" | "state" | "region" | "data_centre" | "water_infrastructure" | "generator";
+export type SearchEntityType = "country" | "state" | "region" | "city" | "data_centre" | "water_infrastructure" | "generator";
 export type SearchGroup = "Places" | "Power generators" | "Data centres" | "Water infrastructure";
 
 export type SearchResult = {
@@ -20,6 +20,7 @@ type SearchIndexInput = {
   geographies: Array<GeographyFeature | RegionFeature>;
   assets: AssetFeature[];
   generators: GeneratorFeature[];
+  cities?: CityCollection["features"];
 };
 
 type SearchIndexItem = SearchResult & { normalized: string; aliases: string[] };
@@ -80,7 +81,7 @@ function assetEntityType(feature: AssetFeature): SearchEntityType {
   return feature.properties.category === "data_centre" ? "data_centre" : "water_infrastructure";
 }
 
-export function buildSearchIndex({ geographies, assets, generators }: SearchIndexInput): SearchIndex {
+export function buildSearchIndex({ geographies, assets, generators, cities = [] }: SearchIndexInput): SearchIndex {
   const geographyItems = geographies.map((feature): SearchIndexItem => ({
     id: feature.properties.id,
     label: feature.properties.name,
@@ -123,7 +124,20 @@ export function buildSearchIndex({ geographies, assets, generators }: SearchInde
       aliases: [normalize(feature.properties.country), normalize(feature.properties.operator), normalize(feature.properties.owner), ...feature.properties.technologies.map(normalize)],
     }));
 
-  return [...geographyItems, ...assetItems, ...generatorItems];
+  const cityItems = cities.map((feature): SearchIndexItem => ({
+    id: feature.properties.id,
+    label: feature.properties.name,
+    detail: `${feature.properties.population >= 1_000_000 ? "Million-plus city" : "German Großstadt"} · ${feature.properties.country}`,
+    group: "Places",
+    entityType: "city",
+    country: feature.properties.country,
+    coordinates: [feature.geometry.coordinates[0], feature.geometry.coordinates[1]],
+    score: 0,
+    normalized: normalize(feature.properties.name),
+    aliases: [normalize(feature.properties.country), String(feature.properties.population)],
+  }));
+
+  return [...geographyItems, ...cityItems, ...assetItems, ...generatorItems];
 }
 
 function matchScore(item: SearchIndexItem, query: string): number {
@@ -139,6 +153,7 @@ function typePriority(entityType: SearchEntityType): number {
   if (entityType === "country") return 40;
   if (entityType === "state") return 35;
   if (entityType === "region") return 30;
+  if (entityType === "city") return 28;
   if (entityType === "data_centre") return 20;
   if (entityType === "water_infrastructure") return 15;
   return 10;

@@ -38,7 +38,7 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [inspectorWidth, setInspectorWidth] = useState(DEFAULT_INSPECTOR_WIDTH);
   const inspectorWidthLoaded = useRef(false);
   const [infrastructure, setInfrastructure] = useState<InfrastructureVisibility>({ dataCentres: true, water: true, generators: true });
-  const [context, setContext] = useState<ContextVisibility>({ millionCities: true, germanCities: true, grid: true, bavaria: false, tennet: false });
+  const [context, setContext] = useState<ContextVisibility>({ millionCities: true, germanCities: true, grid: true });
   const [cities, setCities] = useState<CityCollection>({ type: "FeatureCollection", features: [] });
   const [grid, setGrid] = useState<GridCollection>({ type: "FeatureCollection", features: [] });
   const [technologies, setTechnologies] = useState<Set<GenerationTechnology>>(() => new Set(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"]));
@@ -148,8 +148,8 @@ export function OpportunityRadar({ snapshot }: Props) {
   const selectedAsset = useMemo(() => snapshot.assets.features.find((feature) => feature.properties.id === selectedId) as AssetFeature | undefined ?? null, [snapshot.assets.features, selectedId]);
   const comparisonRegions = useMemo(() => comparisonIds.map((id) => selectableGeographies.find((feature) => feature.properties.id === id)).filter(Boolean) as RegionFeature[], [comparisonIds, selectableGeographies]);
   const searchIndex = useMemo(
-    () => buildSearchIndex({ geographies: selectableGeographies, assets: snapshot.assets.features as AssetFeature[], generators: searchGenerators }),
-    [searchGenerators, selectableGeographies, snapshot.assets.features],
+    () => buildSearchIndex({ geographies: selectableGeographies, assets: snapshot.assets.features as AssetFeature[], generators: searchGenerators, cities: cities.features }),
+    [cities.features, searchGenerators, selectableGeographies, snapshot.assets.features],
   );
 
   const addComparison = () => {
@@ -172,6 +172,7 @@ export function OpportunityRadar({ snapshot }: Props) {
   const selectSearchResult = (result: SearchResult) => {
     trackWattlasAction("search_result_selected", { entity_name: result.label, entity_type: result.entityType, country: result.country });
     if (result.coordinates || result.bbox) setMapFocusTarget((current) => ({ nonce: (current?.nonce ?? 0) + 1, coordinates: result.coordinates, bbox: result.bbox }));
+    if (result.entityType === "city") return;
     if (result.generator) {
       setSelectedGenerator(result.generator);
       setSelectedId(null);

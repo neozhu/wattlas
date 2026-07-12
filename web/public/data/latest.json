@@ -43,7 +43,7 @@
     "publishedPowerPlants": 53252,
     "generatorRegions": 2086,
     "regionalEnergyRegions": 3185,
-    "cities": 11,
+    "cities": 575,
     "gridRecords": 1,
     "coolingRecords": 2
   },
@@ -384,7 +384,7 @@
     "generators/ZW.geojson": "135c1a2769c3aaa81d10cb39de1ee08e9079ea56d8dbf8667761a06c0142b4fc",
     "generator-overview.geojson": "6668c558ffc9344991cb1c180f6e5b4918a29b4efc88ec967fc0db41ac83dba1",
     "generators/index.json": "35744943f96813501e9e96733f1dee3d4a00dd128ab55b38b56d135d207deff9",
-    "cities.geojson": "f07a114897f08aa8bd6a11833bd62fd73b9a41dd33f4a71963bfe53981c6c9ae",
+    "cities.geojson": "f1e086b299a7cf34a0e6233e248a1bef788fa36c446e48adf4b4165c6763ac4e",
     "grid.geojson": "c8bb698e0d6b23d1eb141b1482e39b3e00528822f2e048a2083104cd270ba221",
     "cooling.json": "272b33f980a75f040478368e7159acaef899ec8a7235714ded397f56fdf21edb"
   }
