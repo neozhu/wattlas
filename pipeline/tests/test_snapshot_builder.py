@@ -105,7 +105,7 @@ def test_global_builder_publishes_countries_assets_and_category_scores() -> None
     assert set(artifacts) == {
         "countries.geojson", "admin1.geojson", "regions.geojson", "assets.geojson",
         "regional-energy.json", "generator-overview.geojson", "generators/index.json",
-        "evidence.json",
+        "evidence.json", "cities.geojson", "grid.geojson", "cooling.json",
     }
     country_data = json.loads(artifacts["countries.geojson"])
     by_id = {feature["id"]: feature for feature in country_data["features"]}
