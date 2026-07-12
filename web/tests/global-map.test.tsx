@@ -97,6 +97,14 @@ describe("GlobalMap", () => {
     ]));
   });
 
+  it("shows fixed-size city dots and names only after regional zoom", () => {
+    render(<GlobalMap countries={{ type: "FeatureCollection", features: [] }} admin1={{ type: "FeatureCollection", features: [] }} regions={{ type: "FeatureCollection", features: [] }} assets={{ type: "FeatureCollection", features: [] }} cities={{ type: "FeatureCollection", features: [] }} lens="infrastructureDemand" year={2030} selectedId={null} onSelect={() => undefined} coverage={{ countries: 1, regions: 0, admin1Regions: 0, countriesWithAdmin1: 0, assets: 0, dataCentres: 0, waterInfrastructure: 0 }} />);
+    expect(mapCalls.layers.find((layer) => layer.id === "million-city-points")).toMatchObject({ type: "circle", minzoom: 4.5, paint: { "circle-radius": 3 } });
+    expect(mapCalls.layers.find((layer) => layer.id === "million-city-labels")).toMatchObject({ type: "symbol", minzoom: 4.5 });
+    expect(mapCalls.layers.find((layer) => layer.id === "german-city-points")).toMatchObject({ type: "circle", minzoom: 5.3, paint: { "circle-radius": 3 } });
+    expect(mapCalls.layers.find((layer) => layer.id === "german-city-labels")).toMatchObject({ type: "symbol", minzoom: 5.3 });
+  });
+
   it("renders overview and technology generators with neutral composition-aware clusters", () => {
     render(
       <GlobalMap countries={{ type: "FeatureCollection", features: [] }} admin1={{ type: "FeatureCollection", features: [] }} regions={{ type: "FeatureCollection", features: [] }} assets={{ type: "FeatureCollection", features: [] }} lens="infrastructureDemand" year={2030} selectedId={null} onSelect={() => undefined} coverage={{ countries: 1, regions: 0, admin1Regions: 0, countriesWithAdmin1: 0, assets: 0, dataCentres: 0, waterInfrastructure: 0 }} generatorOverview={{ type: "FeatureCollection", features: [] }} />,

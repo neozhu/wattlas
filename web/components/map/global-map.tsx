@@ -311,7 +311,9 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
           "text-opacity": ["case", ["==", ["get", "lifecycle"], "operational"], 0.72, 1],
         },
       });
-      map.addLayer({ id: "million-city-labels", type: "symbol", source: "million-cities", minzoom: 3.8, layout: { "text-field": ["get", "name"], "text-size": 10, "text-optional": true, "text-allow-overlap": false, "text-ignore-placement": false }, paint: { "text-color": "#B8C8C4", "text-halo-color": "#07100F", "text-halo-width": 1 } });
+      map.addLayer({ id: "million-city-points", type: "circle", source: "million-cities", minzoom: 4.5, paint: { "circle-color": "#AFC3BE", "circle-radius": 3, "circle-opacity": 0.8, "circle-stroke-color": "#07100F", "circle-stroke-width": 1 } });
+      map.addLayer({ id: "million-city-labels", type: "symbol", source: "million-cities", minzoom: 4.5, layout: { "text-field": ["get", "name"], "text-size": 10, "text-offset": [0, 1], "text-optional": true, "text-allow-overlap": false, "text-ignore-placement": false }, paint: { "text-color": "#B8C8C4", "text-halo-color": "#07100F", "text-halo-width": 1 } });
+      map.addLayer({ id: "german-city-points", type: "circle", source: "german-cities", minzoom: 5.3, paint: { "circle-color": "#AFC3BE", "circle-radius": 3, "circle-opacity": 0.8, "circle-stroke-color": "#07100F", "circle-stroke-width": 1 } });
       map.addLayer({ id: "german-city-labels", type: "symbol", source: "german-cities", minzoom: 5.3, layout: { "text-field": ["get", "name"], "text-size": 10, "text-optional": true, "text-allow-overlap": false, "text-ignore-placement": false }, paint: { "text-color": "#B8C8C4", "text-halo-color": "#07100F", "text-halo-width": 1 } });
 
       for (const layer of ["countries-fill", "admin1-fill", "regions-fill", "asset-clusters", "data-centre-assets", "water-assets", "generator-overview-markers", "generator-clusters", "generator-assets"]) {

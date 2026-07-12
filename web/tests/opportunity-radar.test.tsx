@@ -88,6 +88,7 @@ describe("OpportunityRadar", () => {
   it("preserves production controls without redundant active-view or grid sections", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     expect(screen.getByRole("combobox", { name: "Search Wattlas" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Methodology and sources" })).toHaveAttribute("href", "/methodology");
     expect(screen.queryByLabelText("Active filters")).not.toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: "Grid intelligence" })).not.toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: "Cities · 1M+" })).not.toBeInTheDocument();
