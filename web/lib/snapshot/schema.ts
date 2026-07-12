@@ -119,6 +119,9 @@ export const manifestSchema = z.object({
     regionalEnergy: z.string().optional(),
     generatorOverview: z.string().optional(),
     generatorIndex: z.string().optional(),
+    cities: z.string().optional(),
+    grid: z.string().optional(),
+    cooling: z.string().optional(),
   }).strict(),
   coverage: z.object({
     countries: z.number().int().nonnegative(),
@@ -135,6 +138,9 @@ export const manifestSchema = z.object({
     publishedPowerPlants: z.number().int().nonnegative().optional(),
     generatorRegions: z.number().int().nonnegative().optional(),
     regionalEnergyRegions: z.number().int().nonnegative().optional(),
+    cities: z.number().int().nonnegative().optional(),
+    gridRecords: z.number().int().nonnegative().optional(),
+    coolingRecords: z.number().int().nonnegative().optional(),
   }).strict(),
   quality: z.object({
     countryDemandReconciled: z.boolean(),

@@ -11,6 +11,9 @@ CURATED_PATH = PROJECT_ROOT / "data" / "curated" / "launch-clusters.json"
 GLOBAL_ASSETS_PATH = PROJECT_ROOT / "data" / "curated" / "global-assets.json"
 GLOBAL_ADMIN1_PATH = PROJECT_ROOT / "data" / "curated" / "global-admin1.geojson"
 SOURCE_REGISTRY_PATH = PROJECT_ROOT / "data" / "curated" / "source-registry.json"
+CITIES_PATH = PROJECT_ROOT / "data" / "curated" / "cities.json"
+GRID_INTELLIGENCE_PATH = PROJECT_ROOT / "data" / "curated" / "grid-intelligence.json"
+COOLING_EVIDENCE_PATH = PROJECT_ROOT / "data" / "curated" / "cooling-evidence.json"
 PUBLISH_DIR = PROJECT_ROOT / os.getenv("GRID_SCOPE_PUBLISH_DIR", "web/public/data")
 UN_GEODATA_URL = os.getenv(
     "UN_GEODATA_URL",

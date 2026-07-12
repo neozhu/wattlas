@@ -164,6 +164,7 @@ export type SnapshotManifest = {
   artifacts: {
     countries: string; admin1: string; regions: string; assets: string; evidence: string;
     regionalEnergy?: string; generatorOverview?: string; generatorIndex?: string;
+    cities?: string; grid?: string; cooling?: string;
   };
   coverage: {
     countries: number;
@@ -180,6 +181,9 @@ export type SnapshotManifest = {
     publishedPowerPlants?: number;
     generatorRegions?: number;
     regionalEnergyRegions?: number;
+    cities?: number;
+    gridRecords?: number;
+    coolingRecords?: number;
   };
   quality?: {
     countryDemandReconciled: boolean;
