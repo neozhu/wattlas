@@ -85,10 +85,11 @@ const snapshot: SnapshotData = {
 } as unknown as SnapshotData;
 
 describe("OpportunityRadar", () => {
-  it("preserves production controls and adds independent context layers", () => {
+  it("preserves production controls without redundant active-view or grid sections", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     expect(screen.getByRole("combobox", { name: "Search Wattlas" })).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "Grid intelligence" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Active filters")).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Grid intelligence" })).not.toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: "Cities · 1M+" })).not.toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: "German Großstädte" })).not.toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: "Bavaria official map" })).not.toBeInTheDocument();
@@ -251,20 +252,19 @@ describe("OpportunityRadar", () => {
 
   it("offers independent infrastructure layers and accessible generator filters", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
-    expect(screen.getByText("All infrastructure")).toBeInTheDocument();
     for (const name of ["Data centres", "Water infrastructure", "Power generators"]) {
       const toggle = screen.getByRole("switch", { name });
       expect(toggle).toHaveAttribute("aria-checked", "true");
       fireEvent.click(toggle);
       expect(toggle).toHaveAttribute("aria-checked", "false");
     }
-    // Technologies hide with the generators layer and reappear with it — no extra step needed.
-    expect(screen.queryByRole("switch", { name: "Solar" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
+    // The master switch clears technologies but keeps every child visible for one-click recovery.
     const solar = screen.getByRole("switch", { name: "Solar" });
-    expect(solar).toHaveAttribute("aria-checked", "true");
-    fireEvent.click(solar);
     expect(solar).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(solar);
+    expect(solar).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("switch", { name: "Power generators" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("switch", { name: "Wind" })).toHaveAttribute("aria-checked", "false");
     // Plant-status filters stay behind the advanced toggle.
     expect(screen.queryByRole("switch", { name: "Operational" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));

@@ -10,7 +10,6 @@ const lenses: Array<{ id: LensKey; label: string; description: string }> = [
 ];
 
 export type InfrastructureVisibility = { dataCentres: boolean; water: boolean; generators: boolean };
-export type ContextVisibility = { grid: boolean };
 type Props = {
   activeLens: LensKey; onChange: (lens: LensKey) => void;
   onHide?: () => void;
@@ -19,7 +18,6 @@ type Props = {
   infrastructure?: InfrastructureVisibility; onInfrastructureChange?: (value: InfrastructureVisibility) => void;
   technologies?: ReadonlySet<GenerationTechnology>; onTechnologiesChange?: (value: Set<GenerationTechnology>) => void;
   lifecycles?: ReadonlySet<string>; onLifecyclesChange?: (value: Set<string>) => void;
-  context?: ContextVisibility; onContextChange?: (value: ContextVisibility) => void;
 };
 
 const technologyLabels: Record<GenerationTechnology, string> = { solar: "Solar", wind: "Wind", hydro: "Hydro", nuclear: "Nuclear", gas: "Gas", coal: "Coal", oil: "Oil", biomass: "Biomass", geothermal: "Geothermal", other: "Other" };
@@ -32,25 +30,6 @@ const lifecycleGroups = {
   retired: { label: "Retired or decommissioned", states: ["retired", "decommissioned"] },
   unknown: { label: "Unknown status", states: ["unknown"] },
 } as const;
-
-function infrastructureChip(infrastructure?: InfrastructureVisibility): string {
-  if (!infrastructure) return "Infrastructure";
-  const active = [infrastructure.dataCentres, infrastructure.water, infrastructure.generators].filter(Boolean).length;
-  if (active === 3) return "All infrastructure";
-  if (active === 0) return "No infrastructure";
-  return [
-    infrastructure.dataCentres ? "Data centres" : null,
-    infrastructure.water ? "Water" : null,
-    infrastructure.generators ? "Power" : null,
-  ].filter(Boolean).join(" + ");
-}
-
-function powerChip(technologies?: ReadonlySet<GenerationTechnology>, lifecycles?: ReadonlySet<string>): string {
-  const totalTechnologies = Object.keys(technologyLabels).length;
-  const technologyText = !technologies || technologies.size === totalTechnologies ? "all technologies" : `${technologies.size} technologies`;
-  const lifecycleText = !lifecycles || lifecycles.size === Object.values(lifecycleGroups).flatMap((group) => group.states).length ? "all statuses" : `${lifecycles.size} statuses`;
-  return `Power: ${technologyText}, ${lifecycleText}`;
-}
 
 const layerIcons = {
   dataCentres: (
@@ -85,26 +64,19 @@ function LayerRow({ id, label, checked, onToggle }: { id: keyof InfrastructureVi
   );
 }
 
-export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvancedOpen, infrastructure, onInfrastructureChange, technologies, onTechnologiesChange, lifecycles, onLifecyclesChange, context, onContextChange }: Props) {
+export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvancedOpen, infrastructure, onInfrastructureChange, technologies, onTechnologiesChange, lifecycles, onLifecyclesChange }: Props) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   return (
     <aside className="layer-rail" aria-label="Map controls">
       {onHide && <button className="rail-toggle" type="button" onClick={onHide} aria-label="Hide filters">Hide filters <span aria-hidden="true">←</span></button>}
       {searchSlot && <div className="rail-section search-section">{searchSlot}</div>}
-      <div className="rail-section active-filter-summary" aria-label="Active filters">
-        <p className="rail-heading">Active view</p>
-        <div className="filter-chips">
-          <span>{infrastructureChip(infrastructure)}</span>
-          {infrastructure?.generators && <span>{powerChip(technologies, lifecycles)}</span>}
-        </div>
-      </div>
       {infrastructure && onInfrastructureChange && <div className="rail-section infrastructure-controls">
         <p className="rail-heading">Infrastructure layers</p>
         <div className="layer-list">
           <LayerRow id="dataCentres" label="Data centres" checked={infrastructure.dataCentres} onToggle={() => onInfrastructureChange({ ...infrastructure, dataCentres: !infrastructure.dataCentres })} />
           <LayerRow id="water" label="Water infrastructure" checked={infrastructure.water} onToggle={() => onInfrastructureChange({ ...infrastructure, water: !infrastructure.water })} />
           <LayerRow id="generators" label="Power generators" checked={infrastructure.generators} onToggle={() => onInfrastructureChange({ ...infrastructure, generators: !infrastructure.generators })} />
-          {infrastructure.generators && technologies && onTechnologiesChange && <div className="tech-tree" aria-label="Generator technology filters">
+          {technologies && onTechnologiesChange && <div className="tech-tree" aria-label="Generator technology filters">
             {(Object.keys(technologyLabels) as GenerationTechnology[]).map((technology) => (
               <button key={technology} type="button" className="tech-row" role="switch" aria-label={technologyLabels[technology]} aria-checked={technologies.has(technology)} onClick={() => { const next = new Set(technologies); if (next.has(technology)) next.delete(technology); else next.add(technology); onTechnologiesChange(next); }}>
                 <span aria-hidden="true" className="generator-swatch" style={{ backgroundColor: GENERATOR_COLORS[technology] }} />
@@ -113,8 +85,8 @@ export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvanced
               </button>
             ))}
           </div>}
-          {infrastructure.generators && <button className="advanced-filter-toggle" type="button" aria-expanded={advancedOpen} onClick={() => { const next = !advancedOpen; setAdvancedOpen(next); if (next) onAdvancedOpen?.(); }}>Advanced power filters <span aria-hidden="true">{advancedOpen ? "−" : "+"}</span></button>}
-          {infrastructure.generators && advancedOpen && lifecycles && onLifecyclesChange && <div className="tech-tree lifecycle-tree" aria-label="Generator lifecycle filters">
+          <button className="advanced-filter-toggle" type="button" aria-expanded={advancedOpen} onClick={() => { const next = !advancedOpen; setAdvancedOpen(next); if (next) onAdvancedOpen?.(); }}>Advanced power filters <span aria-hidden="true">{advancedOpen ? "−" : "+"}</span></button>
+          {advancedOpen && lifecycles && onLifecyclesChange && <div className="tech-tree lifecycle-tree" aria-label="Generator lifecycle filters">
             <p>Plant status</p>
             {(Object.entries(lifecycleGroups)).map(([id, group]) => { const pressed = group.states.every((state) => lifecycles.has(state)); return (
               <button key={id} type="button" className="tech-row" role="switch" aria-label={group.label} aria-checked={pressed} onClick={() => { const next = new Set(lifecycles); for (const state of group.states) { if (pressed) next.delete(state); else next.add(state); } onLifecyclesChange(next); }}>
@@ -124,16 +96,6 @@ export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvanced
             ); })}
           </div>}
         </div>
-      </div>}
-      {context && onContextChange && <div className="rail-section infrastructure-controls contextual-controls">
-        <p className="rail-heading">Context layers</p>
-        <div className="layer-list">
-          {([["grid", "Grid intelligence"]] as Array<[keyof ContextVisibility, string]>).map(([id, label]) => <button key={id} type="button" className={`layer-row context-${id}`} role="switch" aria-label={label} aria-checked={context[id]} onClick={() => onContextChange({ ...context, [id]: !context[id] })}>
-            <span className="layer-icon context-mark" aria-hidden="true">⌁</span>
-            <span className="layer-name">{label}</span><Switch checked={context[id]} />
-          </button>)}
-        </div>
-        <p className="legend-note">Shows reported queue and congestion observations where coordinates are public. Queue capacity is contracted generation—not available grid headroom. Bavaria cartography and TenneT topology appear automatically in coverage.</p>
       </div>}
       <div className="rail-section">
         <p className="rail-heading">View</p>
