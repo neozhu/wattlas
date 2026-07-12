@@ -6,12 +6,14 @@ import { useEffect, useMemo, useRef } from "react";
 import maplibregl, { type ExpressionSpecification, type GeoJSONSource, type MapGeoJSONFeature, type MapMouseEvent } from "maplibre-gl";
 
 import { baseMapStyle } from "@/components/map/map-style";
-import type { InfrastructureVisibility } from "@/components/controls/layer-rail";
+import type { ContextVisibility, InfrastructureVisibility } from "@/components/controls/layer-rail";
+import { BAVARIA_BOUNDS, BAVARIA_SERVICES } from "@/lib/map/bavaria-services";
 import { generatorColorExpression, generatorTechnologyExpression } from "@/lib/map/generator-colors";
 import { countriesInBounds, createGeneratorShardController, filterGeneratorOverview, filterGenerators, generatorSelection, type MapBounds } from "@/lib/map/generator-shards";
 import { admin1LineOpacityExpression, admin1LineWidthExpression, assetColor, assetStrokeColorExpression, countryBorderWidthExpression, mapColorExpression } from "@/lib/map/expressions";
 import type {
   AssetCollection,
+  CityCollection,
   GeographyCollection,
   LensKey,
   SnapshotManifest,
@@ -20,6 +22,7 @@ import type {
   GeneratorIndex,
   GeneratorOverviewCollection,
   GeneratorCollection,
+  GridCollection,
 } from "@/lib/snapshot/types";
 
 type Props = {
@@ -27,6 +30,9 @@ type Props = {
   admin1: GeographyCollection;
   regions: GeographyCollection;
   assets: AssetCollection;
+  cities?: CityCollection;
+  grid?: GridCollection;
+  context?: ContextVisibility;
   lens: LensKey;
   year: number;
   selectedId: string | null;
@@ -80,8 +86,11 @@ function activeRegions(regions: GeographyCollection, lens: LensKey, year: number
 
 const EMPTY_GENERATORS: GeneratorCollection = { type: "FeatureCollection", features: [] };
 const EMPTY_OVERVIEW: GeneratorOverviewCollection = { type: "FeatureCollection", features: [] };
+const EMPTY_CITIES: CityCollection = { type: "FeatureCollection", features: [] };
+const EMPTY_GRID: GridCollection = { type: "FeatureCollection", features: [] };
+const cityClass = (cities: CityCollection, value: "million_plus" | "german_large_city"): CityCollection => ({ ...cities, features: cities.features.filter((feature) => feature.properties.classes.includes(value)) });
 
-export function GlobalMap({ countries, admin1, regions, assets, lens, year, selectedId, focusTarget = null, onSelect, coverage, infrastructure = { dataCentres: true, water: true, generators: true }, technologies = new Set<GenerationTechnology>(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"]), lifecycles = new Set(["operational", "under_construction", "announced", "planning_filed", "permitted", "paused", "cancelled", "retired", "decommissioned", "shelved", "unknown"]), generatorOverview = null, generatorIndex = null, snapshotRoot = null, onSelectGenerator, onVisibleGeneratorsChange }: Props) {
+export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_CITIES, grid = EMPTY_GRID, context = { millionCities: true, germanCities: true, grid: true, bavaria: false, tennet: false }, lens, year, selectedId, focusTarget = null, onSelect, coverage, infrastructure = { dataCentres: true, water: true, generators: true }, technologies = new Set<GenerationTechnology>(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"]), lifecycles = new Set(["operational", "under_construction", "announced", "planning_filed", "permitted", "paused", "cancelled", "retired", "decommissioned", "shelved", "unknown"]), generatorOverview = null, generatorIndex = null, snapshotRoot = null, onSelectGenerator, onVisibleGeneratorsChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -138,6 +147,11 @@ export function GlobalMap({ countries, admin1, regions, assets, lens, year, sele
       map.addSource("countries", { type: "geojson", data: countriesRef.current, promoteId: "id" });
       map.addSource("admin1", { type: "geojson", data: admin1Ref.current, promoteId: "id" });
       map.addSource("regions", { type: "geojson", data: regionsRef.current, promoteId: "id" });
+      map.addSource("million-cities", { type: "geojson", data: cityClass(cities, "million_plus") });
+      map.addSource("german-cities", { type: "geojson", data: cityClass(cities, "german_large_city") });
+      map.addSource("grid-intelligence", { type: "geojson", data: grid as GeoJSON.FeatureCollection });
+      map.addSource(BAVARIA_SERVICES.basemap.id, { type: "raster", tiles: [...BAVARIA_SERVICES.basemap.tiles], tileSize: 256, bounds: BAVARIA_BOUNDS, attribution: BAVARIA_SERVICES.basemap.attribution });
+      map.addSource(BAVARIA_SERVICES.tennet.id, { type: "raster", tiles: [...BAVARIA_SERVICES.tennet.tiles], tileSize: 256, bounds: BAVARIA_BOUNDS, attribution: BAVARIA_SERVICES.tennet.attribution });
       map.addSource("assets", {
         type: "geojson",
         data: visibleAssets(assets, infrastructureRef.current),
@@ -161,6 +175,8 @@ export function GlobalMap({ countries, admin1, regions, assets, lens, year, sele
           other: ["+", ["case", ["in", "other", ["get", "technologies"]], 1, 0]],
         },
       });
+      map.addLayer({ id: "bavaria-official", type: "raster", source: BAVARIA_SERVICES.basemap.id, minzoom: BAVARIA_SERVICES.basemap.minzoom, maxzoom: BAVARIA_SERVICES.basemap.maxzoom, layout: { visibility: context.bavaria ? "visible" : "none" }, paint: { "raster-opacity": 0.72 } });
+      map.addLayer({ id: "tennet-network", type: "raster", source: BAVARIA_SERVICES.tennet.id, minzoom: BAVARIA_SERVICES.tennet.minzoom, maxzoom: BAVARIA_SERVICES.tennet.maxzoom, layout: { visibility: context.tennet ? "visible" : "none" }, paint: { "raster-opacity": 0.86 } });
       map.addLayer({
         id: "countries-fill",
         type: "fill",
@@ -305,6 +321,11 @@ export function GlobalMap({ countries, admin1, regions, assets, lens, year, sele
           "text-opacity": ["case", ["==", ["get", "lifecycle"], "operational"], 0.72, 1],
         },
       });
+      map.addLayer({ id: "grid-intelligence", type: "circle", source: "grid-intelligence", minzoom: 2, layout: { visibility: context.grid ? "visible" : "none" }, paint: { "circle-color": ["match", ["get", "recordType"], "connection_queue", "#E2B45C", "congestion", "#D46F62", "outage", "#B887D4", "#75B8A6"], "circle-radius": ["interpolate", ["linear"], ["coalesce", ["get", "capacityValue"], 0], 0, 4, 1000, 8, 6000, 12], "circle-opacity": 0.9, "circle-stroke-color": "#07100F", "circle-stroke-width": 1.5 } });
+      map.addLayer({ id: "million-city-points", type: "circle", source: "million-cities", layout: { visibility: context.millionCities ? "visible" : "none" }, paint: { "circle-color": "#F1F6F4", "circle-radius": ["interpolate", ["linear"], ["get", "population"], 1000000, 3.5, 20000000, 8], "circle-opacity": 0.78, "circle-stroke-color": "#17302C", "circle-stroke-width": 1.5 } });
+      map.addLayer({ id: "million-city-labels", type: "symbol", source: "million-cities", minzoom: 2.2, layout: { visibility: context.millionCities ? "visible" : "none", "text-field": ["get", "name"], "text-size": 10, "text-offset": [0, 1.15], "text-optional": true }, paint: { "text-color": "#E7EFED", "text-halo-color": "#07100F", "text-halo-width": 1 } });
+      map.addLayer({ id: "german-city-points", type: "circle", source: "german-cities", minzoom: 4.5, layout: { visibility: context.germanCities ? "visible" : "none" }, paint: { "circle-color": "#7FC2B1", "circle-radius": 4, "circle-stroke-color": "#07100F", "circle-stroke-width": 1 } });
+      map.addLayer({ id: "german-city-labels", type: "symbol", source: "german-cities", minzoom: 5.3, layout: { visibility: context.germanCities ? "visible" : "none", "text-field": ["get", "name"], "text-size": 10, "text-offset": [0, 1.1], "text-optional": true }, paint: { "text-color": "#BFE1D8", "text-halo-color": "#07100F", "text-halo-width": 1 } });
 
       for (const layer of ["countries-fill", "admin1-fill", "regions-fill", "asset-clusters", "data-centre-assets", "water-assets", "generator-overview-markers", "generator-clusters", "generator-assets"]) {
         map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
@@ -419,6 +440,16 @@ export function GlobalMap({ countries, admin1, regions, assets, lens, year, sele
     for (const id of ["water-assets"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", infrastructure.water ? "visible" : "none");
     for (const id of ["generator-overview-markers", "generator-overview-composition", "generator-clusters", "generator-cluster-count", "generator-assets"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", infrastructure.generators ? "visible" : "none");
   }, [assets, infrastructure, lifecycles, technologies]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map?.isStyleLoaded()) return;
+    (map.getSource("million-cities") as GeoJSONSource | undefined)?.setData(cityClass(cities, "million_plus"));
+    (map.getSource("german-cities") as GeoJSONSource | undefined)?.setData(cityClass(cities, "german_large_city"));
+    (map.getSource("grid-intelligence") as GeoJSONSource | undefined)?.setData(grid as GeoJSON.FeatureCollection);
+    const visibility: Record<string, boolean> = { "million-city-points": context.millionCities, "million-city-labels": context.millionCities, "german-city-points": context.germanCities, "german-city-labels": context.germanCities, "grid-intelligence": context.grid, "bavaria-official": context.bavaria, "tennet-network": context.tennet };
+    for (const [id, visible] of Object.entries(visibility)) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visible ? "visible" : "none");
+  }, [cities, context, grid]);
 
   useEffect(() => {
     const map = mapRef.current;

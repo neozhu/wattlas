@@ -10,6 +10,7 @@ const lenses: Array<{ id: LensKey; label: string; description: string }> = [
 ];
 
 export type InfrastructureVisibility = { dataCentres: boolean; water: boolean; generators: boolean };
+export type ContextVisibility = { millionCities: boolean; germanCities: boolean; grid: boolean; bavaria: boolean; tennet: boolean };
 type Props = {
   activeLens: LensKey; onChange: (lens: LensKey) => void;
   onHide?: () => void;
@@ -18,6 +19,7 @@ type Props = {
   infrastructure?: InfrastructureVisibility; onInfrastructureChange?: (value: InfrastructureVisibility) => void;
   technologies?: ReadonlySet<GenerationTechnology>; onTechnologiesChange?: (value: Set<GenerationTechnology>) => void;
   lifecycles?: ReadonlySet<string>; onLifecyclesChange?: (value: Set<string>) => void;
+  context?: ContextVisibility; onContextChange?: (value: ContextVisibility) => void;
 };
 
 const technologyLabels: Record<GenerationTechnology, string> = { solar: "Solar", wind: "Wind", hydro: "Hydro", nuclear: "Nuclear", gas: "Gas", coal: "Coal", oil: "Oil", biomass: "Biomass", geothermal: "Geothermal", other: "Other" };
@@ -83,7 +85,7 @@ function LayerRow({ id, label, checked, onToggle }: { id: keyof InfrastructureVi
   );
 }
 
-export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvancedOpen, infrastructure, onInfrastructureChange, technologies, onTechnologiesChange, lifecycles, onLifecyclesChange }: Props) {
+export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvancedOpen, infrastructure, onInfrastructureChange, technologies, onTechnologiesChange, lifecycles, onLifecyclesChange, context, onContextChange }: Props) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   return (
     <aside className="layer-rail" aria-label="Map controls">
@@ -122,6 +124,22 @@ export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvanced
             ); })}
           </div>}
         </div>
+      </div>}
+      {context && onContextChange && <div className="rail-section infrastructure-controls contextual-controls">
+        <p className="rail-heading">Context layers</p>
+        <div className="layer-list">
+          {([
+            ["millionCities", "Cities · 1M+"],
+            ["germanCities", "German Großstädte"],
+            ["grid", "Grid intelligence"],
+            ["bavaria", "Bavaria official map"],
+            ["tennet", "TenneT network"],
+          ] as Array<[keyof ContextVisibility, string]>).map(([id, label]) => <button key={id} type="button" className={`layer-row context-${id}`} role="switch" aria-label={label} aria-checked={context[id]} onClick={() => onContextChange({ ...context, [id]: !context[id] })}>
+            <span className="layer-icon context-mark" aria-hidden="true">{id === "grid" || id === "tennet" ? "⌁" : id === "bavaria" ? "▧" : "●"}</span>
+            <span className="layer-name">{label}</span><Switch checked={context[id]} />
+          </button>)}
+        </div>
+        <p className="legend-note">City population definitions remain source-specific. Queue capacity is not grid headroom.</p>
       </div>}
       <div className="rail-section">
         <p className="rail-heading">View</p>

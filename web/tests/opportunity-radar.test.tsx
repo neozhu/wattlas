@@ -85,6 +85,13 @@ const snapshot: SnapshotData = {
 } as unknown as SnapshotData;
 
 describe("OpportunityRadar", () => {
+  it("preserves production controls and adds independent context layers", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    expect(screen.getByRole("combobox", { name: "Search Wattlas" })).toBeInTheDocument();
+    for (const name of ["Cities · 1M+", "German Großstädte", "Grid intelligence", "Bavaria official map", "TenneT network"]) {
+      expect(screen.getByRole("switch", { name })).toBeInTheDocument();
+    }
+  });
   it("renders monthly freshness, lenses, year, and source truth", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
 
