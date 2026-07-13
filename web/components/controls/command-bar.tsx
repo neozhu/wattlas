@@ -1,5 +1,6 @@
 import { connectorLabel, formatSnapshotTime } from "@/lib/format";
 import type { SnapshotManifest } from "@/lib/snapshot/types";
+import { WattlasBrand } from "@/components/branding/wattlas-brand";
 
 type Props = {
   manifest: SnapshotManifest;
@@ -13,10 +14,7 @@ export function CommandBar({ manifest, onOpenStatus }: Props) {
 
   return (
     <header className="command-bar">
-      <div className="brand-block">
-        <div className="wordmark" aria-label="Wattlas">WATTLAS</div>
-        <a className="project-byline" href="https://github.com/ad1tyagupta/wattlas" target="_blank" rel="noreferrer" aria-label="Open source project by Aditya Gupta">An open source project by Aditya Gupta</a>
-      </div>
+      <WattlasBrand />
       <div className="command-context">
         <span>Global</span>
         <span className="command-divider" />

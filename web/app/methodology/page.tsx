@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { WattlasBrand } from "@/components/branding/wattlas-brand";
+
 export const dynamic = "force-static";
 
 export const metadata: Metadata = {
@@ -17,10 +19,35 @@ export const metadata: Metadata = {
   },
 };
 
+const sections = [
+  ["overview", "Overview"],
+  ["how-it-works", "How it works"],
+  ["data-sources", "Data sources"],
+  ["evidence", "Evidence labels"],
+  ["refresh-quality", "Refresh and quality"],
+  ["limitations", "Limitations"],
+] as const;
+
+const processSteps = [
+  ["Collect", "Connectors retrieve public datasets and curated evidence from official project publications."],
+  ["Normalize", "Records are mapped into common fields for geography, lifecycle, technology, capacity, and source history."],
+  ["Validate", "Automated checks review schemas, coordinates, coverage, reconciliation, and source availability."],
+  ["Model", "Documented inputs produce regional demand, attractiveness, system risk, and power balance views."],
+  ["Publish", "A validated snapshot becomes the public map. The previous snapshot remains available if a refresh fails."],
+] as const;
+
+const evidenceLabels = [
+  ["Observed", "A directly measured or mapped value from a cited source."],
+  ["Reported", "A value published by an operator, authority, company, or dataset owner."],
+  ["Estimated", "A calculation based on public inputs and documented assumptions."],
+  ["Inherited", "A broader geographic value used when reliable local evidence is unavailable."],
+  ["Unavailable", "Public evidence is insufficient, so Wattlas does not replace the missing value with zero."],
+] as const;
+
 const sourceGroups = [
   {
     title: "Boundaries and geography",
-    description: "Country and regional geometry supports selection, aggregation, and comparison. Boundary sources do not determine political claims made by Wattlas.",
+    description: "Country and regional boundaries support map selection, aggregation, and comparison.",
     sources: [
       ["United Nations Geospatial", "Country geometry and boundary context", "https://www.un.org/geospatial/"],
       ["geoBoundaries", "Global first-level administrative boundaries", "https://www.geoboundaries.org/"],
@@ -29,35 +56,35 @@ const sourceGroups = [
   },
   {
     title: "Population and cities",
-    description: "Population provides regional context and helps normalize demand. City records support map labels and direct search navigation.",
+    description: "Population adds regional context and city records support map labels and direct search.",
     sources: [
       ["WorldPop", "Population surfaces used to build regional estimates", "https://www.worldpop.org/"],
       ["Eurostat", "European regional population statistics", "https://ec.europa.eu/eurostat/"],
-      ["Natural Earth", "Global million-plus populated places", "https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/"],
-      ["GeoNames", "German populated places above 100,000 residents", "https://www.geonames.org/"],
+      ["Natural Earth", "Global populated places with more than one million residents", "https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/"],
+      ["GeoNames", "German populated places with more than 100,000 residents", "https://www.geonames.org/"],
     ],
   },
   {
     title: "Infrastructure facilities",
-    description: "Facility points show data centres and electrically material water infrastructure. Community mapping provides coverage, while official records provide stronger project evidence.",
+    description: "Facility records locate data centres, water infrastructure, and power assets where public evidence is available.",
     sources: [
       ["OpenStreetMap", "Community-mapped data centres, water facilities, and power infrastructure", "https://www.openstreetmap.org/copyright"],
       ["QLever", "Query service used for OpenStreetMap planet extracts", "https://qlever.dev/"],
-      ["Official project publications", "Curated company, utility, government, and planning evidence", "https://github.com/ad1tyagupta/wattlas/tree/main/data/curated"],
+      ["Official project publications", "Company, utility, government, and planning evidence curated by Wattlas", "https://github.com/ad1tyagupta/wattlas/tree/main/data/curated"],
     ],
   },
   {
     title: "Electricity and power generation",
-    description: "Generation and electricity records support the Power Balance view. Technology, lifecycle, capacity, and source lineage remain attached to each record where available.",
+    description: "Generation and electricity records support the Power Balance view and regional context.",
     sources: [
       ["Global Energy Monitor", "Power plant projects and operating assets", "https://globalenergymonitor.org/projects/global-integrated-power/"],
       ["World Resources Institute", "Global power plant reference data", "https://datasets.wri.org/dataset/globalpowerplantdatabase"],
       ["U.S. Energy Information Administration", "United States electricity and generation statistics", "https://www.eia.gov/opendata/"],
       ["Ember", "Country electricity generation and demand statistics", "https://ember-energy.org/data/yearly-electricity-data/"],
-      ["ENTSO-E", "Optional European electricity system data when configured", "https://transparency.entsoe.eu/"],
+      ["ENTSO-E", "European electricity system data when the connector is configured", "https://transparency.entsoe.eu/"],
     ],
   },
-];
+] as const;
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -73,84 +100,123 @@ export default function MethodologyPage() {
   return (
     <main className="methodology-page">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <a className="methodology-skip-link" href="#methodology-content">Skip to methodology content</a>
+
       <header className="methodology-header">
-        <Link className="methodology-wordmark" href="/">WATTLAS</Link>
-        <span>Methodology &amp; Sources</span>
+        <WattlasBrand href="/" />
+        <span className="methodology-header-title">Methodology and sources</span>
         <Link className="methodology-radar-link" href="/">Open Opportunity Radar</Link>
       </header>
 
       <article className="methodology-article">
-        <section className="methodology-hero">
-          <p className="methodology-kicker">PUBLIC DATA · EXPLAINABLE METHODS · GLOBAL COVERAGE</p>
+        <header className="methodology-hero">
+          <p className="methodology-kicker">About the project</p>
           <h1>How Wattlas works</h1>
-          <p className="methodology-lede">Wattlas is a global infrastructure Opportunity Radar. It brings public information about data centres, water infrastructure, electricity generation, demand, population, and geography into one map for regional exploration.</p>
-          <p>It is designed to help users ask where infrastructure growth may create electrical demand, delivery opportunity, or system pressure. Wattlas is an analytical research tool, not an operational grid control system or investment recommendation.</p>
-        </section>
+          <p className="methodology-lede">Wattlas brings public information about data centres, water infrastructure, electricity generation, population, and regional boundaries into one searchable map.</p>
+          <p className="methodology-summary">This page explains what the map shows, where its data comes from, and how to interpret values that are measured, reported, or estimated.</p>
+        </header>
 
-        <section className="methodology-section" aria-labelledby="process-title">
-          <p className="methodology-index">01 · PROCESS</p>
-          <h2 id="process-title">From public records to the map</h2>
-          <ol className="methodology-steps">
-            <li><strong>Collect</strong><span>Connectors retrieve public datasets and curated official evidence.</span></li>
-            <li><strong>Normalize</strong><span>Records are mapped into common geography, lifecycle, technology, capacity, and provenance fields.</span></li>
-            <li><strong>Validate</strong><span>Schema, coordinate, coverage, reconciliation, and source checks run before publication.</span></li>
-            <li><strong>Model</strong><span>Transparent inputs produce regional demand, attractiveness, system risk, and power balance views.</span></li>
-            <li><strong>Publish</strong><span>An immutable snapshot is served until a newer validated snapshot succeeds.</span></li>
-          </ol>
-        </section>
+        <div className="methodology-layout">
+          <aside className="methodology-toc">
+            <nav aria-label="On this page">
+              <p>On this page</p>
+              <ol>
+                {sections.map(([id, label], index) => (
+                  <li key={id}>
+                    <a href={`#${id}`}><span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>{label}</a>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+            <p className="methodology-toc-note">Wattlas is an open source research tool. It is not an operational grid control system or investment recommendation.</p>
+          </aside>
 
-        <section className="methodology-section" aria-labelledby="evidence-title">
-          <p className="methodology-index">02 · EVIDENCE</p>
-          <h2 id="evidence-title">What the value labels mean</h2>
-          <div className="evidence-grid">
-            <div><strong>Observed</strong><p>A directly measured or mapped value from a cited source.</p></div>
-            <div><strong>Reported</strong><p>A value published by an operator, authority, company, or dataset owner.</p></div>
-            <div><strong>Estimated</strong><p>A transparent calculation based on public inputs and documented assumptions.</p></div>
-            <div><strong>Inherited</strong><p>A broader geographic value used when reliable local evidence is unavailable.</p></div>
-            <div><strong>Unavailable</strong><p>Public evidence is insufficient, so Wattlas does not substitute a zero.</p></div>
-          </div>
-        </section>
+          <div className="methodology-content" id="methodology-content">
+            <section className="methodology-section" id="overview" aria-labelledby="overview-title">
+              <p className="methodology-index">01</p>
+              <h2 id="overview-title">What Wattlas shows</h2>
+              <p>Wattlas helps people explore how infrastructure growth relates to electricity demand, generation, water systems, and population. The default map begins with data centres and water infrastructure. Users can add power generation, regional boundaries, forecasts, and analytical views when they need more context.</p>
+              <p>The map is designed for early research. It can help identify regions worth investigating, compare public evidence, and open the source record behind a facility or regional indicator. It does not show live grid conditions or guarantee that a site has available electrical capacity.</p>
+            </section>
 
-        <section className="methodology-section" aria-labelledby="sources-title">
-          <p className="methodology-index">03 · SOURCES</p>
-          <h2 id="sources-title">Data sources</h2>
-          <p className="section-intro">The source mix changes by geography and layer. Each published snapshot records connector status, observation dates, checksums, evidence links, and known limitations.</p>
-          <div className="source-groups">
-            {sourceGroups.map((group) => (
-              <section className="source-group" key={group.title}>
-                <h3>{group.title}</h3>
-                <p>{group.description}</p>
-                <ul>
-                  {group.sources.map(([name, role, href]) => <li key={name}><a href={href} target="_blank" rel="noreferrer"><strong>{name}</strong><span>{role}</span></a></li>)}
-                </ul>
-              </section>
-            ))}
-          </div>
-        </section>
+            <section className="methodology-section" id="how-it-works" aria-labelledby="how-it-works-title">
+              <p className="methodology-index">02</p>
+              <h2 id="how-it-works-title">How public data reaches the map</h2>
+              <p>Wattlas uses a repeatable publication process so that source history and validation remain attached to the map.</p>
+              <ol className="methodology-process">
+                {processSteps.map(([title, description], index) => (
+                  <li key={title}>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <div><h3>{title}</h3><p>{description}</p></div>
+                  </li>
+                ))}
+              </ol>
+            </section>
 
-        <section className="methodology-section methodology-split" aria-labelledby="quality-title">
-          <div>
-            <p className="methodology-index">04 · QUALITY</p>
-            <h2 id="quality-title">Refresh and quality controls</h2>
-            <p>Wattlas checks upstream sources on a scheduled cycle and publishes only after validation. If an upstream source fails, the site can retain the last successful capture instead of deleting a useful layer.</p>
-            <p>The interface reports snapshot freshness and connector state. A source being reachable does not mean every geography or field is complete.</p>
+            <section className="methodology-section" id="data-sources" aria-labelledby="data-sources-title">
+              <p className="methodology-index">03</p>
+              <h2 id="data-sources-title">Data sources</h2>
+              <p>The exact source mix varies by location and map layer. Each published snapshot records source status, observation dates, checksums, evidence links, and known limitations where those details are available.</p>
+              <div className="methodology-source-directory">
+                {sourceGroups.map((group) => (
+                  <section className="methodology-source-group" key={group.title} aria-labelledby={`source-${group.title.toLowerCase().replaceAll(" ", "-")}`}>
+                    <h3 id={`source-${group.title.toLowerCase().replaceAll(" ", "-")}`}>{group.title}</h3>
+                    <p>{group.description}</p>
+                    <ul>
+                      {group.sources.map(([name, role, href]) => (
+                        <li key={name}>
+                          <a href={href} target="_blank" rel="noreferrer">
+                            <span><strong>{name}</strong><small>{role}</small></span>
+                            <span aria-hidden="true">Visit source ↗</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            </section>
+
+            <section className="methodology-section" id="evidence" aria-labelledby="evidence-title">
+              <p className="methodology-index">04</p>
+              <h2 id="evidence-title">Evidence labels</h2>
+              <p>Wattlas labels the basis of a value so that users can distinguish source data from calculations and missing evidence.</p>
+              <dl className="methodology-definitions">
+                {evidenceLabels.map(([term, description]) => (
+                  <div key={term}><dt>{term}</dt><dd>{description}</dd></div>
+                ))}
+              </dl>
+            </section>
+
+            <section className="methodology-section" id="refresh-quality" aria-labelledby="refresh-quality-title">
+              <p className="methodology-index">05</p>
+              <h2 id="refresh-quality-title">Refresh and quality controls</h2>
+              <p>Wattlas checks upstream sources on a scheduled cycle and publishes only after validation. If a source fails, the site can retain the last successful capture instead of removing a useful layer.</p>
+              <ul className="methodology-check-list">
+                <li>Schema checks confirm that published records contain the expected fields.</li>
+                <li>Coordinate checks catch facilities placed outside valid geographic ranges.</li>
+                <li>Coverage and reconciliation checks identify unexpected changes between snapshots.</li>
+                <li>The interface reports snapshot freshness and connector status.</li>
+              </ul>
+              <p>A source being reachable does not mean every geography or field is complete. Observation dates and source notes remain important when comparing records.</p>
+            </section>
+
+            <section className="methodology-section" id="limitations" aria-labelledby="limitations-title">
+              <p className="methodology-index">06</p>
+              <h2 id="limitations-title">Limitations and responsible use</h2>
+              <ul className="methodology-limitations">
+                <li><strong>Coverage varies.</strong><span>Community-mapped facilities differ in completeness and observation date.</span></li>
+                <li><strong>Projects change.</strong><span>Planned capacity, technology, and delivery dates may be revised after publication.</span></li>
+                <li><strong>Queues are not headroom.</strong><span>A connection queue does not prove that grid capacity is available.</span></li>
+                <li><strong>Some values are estimates.</strong><span>Regional scores are analytical indicators, not measured operating conditions.</span></li>
+                <li><strong>Definitions differ.</strong><span>Population, city, facility, and technology definitions vary across source systems.</span></li>
+              </ul>
+            </section>
           </div>
-          <div>
-            <p className="methodology-index">05 · LIMITS</p>
-            <h2>Limitations</h2>
-            <ul className="limitations-list">
-              <li>Community-mapped facilities vary in completeness and observation date.</li>
-              <li>Planned project capacity and delivery dates can change.</li>
-              <li>Connection queues do not equal available grid headroom.</li>
-              <li>Cooling technology is not presented as observed without facility-level evidence.</li>
-              <li>Regional scores are analytical indicators, not measured grid operating conditions.</li>
-              <li>Population and city definitions differ across source systems.</li>
-            </ul>
-          </div>
-        </section>
+        </div>
 
         <footer className="methodology-footer">
-          <p>Explore the evidence in context.</p>
+          <div><strong>Continue exploring</strong><span>Open the map or inspect the project and its source files.</span></div>
           <Link href="/">Open Opportunity Radar</Link>
           <a href="https://github.com/ad1tyagupta/wattlas" target="_blank" rel="noreferrer">View the open source project</a>
         </footer>
