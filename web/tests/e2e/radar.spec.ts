@@ -109,3 +109,21 @@ test("stacks the map and inspector without mobile overflow", async ({ page }, te
   expect(layout.inspector?.width).toBe(layout.viewport);
   expect(layout.inspector?.top).toBeGreaterThanOrEqual(layout.map?.bottom ?? 0);
 });
+
+test("methodology section links use normal document scrolling", async ({ page }) => {
+  await page.goto("/methodology#data-sources", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Data sources", exact: true })).toBeVisible();
+  await expect.poll(async () => page.locator("#data-sources").evaluate((element) => element.getBoundingClientRect().top)).toBeLessThan(120);
+
+  const layout = await page.evaluate(() => ({
+    scrollY: window.scrollY,
+    viewport: window.innerWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+    targetTop: document.querySelector("#data-sources")?.getBoundingClientRect().top ?? null,
+  }));
+
+  expect(layout.scrollY).toBeGreaterThan(0);
+  expect(layout.targetTop).toBeGreaterThanOrEqual(50);
+  expect(layout.targetTop).toBeLessThan(120);
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewport);
+});

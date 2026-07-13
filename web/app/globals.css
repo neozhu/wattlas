@@ -2230,17 +2230,29 @@ button {
   }
 }
 
-.methodology-page {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100dvh;
-  min-height: 100dvh;
+html:has(.methodology-page) {
+  min-width: 0;
+  height: auto;
+  min-height: 100%;
   overflow-x: hidden;
   overflow-y: auto;
-  overscroll-behavior-y: contain;
   scroll-behavior: smooth;
   scroll-padding-top: 88px;
+}
+
+body:has(.methodology-page) {
+  min-width: 0;
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+.methodology-page {
+  position: relative;
+  width: 100%;
+  height: auto;
+  min-height: 100dvh;
+  overscroll-behavior-y: contain;
   color: var(--text);
   background:
     radial-gradient(circle at 72% 0%, rgb(52 104 88 / 12%), transparent 30rem),
@@ -2423,7 +2435,6 @@ button {
 }
 
 .methodology-section {
-  scroll-margin-top: 92px;
   padding: 62px 0 74px;
   border-bottom: 1px solid var(--line-bright);
 }
@@ -2658,7 +2669,7 @@ button {
 }
 
 @media (max-width: 680px) {
-  .methodology-page { scroll-padding-top: 72px; }
+  html:has(.methodology-page) { scroll-padding-top: 72px; }
   .methodology-header { grid-template-columns: 1fr auto; min-height: 58px; padding: 0 14px; }
   .methodology-header .brand-block { min-height: 58px; }
   .methodology-header-title { display: none; }
@@ -2671,7 +2682,7 @@ button {
   .methodology-summary { font-size: 14px; }
   .methodology-toc ol { grid-template-columns: 1fr; }
   .methodology-toc-note { display: none; }
-  .methodology-section { scroll-margin-top: 72px; padding: 48px 0 56px; }
+  .methodology-section { padding: 48px 0 56px; }
   .methodology-section h2 { font-size: 31px; }
   .methodology-section > p:not(.methodology-index) { font-size: 14px; }
   .methodology-process li { grid-template-columns: 34px 1fr; gap: 12px; }
