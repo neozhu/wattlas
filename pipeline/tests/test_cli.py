@@ -308,6 +308,20 @@ def test_optional_source_uses_its_own_last_known_good_capture(tmp_path) -> None:
     assert "last successful" in (status.message or "")
 
 
+def test_optional_source_failure_without_cache_is_isolated(tmp_path) -> None:
+    store = RawCaptureStore(tmp_path / "raw", tmp_path / "warehouse.duckdb")
+
+    body, status = _optional_network_result(
+        lambda: (_ for _ in ()).throw(RuntimeError("upstream unavailable")),
+        "gem_power",
+        store,
+    )
+
+    assert json.loads(body) == {"records": []}
+    assert status.state == ConnectorState.FAILED
+    assert "upstream unavailable" in (status.message or "")
+
+
 def test_unchanged_success_refreshes_cached_connector_last_success_time(tmp_path) -> None:
     store = RawCaptureStore(tmp_path / "raw", tmp_path / "warehouse.duckdb")
     body = b'{"records":[{"id":"same"}]}'

@@ -628,6 +628,10 @@ def _optional_network_result(
         if result.state == ConnectorState.NOT_CONFIGURED:
             return b'{"records":[]}', result
         raise RuntimeError(result.message or f"{source_id} returned no payload")
+    except ValueError:
+        # Contract violations must fail loudly; they can otherwise poison a
+        # source-specific last-known-good capture under the wrong identity.
+        raise
     except Exception as error:
         previous = store.latest_capture(source_id)
         if previous is not None:
@@ -637,7 +641,12 @@ def _optional_network_result(
                 payload=None,
                 message=f"Using last successful capture: {error}",
             )
-        raise
+        return b'{"records":[]}', ConnectorResult(
+            source_id=source_id,
+            state=ConnectorState.FAILED,
+            payload=None,
+            message=f"Optional source failed without a cached capture: {error}",
+        )
 
 
 def collect_power_source_records(
