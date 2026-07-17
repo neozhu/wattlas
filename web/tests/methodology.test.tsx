@@ -36,6 +36,7 @@ describe("methodology and sources", () => {
     expect(screen.getByText(/Demand is measured in GWh/i)).toBeInTheDocument();
     expect(screen.getByText(/official observed measurements/i)).toBeInTheDocument();
     expect(screen.getByText(/retirements reduce future supply/i)).toBeInTheDocument();
+    expect(screen.getByText(/Source status from snapshot 17 Jul 2026, 00:00 UTC/i)).toBeInTheDocument();
     expect(screen.getByText("SIGA")).toBeInTheDocument();
     expect(screen.getByText("SAPP data")).toBeInTheDocument();
   });

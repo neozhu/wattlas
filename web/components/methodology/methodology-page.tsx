@@ -8,6 +8,17 @@ import { filterSources } from "@/lib/methodology";
 import type { SourceCatalog } from "@/lib/snapshot/types";
 import styles from "@/app/methodology/methodology.module.css";
 
+const snapshotDateFormatter = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  timeZone: "UTC",
+  timeZoneName: "short",
+});
+
 export function MethodologyPage({ catalog, generatedAt }: { catalog: SourceCatalog; generatedAt: string | null }) {
   const [continent, setContinent] = useState("");
   const [country, setCountry] = useState("");
@@ -26,7 +37,7 @@ export function MethodologyPage({ catalog, generatedAt }: { catalog: SourceCatal
         <p>PUBLIC DATA · EXPLAINABLE METHODS · 2026–2031</p>
         <h1>How Wattlas builds the Opportunity Radar</h1>
         <span>Infrastructure Demand is the primary score. Site Attractiveness, System Risk, and Power Balance are supporting lenses.</span>
-        {generatedAt ? <small>Source status from snapshot {new Date(generatedAt).toLocaleString()}</small> : null}
+        {generatedAt ? <small>Source status from snapshot {snapshotDateFormatter.format(new Date(generatedAt))}</small> : null}
       </header>
 
       <section className={styles.methodGrid}>
@@ -54,4 +65,3 @@ export function MethodologyPage({ catalog, generatedAt }: { catalog: SourceCatal
     </main>
   );
 }
-
