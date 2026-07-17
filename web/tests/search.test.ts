@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildSearchIndex, searchEntities } from "@/lib/search";
-import type { AssetFeature, GeneratorFeature, GeographyFeature } from "@/lib/snapshot/types";
+import type { AssetFeature, CityCollection, GeneratorFeature, GeographyFeature } from "@/lib/snapshot/types";
 
 const india = {
   type: "Feature",
@@ -37,6 +37,7 @@ const windFarm = {
   geometry: { type: "Point", coordinates: [-100, 32] },
   properties: { id: "generator-1", name: "Young Wind Farm", country: "US", category: "power_generation", technologies: ["wind"] },
 } as unknown as GeneratorFeature;
+const jamshedpur = { type: "Feature", id: "natural-earth-jamshedpur", geometry: { type: "Point", coordinates: [86.195573, 22.789481] }, properties: { id: "natural-earth-jamshedpur", name: "Jamshedpur", country: "IN", population: 1300000, populationYear: 2025, populationDefinition: "urban_centre", classes: ["million_plus"], sourceId: "natural-earth", observedAt: "2026-07-12T00:00:00Z" } } as CityCollection["features"][number];
 
 describe("searchEntities", () => {
   it("ranks exact and prefix place matches before broad contains matches", () => {
@@ -63,5 +64,10 @@ describe("searchEntities", () => {
 
     expect(searchEntities(index, "")).toEqual([]);
     expect(searchEntities(index, "  ")).toEqual([]);
+  });
+
+  it("indexes million-plus cities as coordinate search targets", () => {
+    const index = buildSearchIndex({ geographies: [], assets: [], generators: [], cities: [jamshedpur] });
+    expect(searchEntities(index, "jamshedpur")[0]).toMatchObject({ entityType: "city", coordinates: [86.195573, 22.789481] });
   });
 });

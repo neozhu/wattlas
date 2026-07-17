@@ -129,6 +129,19 @@ export type AssetProperties = {
 export type AssetFeature = GeoJSON.Feature<GeoJSON.Point, AssetProperties> & { id: string };
 export type AssetCollection = GeoJSON.FeatureCollection<GeoJSON.Point, AssetProperties>;
 
+export type CityProperties = {
+  id: string;
+  name: string;
+  country: string;
+  population: number;
+  populationYear: number;
+  populationDefinition: "urban_centre" | "municipality";
+  classes: Array<"million_plus" | "german_large_city">;
+  sourceId: string;
+  observedAt: string;
+};
+export type CityCollection = GeoJSON.FeatureCollection<GeoJSON.Point, CityProperties>;
+
 export type ProjectProperties = {
   id: string;
   name: string;
@@ -180,6 +193,7 @@ export type SnapshotManifest = {
     countries: string; admin1: string; regions: string; assets: string; evidence: string;
     regionalEnergy?: string; generatorOverview?: string; generatorIndex?: string;
     sourceCatalog?: string;
+    cities?: string;
   };
   coverage: {
     countries: number;
@@ -196,6 +210,7 @@ export type SnapshotManifest = {
     publishedPowerPlants?: number;
     generatorRegions?: number;
     regionalEnergyRegions?: number;
+    cities?: number;
   };
   quality?: {
     countryDemandReconciled: boolean;

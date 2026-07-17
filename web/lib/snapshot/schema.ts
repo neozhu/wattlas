@@ -147,6 +147,7 @@ export const manifestSchema = z.object({
     generatorOverview: z.string().optional(),
     generatorIndex: z.string().optional(),
     sourceCatalog: z.string().optional(),
+    cities: z.string().optional(),
   }).strict(),
   coverage: z.object({
     countries: z.number().int().nonnegative(),
@@ -163,6 +164,7 @@ export const manifestSchema = z.object({
     publishedPowerPlants: z.number().int().nonnegative().optional(),
     generatorRegions: z.number().int().nonnegative().optional(),
     regionalEnergyRegions: z.number().int().nonnegative().optional(),
+    cities: z.number().int().nonnegative().optional(),
   }).strict(),
   quality: z.object({
     countryDemandReconciled: z.boolean(),
@@ -366,6 +368,31 @@ export const assetFeatureCollectionSchema = z.object({
       coordinates: z.tuple([z.number(), z.number()]),
     }),
     properties: assetPropertiesSchema,
+  })),
+});
+
+export const cityPropertiesSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  country: z.string().length(2),
+  population: z.number().int().min(100_000),
+  populationYear: z.number().int(),
+  populationDefinition: z.enum(["urban_centre", "municipality"]),
+  classes: z.array(z.enum(["million_plus", "german_large_city"])),
+  sourceId: z.string(),
+  observedAt: z.string().datetime(),
+});
+
+export const cityFeatureCollectionSchema = z.object({
+  type: z.literal("FeatureCollection"),
+  features: z.array(z.object({
+    type: z.literal("Feature"),
+    id: z.string(),
+    geometry: z.object({
+      type: z.literal("Point"),
+      coordinates: z.tuple([z.number(), z.number()]),
+    }),
+    properties: cityPropertiesSchema,
   })),
 });
 

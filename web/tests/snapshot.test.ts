@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   assetPropertiesSchema,
+  cityFeatureCollectionSchema,
   generatorCountryShardSchema,
   generatorIndexSchema,
   generatorOverviewSchema,
@@ -67,6 +68,35 @@ async function sha256(body: string): Promise<string> {
 }
 
 describe("snapshot manifest", () => {
+  it("keeps optional live-portal city artifacts compatible with governed snapshots", () => {
+    const manifest = manifestSchema.parse({
+      ...validManifest,
+      artifacts: { ...validManifest.artifacts, cities: "snapshots/2026-06-27T04-12-00Z/cities.geojson" },
+      coverage: { ...validManifest.coverage, cities: 1 },
+    });
+    const cities = cityFeatureCollectionSchema.parse({
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        id: "city-br-sao-paulo",
+        geometry: { type: "Point", coordinates: [-46.6333, -23.5505] },
+        properties: {
+          id: "city-br-sao-paulo",
+          name: "São Paulo",
+          country: "BR",
+          population: 12_000_000,
+          populationYear: 2025,
+          populationDefinition: "municipality",
+          classes: ["million_plus"],
+          sourceId: "official-city-source",
+          observedAt: "2026-07-17T00:00:00Z",
+        },
+      }],
+    });
+
+    expect(manifest.artifacts.cities).toContain("cities.geojson");
+    expect(cities.features[0].properties.name).toBe("São Paulo");
+  });
   it("accepts the six-year snapshot contract", () => {
     expect(manifestSchema.parse(validManifest).activeYears).toHaveLength(6);
   });
