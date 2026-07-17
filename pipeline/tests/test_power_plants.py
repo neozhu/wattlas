@@ -48,6 +48,53 @@ def test_source_precedence_is_the_approved_four_tier_order() -> None:
     }
 
 
+def test_field_provenance_preserves_claim_lineage_from_selected_source() -> None:
+    community = power_record(
+        id="osm-alpha",
+        sourceIds=["openstreetmap-power"],
+        sourceType="community_mapped",
+        capacityMw={"low": 90, "central": 90, "high": 90},
+        externalIds={"wikidata": "Q-ALPHA", "osm": "way/1"},
+    )
+    official = power_record(
+        id="official-alpha",
+        sourceIds=["official-registry"],
+        sourceType="official_verified",
+        capacityMw={"low": 110, "central": 110, "high": 110},
+        externalIds={"wikidata": "Q-ALPHA", "official": "A-1"},
+        observedAt="2026-06-30T00:00:00Z",
+        publishedAt="2026-07-01T00:00:00Z",
+        retrievedAt="2026-07-17T00:00:00Z",
+        methodId="official-registry-v1",
+        confidence=98,
+        publicationState="publishable",
+        transformationHistory=["kw_to_mw"],
+    )
+
+    record = canonicalize_power_plants([community, official])["records"][0]
+    lineage = record["fieldProvenance"]["capacityMw"]
+
+    assert record["capacityMw"]["central"] == 110
+    assert lineage["sourceIds"] == ["official-registry"]
+    assert lineage["sourceRecordIds"] == ["official-alpha"]
+    assert lineage["observedAt"] == "2026-06-30T00:00:00Z"
+    assert lineage["methodId"] == "official-registry-v1"
+    assert lineage["publicationState"] == "publishable"
+    assert lineage["transformationHistory"] == ["kw_to_mw"]
+
+
+def test_quarantined_power_records_never_enter_canonical_output() -> None:
+    result = canonicalize_power_plants([
+        power_record(
+            id="restricted-plant",
+            sourceIds=["sapp"],
+            publicationState="quarantined",
+        )
+    ])
+
+    assert result == {"plants": [], "units": [], "records": []}
+
+
 def test_shared_strong_identity_merges_sources_but_namespaces_remain_safe() -> None:
     gem = power_record(externalIds={"gemPlant": "G-1", "wikidata": "Q123"})
     wri = power_record(
@@ -1027,7 +1074,9 @@ def test_capacity_rollup_uses_selected_field_provenance_not_merged_row_lineage()
     assert aggregate_record["fieldProvenance"]["capacityMw"] == {
         "sourceType": "community_mapped",
         "sourceIds": ["community-capacity"],
+        "sourceRecordIds": ["community-aggregate"],
         "valueKind": "reported",
+        "publicationState": "publishable",
     }
     assert aggregate_provenance["valueKind"] == "reported"
     assert aggregate_provenance["sourceTypes"] == ["community_mapped"]
