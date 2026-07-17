@@ -58,7 +58,7 @@ def test_cli_help_exits_cleanly(capsys) -> None:
     with pytest.raises(SystemExit) as exc:
         main(["--help"])
     assert exc.value.code == 0
-    assert "daily snapshot" in capsys.readouterr().out.lower()
+    assert "monthly snapshot" in capsys.readouterr().out.lower()
 
 
 def test_cli_describes_wattlas() -> None:
@@ -106,7 +106,7 @@ def test_merge_asset_feeds_assigns_country_and_keeps_official_precedence() -> No
 
 def test_power_sources_and_refresh_steps_have_approved_precedence() -> None:
     assert POWER_SOURCE_PRECEDENCE == (
-        "official_power", "gem_power", "wri_power", "osm_power"
+        "official_power", "brazil-aneel-siga", "gem_power", "wri_power", "osm_power"
     )
     assert REFRESH_STEPS == (
         "boundaries", "population", "plant_sources", "plant_canonicalization",
@@ -251,6 +251,7 @@ def test_connector_status_separates_check_time_from_observation_date() -> None:
     assert status["checkedAt"] == "2026-06-30T04:00:00Z"
     assert status["observationDate"] == "2025-12-31"
     assert status["lastSuccessAt"] == "2026-06-30T04:00:00Z"
+    assert status["publicationState"] == "publishable"
 
     cached = build_connector_status(
         ConnectorResult(
@@ -306,6 +307,20 @@ def test_optional_source_uses_its_own_last_known_good_capture(tmp_path) -> None:
     assert json.loads(body)["records"][0]["id"] == "cached-gem"
     assert status.state == ConnectorState.CACHED
     assert "last successful" in (status.message or "")
+
+
+def test_optional_source_failure_without_cache_is_isolated(tmp_path) -> None:
+    store = RawCaptureStore(tmp_path / "raw", tmp_path / "warehouse.duckdb")
+
+    body, status = _optional_network_result(
+        lambda: (_ for _ in ()).throw(RuntimeError("upstream unavailable")),
+        "gem_power",
+        store,
+    )
+
+    assert json.loads(body) == {"records": []}
+    assert status.state == ConnectorState.FAILED
+    assert "upstream unavailable" in (status.message or "")
 
 
 def test_unchanged_success_refreshes_cached_connector_last_success_time(tmp_path) -> None:
@@ -379,13 +394,16 @@ def test_power_record_collection_is_deterministic_and_source_ordered() -> None:
     payloads = {
         "osm_power": b'{"records":[{"id":"osm"}]}',
         "official_power": b'{"records":[{"id":"official"}]}',
+        "brazil-aneel-siga": b'{"records":[{"id":"aneel"}]}',
         "wri_power": b'{"records":[{"id":"wri"}]}',
         "gem_power": b'{"records":[{"id":"gem"}]}',
     }
 
     records, counts = collect_power_source_records(payloads)
 
-    assert [row["id"] for row in records] == ["official", "gem", "wri", "osm"]
+    assert [row["id"] for row in records] == [
+        "official", "aneel", "gem", "wri", "osm"
+    ]
     assert counts == {name: 1 for name in POWER_SOURCE_PRECEDENCE}
 
 

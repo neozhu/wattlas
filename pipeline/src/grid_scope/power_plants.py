@@ -898,11 +898,28 @@ def _combine_external_ids(records: list[dict[str, Any]]) -> tuple[dict[str, str]
 
 
 def _provenance(record: dict[str, Any], field: str) -> dict[str, Any]:
-    return {
+    lineage = {
         "sourceType": record.get("sourceType"),
         "sourceIds": sorted(record.get("sourceIds") or []),
+        "sourceRecordIds": sorted({
+            str(value)
+            for value in [record.get("id"), *(record.get("sourceRecordIds") or [])]
+            if value
+        }),
         "valueKind": _field_value_kind(record, field),
+        "publicationState": record.get("publicationState", "publishable"),
     }
+    for metadata_field in (
+        "observedAt",
+        "publishedAt",
+        "retrievedAt",
+        "methodId",
+        "confidence",
+        "transformationHistory",
+    ):
+        if _present(record.get(metadata_field)):
+            lineage[metadata_field] = deepcopy(record[metadata_field])
+    return lineage
 
 
 def _intrinsic_anchor_slug(
@@ -1494,12 +1511,19 @@ def canonicalize_power_plants(
     geography assignment builds one Shapely STRtree for the whole batch.
     """
 
+    publishable_records = [
+        record
+        for record in records
+        if record.get("publicationState", "publishable") == "publishable"
+    ]
     alias_map = {_key(key): _key(value) for key, value in (aliases or {}).items()}
-    resolved_countries = _build_country_aliases(records, geographies, country_aliases)
+    resolved_countries = _build_country_aliases(
+        publishable_records, geographies, country_aliases
+    )
     geography_index = build_geography_index(geographies) if geographies else None
     normalized = [
         _normalize_record(record, resolved_countries, geography_index)
-        for record in records
+        for record in publishable_records
     ]
     normalized.sort(key=lambda record: (record["id"], _stable_json(record)))
     canonical_records = _unique_record_aliases(

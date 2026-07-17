@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from enum import StrEnum
 from typing import Any, Literal
 
@@ -21,6 +22,38 @@ class ConnectorState(StrEnum):
     STALE = "stale"
     FAILED = "failed"
     NOT_CONFIGURED = "not_configured"
+
+
+class AccessMode(StrEnum):
+    AUTOMATIC = "automatic"
+    CREDENTIALLED = "credentialled"
+    MANUAL_SNAPSHOT = "manual_snapshot"
+    METADATA_ONLY = "metadata_only"
+
+
+class PublicationState(StrEnum):
+    PUBLISHABLE = "publishable"
+    QUARANTINED = "quarantined"
+    REJECTED = "rejected"
+    SUPERSEDED = "superseded"
+
+
+class SourceCategory(StrEnum):
+    GENERATION = "generation"
+    DEMAND = "demand"
+    GRID_CONTEXT = "grid_context"
+    DIGITAL_INFRASTRUCTURE = "digital_infrastructure"
+    PROJECTS = "projects"
+    NATIONAL_CONTROL = "national_control"
+    ELECTRIFICATION = "electrification"
+    SOURCE_CATALOGUE = "source_catalogue"
+
+
+class RefreshCadence(StrEnum):
+    MONTHLY = "monthly"
+    MANUAL = "manual"
+    IRREGULAR = "irregular"
+    METADATA_ONLY = "metadata_only"
 
 
 class ValueKind(StrEnum):
@@ -240,6 +273,62 @@ class SourceRef(ContractModel):
     licence: str | None = None
     licence_url: HttpUrl | None = None
     last_modified: AwareDatetime | None = None
+
+
+class SourceDescriptor(ContractModel):
+    id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+    name: str = Field(min_length=1)
+    publisher: str = Field(min_length=1)
+    url: HttpUrl
+    categories: list[SourceCategory] = Field(min_length=1)
+    continents: list[str] = Field(default_factory=list)
+    countries: list[str] = Field(default_factory=list)
+    access_mode: AccessMode
+    publication_state: PublicationState
+    refresh_cadence: RefreshCadence
+    licence: str | None = None
+    licence_url: HttpUrl | None = None
+    licence_decided_at: date
+    required_env: list[str] = Field(default_factory=list)
+    manual_path_env: str | None = None
+    notes: str | None = None
+
+    @model_validator(mode="after")
+    def governance_is_complete(self) -> "SourceDescriptor":
+        from grid_scope.connectors.licensing import is_redistributable_licence
+
+        text_fields = (self.name, self.publisher)
+        if any(not value.strip() for value in text_fields):
+            raise ValueError("source metadata must be nonblank")
+        if len(self.categories) != len(set(self.categories)):
+            raise ValueError("source categories must be unique")
+        if any(not continent.strip() for continent in self.continents):
+            raise ValueError("source continents must be nonblank")
+        if len(self.continents) != len(set(self.continents)):
+            raise ValueError("source continents must be unique")
+        if any(len(country) != 2 or country != country.upper() for country in self.countries):
+            raise ValueError("source countries must use uppercase ISO alpha-2 codes")
+        if len(self.countries) != len(set(self.countries)):
+            raise ValueError("source countries must be unique")
+        env_names = [*self.required_env]
+        if self.manual_path_env is not None:
+            env_names.append(self.manual_path_env)
+        if any(not value or not value.replace("_", "").isalnum() or value != value.upper() for value in env_names):
+            raise ValueError("source environment variables must be uppercase names")
+        if self.access_mode == AccessMode.CREDENTIALLED and not self.required_env:
+            raise ValueError("credentialled sources require environment variable names")
+        if self.access_mode == AccessMode.MANUAL_SNAPSHOT and not self.manual_path_env:
+            raise ValueError("manual snapshot sources require a path environment variable")
+        if self.publication_state == PublicationState.PUBLISHABLE:
+            if (
+                self.licence is None
+                or self.licence_url is None
+                or not is_redistributable_licence(self.licence)
+            ):
+                raise ValueError(
+                    "publishable sources require reusable licence metadata"
+                )
+        return self
 
 
 class ScoreContribution(ContractModel):

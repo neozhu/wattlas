@@ -1,6 +1,18 @@
 {
   "schemaVersion": "wattlas-regional-demand-methods-v1",
   "publicDataOnly": true,
+  "sourceHierarchy": [
+    "observed_adm1_or_utility",
+    "official_regional_forecast",
+    "electrified_building_or_settlement_model",
+    "electrification_adjusted_national_allocation",
+    "population_allocation_fallback"
+  ],
+  "unitRules": {
+    "energy": "GWh",
+    "capacity": "MW",
+    "note": "Energy and capacity are never compared without an explicit time or capacity-factor conversion."
+  },
   "defaultComponentWeights": {
     "activity": 0.55,
     "population": 0.3,

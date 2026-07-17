@@ -154,6 +154,27 @@ export type ConnectorStatus = {
   lastSuccessAt: string | null;
   observationDate?: string | null;
   message: string | null;
+  publicationState?: "publishable" | "quarantined" | "rejected" | "superseded";
+};
+
+export type SourceDescriptor = {
+  id: string; name: string; publisher: string; url: string;
+  categories: Array<"generation" | "demand" | "grid_context" | "digital_infrastructure" | "projects" | "national_control" | "electrification" | "source_catalogue">;
+  continents: string[]; countries: string[];
+  accessMode: "automatic" | "credentialled" | "manual_snapshot" | "metadata_only";
+  publicationState: "publishable" | "quarantined" | "rejected" | "superseded";
+  refreshCadence: "monthly" | "manual" | "irregular" | "metadata_only";
+  licence: string | null; licenceUrl: string | null; licenceDecidedAt: string;
+  requiredEnv: string[]; manualPathEnv: string | null; notes: string | null;
+};
+export type SourceCatalog = { schemaVersion: string; sources: SourceDescriptor[] };
+export type SourceCoverage = {
+  sourceCount: number;
+  sourcesByPublicationState: Record<string, number>;
+  sourcesByAccessMode: Record<string, number>;
+  connectorStates: Record<string, number>;
+  publishedRecords: number;
+  publishedRecordsBySource: Record<string, number>;
 };
 
 export type SnapshotManifest = {
@@ -164,6 +185,7 @@ export type SnapshotManifest = {
   artifacts: {
     countries: string; admin1: string; regions: string; assets: string; evidence: string;
     regionalEnergy?: string; generatorOverview?: string; generatorIndex?: string;
+    sourceCatalog?: string;
     cities?: string; grid?: string; cooling?: string;
   };
   coverage: {
@@ -192,6 +214,8 @@ export type SnapshotManifest = {
     demandWeightsBuildFingerprint: string | null;
   };
   boundaryDisclaimer: string | null;
+  publication?: { quarantinedSourceIds: string[] };
+  sourceCoverage?: SourceCoverage;
   connectors: ConnectorStatus[];
   checksums?: Record<string, string>;
 };

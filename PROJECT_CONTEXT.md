@@ -77,8 +77,8 @@ The approved design is recorded in `docs/plans/2026-06-28-global-state-power-bal
 - **Supporting lenses:** Data-Center Site Attractiveness and Energy-System Risk.
 - **Public-product posture:** vendor-neutral analytical language even though the private prototype is strategically relevant to Siemens Energy.
 - **Scoring principle:** avoid a magical opaque number. Every score must expose its drivers, confidence, evidence, dates, and source provenance.
-- **Refresh model:** run an incremental public-data update once per day, retain immutable snapshots, and keep serving the last successful snapshot if a connector fails.
-- **Freshness language:** say **daily refreshed**, not “live”; show global and per-source timestamps and connector states.
+- **Refresh model:** run an incremental public-data update once per month, retain immutable snapshots, and keep serving the last successful snapshot if a connector fails; manual dispatch remains available.
+- **Freshness language:** say **monthly refreshed**, not “live”; show global and per-source timestamps and connector states.
 - **Primary map experience:** a fast 2D Europe analytical canvas with progressive zoom, persistent regional inspection, and comparison. Preserve the 3D globe for later Cinematic Briefing mode.
 
 ## Product approaches considered
@@ -174,7 +174,7 @@ The working version now includes:
 - Explicit score arithmetic, confidence, coverage, value kind, evidence dossiers, source state, and comparison.
 - A Python 3.13 / DuckDB snapshot pipeline using UN Geodata, QLever/OpenStreetMap, GISCO, Eurostat, curated public evidence, and an optional ENTSO-E connector.
 - Immutable published GeoJSON/JSON snapshots and a last-known-good connector fallback.
-- An active local Codex refresh automation at 04:00 Europe/Berlin once per day.
-- A GitHub Actions refresh alternative at approximately 04:00 Europe/Berlin once per day, with manual dispatch.
+- A monthly refresh at 04:00 Europe/Berlin on the first day of each month.
+- A GitHub Actions refresh at the same Berlin-local time, with manual dispatch available at any time.
 
-Production is Git-connected at `https://wattlas.vercel.app`. The daily pipeline keeps the version-pinned boundary artifact separate from frequently changing facility data, rejects partial OSM responses below the coverage threshold, retains the last known good capture on failure, and commits validated snapshot changes.
+Production is Git-connected at `https://wattlas.vercel.app`. The monthly pipeline keeps the version-pinned boundary artifact separate from frequently changing facility data, rejects partial OSM responses below the coverage threshold, retains the last known good capture on failure, and commits validated snapshot changes. Expansion sources use four governed access modes: automatically published reusable public endpoints, credential-backed connectors, checksum-verified manual snapshots, and a physically separate quarantine for unclear redistribution rights. Quarantined records cannot affect public scores or appear on the map.

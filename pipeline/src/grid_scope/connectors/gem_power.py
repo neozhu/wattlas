@@ -365,6 +365,20 @@ def parse_gem_power(source: Path | str | bytes, *, suffix: str | None = None) ->
     return records
 
 
+def parse_gem_africa_energy_tracker(
+    source: Path | str | bytes, *, suffix: str | None = None
+) -> list[dict[str, Any]]:
+    records = parse_gem_power(source, suffix=suffix)
+    for record in records:
+        record["sourceIds"] = ["gem-africa-energy-tracker"]
+        record["sourceUrl"] = (
+            "https://globalenergymonitor.org/projects/"
+            "africa-energy-tracker/download-data/"
+        )
+        record["publicationState"] = "publishable"
+    return records
+
+
 class GemPowerConnector:
     source_id = "gem_power"
 

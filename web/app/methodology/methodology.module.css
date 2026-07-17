@@ -1,0 +1,51 @@
+.page {
+  min-height: 100vh;
+  color: #d8f2f4;
+  background:
+    radial-gradient(circle at 70% -10%, rgba(0, 217, 224, .12), transparent 35rem),
+    #03090c;
+  padding: 24px clamp(18px, 4vw, 64px) 80px;
+  font-family: var(--font-geist-sans), sans-serif;
+}
+.page nav { display: flex; justify-content: space-between; color: #6e8f97; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.page nav a { color: #5fe8ed; text-decoration: none; }
+.hero { max-width: 900px; padding: 96px 0 64px; }
+.hero p, .catalogHeader p { color: #27dbe3; font-size: 11px; letter-spacing: .18em; }
+.hero h1 { margin: 14px 0; max-width: 760px; font-size: clamp(38px, 6vw, 74px); line-height: .98; letter-spacing: -.055em; }
+.hero > span { display: block; max-width: 690px; color: #8aa6ad; font-size: 16px; line-height: 1.6; }
+.hero small { display: block; margin-top: 24px; color: #58757c; }
+.methodGrid { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid #123039; }
+.methodGrid article { min-height: 190px; padding: 24px; border-right: 1px solid #123039; border-bottom: 1px solid #123039; background: rgba(4, 17, 22, .72); }
+.methodGrid b { color: #20d9e1; font-size: 11px; letter-spacing: .15em; }
+.methodGrid h2 { margin: 30px 0 10px; font-size: 17px; }
+.methodGrid p { margin: 0; color: #78969d; font-size: 13px; line-height: 1.6; }
+.catalog { margin-top: 80px; }
+.catalogHeader { display: flex; justify-content: space-between; align-items: end; margin-bottom: 22px; }
+.catalogHeader h2 { margin: 6px 0 0; font-size: 28px; }
+.catalogHeader > span { color: #6f9299; font-size: 12px; }
+.filters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+.filters label { color: #68868d; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.filters select { display: block; width: 100%; margin-top: 7px; border: 1px solid #173943; border-radius: 6px; background: #071216; color: #c6e1e5; padding: 10px; }
+.page :global(.source-catalog-list) { display: grid; gap: 10px; }
+.page :global(.source-catalog-card) { border: 1px solid #12343d; border-radius: 8px; background: rgba(5, 17, 22, .8); padding: 18px; }
+.page :global(.source-catalog-card header) { display: flex; justify-content: space-between; gap: 20px; }
+.page :global(.source-catalog-card h3) { margin: 9px 0 3px; font-size: 17px; }
+.page :global(.source-catalog-card header p) { margin: 0; color: #6e8b92; font-size: 12px; }
+.page :global(.source-catalog-card a) { color: #50dce2; font-size: 12px; }
+.page :global(.source-state) { display: inline-block; border: 1px solid #23626a; border-radius: 999px; padding: 3px 7px; color: #62edf0; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.page :global(.source-state.quarantined) { border-color: #6d5527; color: #e8b957; }
+.page :global(.source-catalog-card dl) { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 18px 0 0; }
+.page :global(.source-catalog-card dl div) { border-top: 1px solid #102a31; padding-top: 10px; }
+.page :global(.source-catalog-card dt) { color: #56757c; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.page :global(.source-catalog-card dd) { margin: 5px 0 0; color: #b2cbd0; font-size: 11px; }
+.page :global(.source-note) { margin: 14px 0 0; color: #77969c; font-size: 11px; }
+@media (max-width: 900px) {
+  .methodGrid { grid-template-columns: 1fr 1fr; }
+  .filters { grid-template-columns: 1fr 1fr; }
+  .page :global(.source-catalog-card dl) { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .hero { padding-top: 64px; }
+  .methodGrid, .filters { grid-template-columns: 1fr; }
+}
+

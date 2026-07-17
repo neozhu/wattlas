@@ -130,6 +130,30 @@
       "url": "https://www.openstreetmap.org/copyright",
       "licence": "ODbL-1.0",
       "licenceUrl": "https://opendatacommons.org/licenses/odbl/1-0/"
+    },
+    {
+      "id": "gem-africa-energy-tracker",
+      "name": "Global Energy Monitor Africa Energy Tracker",
+      "tier": "B",
+      "url": "https://globalenergymonitor.org/projects/africa-energy-tracker/download-data/",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "id": "iea-building-demand-africa",
+      "name": "IEA Building-level Electricity Access and Demand Model",
+      "tier": "B",
+      "url": "https://www.iea.org/data-and-statistics/data-product/building-level-electricity-access-and-demand-model",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "id": "brazil-aneel-siga",
+      "name": "ANEEL SIGA generation registry",
+      "tier": "A",
+      "url": "https://dadosabertos.aneel.gov.br/pt_BR/dataset/siga-sistema-de-informacoes-de-geracao-da-aneel",
+      "licence": "ODbL-1.0",
+      "licenceUrl": "https://opendatacommons.org/licenses/odbl/1-0/"
     }
   ]
 }

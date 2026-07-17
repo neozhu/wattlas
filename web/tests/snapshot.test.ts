@@ -12,6 +12,7 @@ import {
   cityFeatureCollectionSchema,
   gridFeatureCollectionSchema,
   coolingEvidenceCollectionSchema,
+  sourceCatalogSchema,
 } from "@/lib/snapshot/schema";
 import { loadSnapshot, serverSnapshotArtifactPaths } from "@/lib/snapshot/load";
 import {
@@ -69,6 +70,35 @@ async function sha256(body: string): Promise<string> {
 }
 
 describe("snapshot manifest", () => {
+  it("keeps optional live-portal city artifacts compatible with governed snapshots", () => {
+    const manifest = manifestSchema.parse({
+      ...validManifest,
+      artifacts: { ...validManifest.artifacts, cities: "snapshots/2026-06-27T04-12-00Z/cities.geojson" },
+      coverage: { ...validManifest.coverage, cities: 1 },
+    });
+    const cities = cityFeatureCollectionSchema.parse({
+      type: "FeatureCollection",
+      features: [{
+        type: "Feature",
+        id: "city-br-sao-paulo",
+        geometry: { type: "Point", coordinates: [-46.6333, -23.5505] },
+        properties: {
+          id: "city-br-sao-paulo",
+          name: "São Paulo",
+          country: "BR",
+          population: 12_000_000,
+          populationYear: 2025,
+          populationDefinition: "municipality",
+          classes: ["million_plus"],
+          sourceId: "official-city-source",
+          observedAt: "2026-07-17T00:00:00Z",
+        },
+      }],
+    });
+
+    expect(manifest.artifacts.cities).toContain("cities.geojson");
+    expect(cities.features[0].properties.name).toBe("São Paulo");
+  });
   it("accepts the six-year snapshot contract", () => {
     expect(manifestSchema.parse(validManifest).activeYears).toHaveLength(6);
   });
@@ -116,6 +146,19 @@ describe("snapshot manifest", () => {
     expect(parsed.coverage.canonicalPowerUnits).toBe(120);
     expect(parsed.coverage.powerSourceRecordsBySource?.gem_power).toBe(80);
     expect(parsed.quality?.generatorArtifactsReconciled).toBe(true);
+  });
+
+  it("validates governed public source metadata", () => {
+    const source = {
+      id: "brazil-aneel-siga", name: "SIGA", publisher: "ANEEL",
+      url: "https://example.com/siga", categories: ["generation"],
+      continents: ["South America"], countries: ["BR"], accessMode: "automatic",
+      publicationState: "publishable", refreshCadence: "monthly",
+      licence: "ODbL 1.0", licenceUrl: "https://example.com/licence",
+      licenceDecidedAt: "2026-07-17", requiredEnv: [], manualPathEnv: null, notes: null,
+    };
+    expect(sourceCatalogSchema.parse({ schemaVersion: "1.0", sources: [source] }).sources[0].id).toBe("brazil-aneel-siga");
+    expect(() => sourceCatalogSchema.parse({ schemaVersion: "1.0", sources: [{ ...source, licence: null }] })).toThrow();
   });
 });
 

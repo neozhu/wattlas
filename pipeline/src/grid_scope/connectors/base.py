@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from grid_scope.models import ConnectorState
+from grid_scope.models import ConnectorState, PublicationState
 
 
 @dataclass(frozen=True)
@@ -21,6 +21,7 @@ class ConnectorResult:
     state: ConnectorState
     payload: FetchPayload | None
     message: str | None = None
+    publication_state: PublicationState = PublicationState.PUBLISHABLE
 
 
 @dataclass(frozen=True)

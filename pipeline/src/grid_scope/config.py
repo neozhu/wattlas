@@ -7,6 +7,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RAW_DIR = PROJECT_ROOT / "data" / "raw"
 WAREHOUSE_PATH = PROJECT_ROOT / "data" / "warehouse" / "grid_scope.duckdb"
+QUARANTINE_DIR = PROJECT_ROOT / "data" / "quarantine"
+QUARANTINE_WAREHOUSE_PATH = (
+    PROJECT_ROOT / "data" / "warehouse" / "quarantine.duckdb"
+)
 CURATED_PATH = PROJECT_ROOT / "data" / "curated" / "launch-clusters.json"
 GLOBAL_ASSETS_PATH = PROJECT_ROOT / "data" / "curated" / "global-assets.json"
 GLOBAL_ADMIN1_PATH = PROJECT_ROOT / "data" / "curated" / "global-admin1.geojson"
@@ -14,6 +18,7 @@ SOURCE_REGISTRY_PATH = PROJECT_ROOT / "data" / "curated" / "source-registry.json
 CITIES_PATH = PROJECT_ROOT / "data" / "curated" / "cities.json"
 GRID_INTELLIGENCE_PATH = PROJECT_ROOT / "data" / "curated" / "grid-intelligence.json"
 COOLING_EVIDENCE_PATH = PROJECT_ROOT / "data" / "curated" / "cooling-evidence.json"
+SOURCE_CATALOG_PATH = PROJECT_ROOT / "data" / "curated" / "source-catalog.json"
 PUBLISH_DIR = PROJECT_ROOT / os.getenv("GRID_SCOPE_PUBLISH_DIR", "web/public/data")
 UN_GEODATA_URL = os.getenv(
     "UN_GEODATA_URL",

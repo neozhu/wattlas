@@ -592,3 +592,18 @@ def test_fallback_fingerprint_is_population_input_order_independent() -> None:
     )
     assert first == second
     assert first["buildFingerprint"] == second["buildFingerprint"]
+def test_regional_demand_methods_declare_approved_source_hierarchy() -> None:
+    config = load_regional_demand_methods(
+        Path(__file__).resolve().parents[2]
+        / "data" / "curated" / "regional-demand-methods.json"
+    )
+
+    assert config["sourceHierarchy"] == [
+        "observed_adm1_or_utility",
+        "official_regional_forecast",
+        "electrified_building_or_settlement_model",
+        "electrification_adjusted_national_allocation",
+        "population_allocation_fallback",
+    ]
+    assert config["unitRules"]["energy"] == "GWh"
+    assert config["unitRules"]["capacity"] == "MW"

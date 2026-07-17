@@ -23,11 +23,27 @@ make test
 cd web && npm run build
 ```
 
-## Daily data model
+## Monthly governed data model
 
 The browser never queries upstream sources directly. The Python pipeline fetches public sources, validates and scores them, and atomically publishes an immutable JSON/GeoJSON snapshot. The interface always reads `web/public/data/latest.json`, so a connector failure does not erase the last useful map.
 
-A local Codex automation is active once per day at 04:00 Europe/Berlin. The repository also includes a GitHub Actions alternative that keeps the same Berlin schedule across daylight-saving changes; once the repository is Git-connected, a hosted deployment can rebuild from each committed snapshot. The app deliberately says **Daily refreshed**, not “live”.
+The hosted workflow checks for a new snapshot once per month at 04:00 Europe/Berlin on the first day of the month, with manual dispatch available at any time. Its paired UTC schedules and Berlin-time gate preserve the same local hour across daylight-saving changes. The app deliberately says **Monthly refreshed**, not “live”.
+
+Sources follow four governed access paths:
+
+- Reusable public endpoints with confirmed licences can publish automatically.
+- Account or API-key sources run only when their named environment variables are configured.
+- Form- or CAPTCHA-protected releases enter through checksum-verified, versioned manual snapshots.
+- Sources with unclear redistribution rights remain in quarantine and never affect public scores or map layers.
+
+For a governed manual release, first calculate its SHA-256 checksum and record the upstream observation date and version, then run:
+
+```bash
+scripts/import-source-snapshot.sh \
+  gem-africa-energy-tracker /path/to/release.xlsx <sha256> 2026-07-01 2026-07
+```
+
+The published `/methodology` page exposes source category, access mode, licence, update status, and publication state. Quarantined sources remain visible there for transparency but their records are excluded from public artifacts.
 
 The global release uses UN national boundaries, geoBoundaries `gbOpen` ADM1 regions, GISCO/Eurostat European context, curated official project evidence, and community-maintained OpenStreetMap infrastructure queried through QLever. India uses the explicitly attributed Government of India boundary perspective; Jammu and Kashmir, Ladakh, Assam, and Arunachal Pradesh are included in the validation gate.
 

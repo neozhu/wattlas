@@ -20,14 +20,19 @@ from grid_scope.config import (
     GLOBAL_ASSETS_PATH,
     MODEL_VERSION,
     PUBLISH_DIR,
+    QUARANTINE_DIR,
+    QUARANTINE_WAREHOUSE_PATH,
     QLEVER_OSM_URL,
     RAW_DIR,
     SOURCE_REGISTRY_PATH,
+    SOURCE_CATALOG_PATH,
     UN_GEODATA_URL,
     WAREHOUSE_PATH,
 )
 from grid_scope.canonicalize import assign_asset_country, canonicalize_assets
+from grid_scope.coverage_report import build_source_coverage_summary
 from grid_scope.connectors.base import ConnectorResult, FetchPayload
+from grid_scope.connectors.brazil import AneelSigaConnector
 from grid_scope.connectors.curated import CuratedConnector
 from grid_scope.connectors.entsoe import EntsoeConnector
 from grid_scope.connectors.ember import normalize_ember_yearly_csv
@@ -49,6 +54,7 @@ from grid_scope.connectors.regional_electricity import (
 from grid_scope.connectors.un_geodata import UnGeodataConnector
 from grid_scope.connectors.wri_power import WriPowerConnector
 from grid_scope.models import ConnectorState, SourceRef
+from grid_scope.manual_import import GovernedCaptureStores, import_source_snapshot
 from grid_scope.population import load_population_artifact
 from grid_scope.power_balance import (
     build_regional_energy_forecasts,
@@ -67,10 +73,12 @@ from grid_scope.scoring import score_power_balance
 from grid_scope.publisher import SnapshotPublisher
 from grid_scope.snapshot_builder import build_global_snapshot_artifacts, build_snapshot_artifacts
 from grid_scope.storage import RawCaptureStore
+from grid_scope.source_catalog import load_source_catalog
 
 
 POWER_SOURCE_PRECEDENCE = (
     "official_power",
+    "brazil-aneel-siga",
     "gem_power",
     "wri_power",
     "osm_power",
@@ -148,7 +156,7 @@ def load_refresh_model_artifacts(
     *,
     validate_population: bool = True,
 ) -> dict[str, dict[str, Any]]:
-    """Load compact, versioned model inputs; daily refresh never opens a raster."""
+    """Load compact, versioned model inputs; monthly refresh never opens a raster."""
 
     population = (
         load_population_artifact(population_path)
@@ -502,7 +510,8 @@ def build_connector_status(
     return {
         "id": result.source_id,
         "state": result.state.value,
-        # Daily means checked today. It never rewrites upstream observation dates.
+        "publicationState": result.publication_state.value,
+        # A refresh records today's check. It never rewrites observation dates.
         "checkedAt": checked_at,
         "lastSuccessAt": (
             checked_at if result.state == ConnectorState.CURRENT else last_success_at
@@ -623,6 +632,10 @@ def _optional_network_result(
         if result.state == ConnectorState.NOT_CONFIGURED:
             return b'{"records":[]}', result
         raise RuntimeError(result.message or f"{source_id} returned no payload")
+    except ValueError:
+        # Contract violations must fail loudly; they can otherwise poison a
+        # source-specific last-known-good capture under the wrong identity.
+        raise
     except Exception as error:
         previous = store.latest_capture(source_id)
         if previous is not None:
@@ -632,7 +645,12 @@ def _optional_network_result(
                 payload=None,
                 message=f"Using last successful capture: {error}",
             )
-        raise
+        return b'{"records":[]}', ConnectorResult(
+            source_id=source_id,
+            state=ConnectorState.FAILED,
+            payload=None,
+            message=f"Optional source failed without a cached capture: {error}",
+        )
 
 
 def collect_power_source_records(
@@ -1256,6 +1274,7 @@ def refresh() -> Path:
     generated_at = now.isoformat().replace("+00:00", "Z")
     snapshot_id = generated_at.replace(":", "-")
     store = RawCaptureStore(RAW_DIR, WAREHOUSE_PATH)
+    source_catalog = load_source_catalog(SOURCE_CATALOG_PATH)
     source_bodies: dict[str, bytes] = {}
     completed_stages: list[str] = []
 
@@ -1310,6 +1329,11 @@ def refresh() -> Path:
         gem_body, gem_status = _optional_network_result(
             lambda: GemPowerConnector().fetch(client, now=now), "gem_power", store
         )
+        aneel_body, aneel_status = _optional_network_result(
+            lambda: AneelSigaConnector().fetch(client, now=now),
+            "brazil-aneel-siga",
+            store,
+        )
         wri_body, wri_status = _optional_network_result(
             lambda: WriPowerConnector().fetch(client, now=now), "wri_power", store
         )
@@ -1330,6 +1354,7 @@ def refresh() -> Path:
     )
     source_bodies.update({
         "official_power": official_power_body,
+        "brazil-aneel-siga": aneel_body,
         "gem_power": gem_body,
         "wri_power": wri_body,
         "osm_power": osm_power_body,
@@ -1502,6 +1527,17 @@ def refresh() -> Path:
         grid=_read_json(GRID_INTELLIGENCE_PATH),
         cooling=_read_json(COOLING_EVIDENCE_PATH),
     )
+    artifacts["source-catalog.json"] = json.dumps(
+        {
+            "schemaVersion": source_catalog.schema_version,
+            "sources": [
+                source.model_dump(by_alias=True, mode="json")
+                for source in source_catalog.sources
+            ],
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode()
 
     statuses = [
         countries_status,
@@ -1514,6 +1550,7 @@ def refresh() -> Path:
         curated_result,
         entsoe_status,
         official_power_status,
+        aneel_status,
         gem_status,
         wri_status,
         osm_power_status,
@@ -1541,6 +1578,7 @@ def refresh() -> Path:
             "cities": f"snapshots/{snapshot_id}/cities.geojson",
             "grid": f"snapshots/{snapshot_id}/grid.geojson",
             "cooling": f"snapshots/{snapshot_id}/cooling.json",
+            "sourceCatalog": f"snapshots/{snapshot_id}/source-catalog.json",
         },
         "coverage": {
             "countries": country_count,
@@ -1577,6 +1615,13 @@ def refresh() -> Path:
             "coolingRecords": len(_read_json(COOLING_EVIDENCE_PATH).get("records", [])),
         },
         "boundaryDisclaimer": json.loads(artifacts["countries.geojson"]).get("metadata", {}).get("disclaimer"),
+        "publication": {
+            "quarantinedSourceIds": sorted(
+                source.id
+                for source in source_catalog.sources
+                if source.publication_state == "quarantined"
+            ),
+        },
         "connectors": [],
     }
     body_by_source = {
@@ -1615,6 +1660,14 @@ def refresh() -> Path:
             observation_body=body_by_source.get(result.source_id),
             last_success_at=last_success,
         ))
+    manifest["sourceCoverage"] = build_source_coverage_summary(
+        source_catalog,
+        connector_states={
+            connector["id"]: connector["state"]
+            for connector in manifest["connectors"]
+        },
+        published_records_by_source=power_source_counts,
+    )
     latest_path = PUBLISH_DIR / "latest.json"
     previous_manifest = _read_json(latest_path) if latest_path.exists() else None
     stage("validation")
@@ -1627,17 +1680,60 @@ def refresh() -> Path:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Build the Wattlas daily snapshot from public sources."
+        description="Build the Wattlas monthly snapshot from public sources."
     )
-    parser.add_argument("command", nargs="?", choices=["refresh"], default="refresh")
+    parser.add_argument(
+        "command", nargs="?", choices=["refresh", "import-source"],
+        default="refresh",
+    )
+    parser.add_argument("--source-id")
+    parser.add_argument("--file", type=Path)
+    parser.add_argument("--sha256")
+    parser.add_argument("--observation-date", type=date.fromisoformat)
+    parser.add_argument("--source-version")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    parser.parse_args(argv)
+    arguments = parser.parse_args(argv)
+    if arguments.command == "import-source":
+        missing = [
+            flag
+            for flag, value in (
+                ("--source-id", arguments.source_id),
+                ("--file", arguments.file),
+                ("--sha256", arguments.sha256),
+                ("--observation-date", arguments.observation_date),
+                ("--source-version", arguments.source_version),
+            )
+            if value is None
+        ]
+        if missing:
+            parser.error(
+                "import-source requires " + ", ".join(missing)
+            )
+        result = import_source_snapshot(
+            catalog=load_source_catalog(SOURCE_CATALOG_PATH),
+            source_id=arguments.source_id,
+            input_path=arguments.file,
+            expected_checksum=arguments.sha256,
+            observation_date=arguments.observation_date,
+            stores=GovernedCaptureStores(
+                public=RawCaptureStore(RAW_DIR, WAREHOUSE_PATH),
+                quarantine=RawCaptureStore(
+                    QUARANTINE_DIR, QUARANTINE_WAREHOUSE_PATH
+                ),
+            ),
+            source_version=arguments.source_version,
+        )
+        print(
+            f"Imported {result.source_id} {result.source_version} "
+            f"as {result.publication_state.value} ({result.checksum})."
+        )
+        return 0
     path = refresh()
-    print(f"Published daily snapshot: {path}")
+    print(f"Published monthly snapshot: {path}")
     return 0
 
 

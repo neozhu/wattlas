@@ -5,8 +5,9 @@ import {
   evidenceSchema,
   geographyFeatureCollectionSchema,
   manifestSchema,
+  sourceCatalogSchema,
 } from "@/lib/snapshot/schema";
-import type { SnapshotData, SnapshotManifest } from "@/lib/snapshot/types";
+import type { SnapshotData, SnapshotManifest, SourceCatalog } from "@/lib/snapshot/types";
 import { migrateLegacyContributions } from "@/lib/snapshot/legacy";
 
 async function fetchJson<T>(artifactPath: string, signal?: AbortSignal): Promise<T> {
@@ -55,4 +56,14 @@ export async function loadSnapshotFromStaticAssets(signal?: AbortSignal): Promis
     assets: assetFeatureCollectionSchema.parse(assetsRaw),
     evidence: evidenceSchema.parse(evidenceRaw),
   } as SnapshotData;
+}
+
+export async function loadSourceCatalog(
+  manifest: SnapshotManifest, signal?: AbortSignal,
+): Promise<SourceCatalog | null> {
+  const artifactPath = manifest.artifacts.sourceCatalog;
+  if (!artifactPath) return null;
+  const expected = `snapshots/${manifest.snapshotId}/source-catalog.json`;
+  if (artifactPath !== expected) throw new Error(`Snapshot artifact path must be ${expected}`);
+  return sourceCatalogSchema.parse(await fetchJson<unknown>(artifactPath, signal));
 }

@@ -8,6 +8,32 @@ export const connectorStateSchema = z.enum([
   "not_configured",
 ]);
 
+export const publicationStateSchema = z.enum(["publishable", "quarantined", "rejected", "superseded"]);
+export const accessModeSchema = z.enum(["automatic", "credentialled", "manual_snapshot", "metadata_only"]);
+export const sourceCategorySchema = z.enum(["generation", "demand", "grid_context", "digital_infrastructure", "projects", "national_control", "electrification", "source_catalogue"]);
+export const sourceDescriptorSchema = z.object({
+  id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/),
+  name: z.string().trim().min(1), publisher: z.string().trim().min(1), url: z.string().url(),
+  categories: z.array(sourceCategorySchema).min(1), continents: z.array(z.string().trim().min(1)),
+  countries: z.array(z.string().regex(/^[A-Z]{2}$/)), accessMode: accessModeSchema,
+  publicationState: publicationStateSchema,
+  refreshCadence: z.enum(["monthly", "manual", "irregular", "metadata_only"]),
+  licence: z.string().trim().min(1).nullable(), licenceUrl: z.string().url().nullable(),
+  licenceDecidedAt: z.string().date(), requiredEnv: z.array(z.string()),
+  manualPathEnv: z.string().nullable(), notes: z.string().nullable(),
+}).strict().superRefine((source, context) => {
+  if (source.publicationState === "publishable" && (!source.licence || !source.licenceUrl)) {
+    context.addIssue({ code: "custom", message: "Publishable sources require licence metadata" });
+  }
+});
+export const sourceCatalogSchema = z.object({
+  schemaVersion: z.string().min(1), sources: z.array(sourceDescriptorSchema),
+}).strict().superRefine((catalog, context) => {
+  if (new Set(catalog.sources.map((source) => source.id)).size !== catalog.sources.length) {
+    context.addIssue({ code: "custom", message: "Source IDs must be unique" });
+  }
+});
+
 export const valueKindSchema = z.enum([
   "observed",
   "reported",
@@ -100,6 +126,7 @@ export const connectorStatusSchema = z.object({
   lastSuccessAt: z.string().datetime().nullable(),
   observationDate: z.string().date().nullable().optional(),
   message: z.string().nullable(),
+  publicationState: publicationStateSchema.optional(),
 }).strict();
 
 export const manifestSchema = z.object({
@@ -119,6 +146,7 @@ export const manifestSchema = z.object({
     regionalEnergy: z.string().optional(),
     generatorOverview: z.string().optional(),
     generatorIndex: z.string().optional(),
+    sourceCatalog: z.string().optional(),
     cities: z.string().optional(),
     grid: z.string().optional(),
     cooling: z.string().optional(),
@@ -149,6 +177,15 @@ export const manifestSchema = z.object({
     demandWeightsBuildFingerprint: z.string().min(1).nullable(),
   }).strict().optional(),
   boundaryDisclaimer: z.string().nullable(),
+  publication: z.object({ quarantinedSourceIds: z.array(z.string()) }).strict().optional(),
+  sourceCoverage: z.object({
+    sourceCount: z.number().int().nonnegative(),
+    sourcesByPublicationState: z.record(z.string(), z.number().int().nonnegative()),
+    sourcesByAccessMode: z.record(z.string(), z.number().int().nonnegative()),
+    connectorStates: z.record(z.string(), z.number().int().nonnegative()),
+    publishedRecords: z.number().int().nonnegative(),
+    publishedRecordsBySource: z.record(z.string(), z.number().int().nonnegative()),
+  }).strict().optional(),
   connectors: z.array(connectorStatusSchema),
   checksums: z.record(z.string().min(1), z.string().regex(/^[a-f0-9]{64}$/)).optional(),
 }).strict();
@@ -371,7 +408,6 @@ export const coolingEvidenceSchema = z.object({
   observedAt: z.string().datetime(), modelVersion: z.string().nullable().optional(), reasons: z.array(z.string()).default([]),
 });
 export const coolingEvidenceCollectionSchema = z.object({ records: z.array(coolingEvidenceSchema) });
-
 export const evidenceSchema = z.object({
   sources: z.array(z.object({
     id: z.string(),
