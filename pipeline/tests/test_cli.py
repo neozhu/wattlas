@@ -251,6 +251,7 @@ def test_connector_status_separates_check_time_from_observation_date() -> None:
     assert status["checkedAt"] == "2026-06-30T04:00:00Z"
     assert status["observationDate"] == "2025-12-31"
     assert status["lastSuccessAt"] == "2026-06-30T04:00:00Z"
+    assert status["publicationState"] == "publishable"
 
     cached = build_connector_status(
         ConnectorResult(

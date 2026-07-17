@@ -507,6 +507,7 @@ def build_connector_status(
     return {
         "id": result.source_id,
         "state": result.state.value,
+        "publicationState": result.publication_state.value,
         # A refresh records today's check. It never rewrites observation dates.
         "checkedAt": checked_at,
         "lastSuccessAt": (
