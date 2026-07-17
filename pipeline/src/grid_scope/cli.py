@@ -27,6 +27,7 @@ from grid_scope.config import (
     WAREHOUSE_PATH,
 )
 from grid_scope.canonicalize import assign_asset_country, canonicalize_assets
+from grid_scope.coverage_report import build_source_coverage_summary
 from grid_scope.connectors.base import ConnectorResult, FetchPayload
 from grid_scope.connectors.brazil import AneelSigaConnector
 from grid_scope.connectors.curated import CuratedConnector
@@ -1260,6 +1261,7 @@ def refresh() -> Path:
     generated_at = now.isoformat().replace("+00:00", "Z")
     snapshot_id = generated_at.replace(":", "-")
     store = RawCaptureStore(RAW_DIR, WAREHOUSE_PATH)
+    source_catalog = load_source_catalog(SOURCE_CATALOG_PATH)
     source_bodies: dict[str, bytes] = {}
     completed_stages: list[str] = []
 
@@ -1509,6 +1511,17 @@ def refresh() -> Path:
             model_artifacts["population"].get("records", [])
         ),
     )
+    artifacts["source-catalog.json"] = json.dumps(
+        {
+            "schemaVersion": source_catalog.schema_version,
+            "sources": [
+                source.model_dump(by_alias=True, mode="json")
+                for source in source_catalog.sources
+            ],
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode()
 
     statuses = [
         countries_status,
@@ -1546,6 +1559,7 @@ def refresh() -> Path:
             "regionalEnergy": f"snapshots/{snapshot_id}/regional-energy.json",
             "generatorOverview": f"snapshots/{snapshot_id}/generator-overview.geojson",
             "generatorIndex": f"snapshots/{snapshot_id}/generators/index.json",
+            "sourceCatalog": f"snapshots/{snapshot_id}/source-catalog.json",
         },
         "coverage": {
             "countries": country_count,
@@ -1579,6 +1593,13 @@ def refresh() -> Path:
             ),
         },
         "boundaryDisclaimer": json.loads(artifacts["countries.geojson"]).get("metadata", {}).get("disclaimer"),
+        "publication": {
+            "quarantinedSourceIds": sorted(
+                source.id
+                for source in source_catalog.sources
+                if source.publication_state == "quarantined"
+            ),
+        },
         "connectors": [],
     }
     body_by_source = {
@@ -1617,6 +1638,14 @@ def refresh() -> Path:
             observation_body=body_by_source.get(result.source_id),
             last_success_at=last_success,
         ))
+    manifest["sourceCoverage"] = build_source_coverage_summary(
+        source_catalog,
+        connector_states={
+            connector["id"]: connector["state"]
+            for connector in manifest["connectors"]
+        },
+        published_records_by_source=power_source_counts,
+    )
     latest_path = PUBLISH_DIR / "latest.json"
     previous_manifest = _read_json(latest_path) if latest_path.exists() else None
     stage("validation")
