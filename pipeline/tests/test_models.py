@@ -1,9 +1,11 @@
 from datetime import UTC, datetime
+from datetime import date
 
 import pytest
 from pydantic import ValidationError
 
 from grid_scope.models import (
+    AccessMode,
     AssetCategory,
     AssetProperties,
     ConnectorState,
@@ -12,10 +14,79 @@ from grid_scope.models import (
     GeographyProperties,
     LensScores,
     PowerBalanceMetrics,
+    PublicationState,
     RegionalEnergyForecast,
     RegionProperties,
+    SourceCategory,
+    SourceDescriptor,
     ValueKind,
 )
+
+
+def test_source_governance_contracts_are_stable() -> None:
+    assert {mode.value for mode in AccessMode} == {
+        "automatic",
+        "credentialled",
+        "manual_snapshot",
+        "metadata_only",
+    }
+    assert {state.value for state in PublicationState} == {
+        "publishable",
+        "quarantined",
+        "rejected",
+        "superseded",
+    }
+    assert {category.value for category in SourceCategory} >= {
+        "generation",
+        "demand",
+        "grid_context",
+        "digital_infrastructure",
+        "projects",
+        "national_control",
+    }
+
+
+def test_publishable_source_requires_reusable_licence_metadata() -> None:
+    with pytest.raises(ValidationError, match="reusable licence"):
+        SourceDescriptor(
+            id="example-source",
+            name="Example source",
+            publisher="Example publisher",
+            url="https://example.com/data",
+            categories=["generation"],
+            continents=["Africa"],
+            countries=[],
+            access_mode="automatic",
+            publication_state="publishable",
+            refresh_cadence="monthly",
+            licence=None,
+            licence_url=None,
+            licence_decided_at=date(2026, 7, 17),
+        )
+
+
+def test_quarantined_source_preserves_access_and_coverage_metadata() -> None:
+    source = SourceDescriptor(
+        id="regional-pool",
+        name="Regional pool",
+        publisher="Regional operator",
+        url="https://example.com/pool",
+        categories=["generation", "demand"],
+        continents=["Africa"],
+        countries=["ZA", "BW"],
+        access_mode="manual_snapshot",
+        publication_state="quarantined",
+        refresh_cadence="irregular",
+        licence=None,
+        licence_url=None,
+        licence_decided_at=date(2026, 7, 17),
+        manual_path_env="REGIONAL_POOL_PATH",
+        notes="Reuse terms require confirmation.",
+    )
+
+    assert source.publication_state == "quarantined"
+    assert source.manual_path_env == "REGIONAL_POOL_PATH"
+    assert source.countries == ["ZA", "BW"]
 
 
 def test_region_rejects_score_outside_range() -> None:

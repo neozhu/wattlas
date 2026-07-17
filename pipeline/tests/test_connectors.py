@@ -22,7 +22,8 @@ from grid_scope.connectors.un_geodata import UN_BOUNDARY_DISCLAIMER, normalize_c
 from grid_scope.connectors.un_salb import normalize_salb
 from grid_scope.connectors.wri_power import WriPowerConnector, parse_wri_power
 from grid_scope.connectors.world_bank import WorldBankConnector, parse_indicator_page
-from grid_scope.models import ConnectorState
+from grid_scope.connectors.base import ConnectorResult
+from grid_scope.models import ConnectorState, PublicationState
 from grid_scope.storage import RawCaptureStore
 
 
@@ -30,6 +31,19 @@ def test_entsoe_without_token_is_not_configured() -> None:
     result = EntsoeConnector(token=None).fetch(now=datetime.now(UTC))
     assert result.state == ConnectorState.NOT_CONFIGURED
     assert result.payload is None
+
+
+def test_connector_health_is_independent_from_publication_state() -> None:
+    result = ConnectorResult(
+        source_id="restricted-but-reachable",
+        state=ConnectorState.CURRENT,
+        payload=None,
+        publication_state=PublicationState.QUARANTINED,
+        message="Fetched for licence review only.",
+    )
+
+    assert result.state == ConnectorState.CURRENT
+    assert result.publication_state == PublicationState.QUARANTINED
 
 
 def test_identical_payloads_reuse_capture(tmp_path) -> None:
