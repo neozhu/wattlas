@@ -7,6 +7,10 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RAW_DIR = PROJECT_ROOT / "data" / "raw"
 WAREHOUSE_PATH = PROJECT_ROOT / "data" / "warehouse" / "grid_scope.duckdb"
+QUARANTINE_DIR = PROJECT_ROOT / "data" / "quarantine"
+QUARANTINE_WAREHOUSE_PATH = (
+    PROJECT_ROOT / "data" / "warehouse" / "quarantine.duckdb"
+)
 CURATED_PATH = PROJECT_ROOT / "data" / "curated" / "launch-clusters.json"
 GLOBAL_ASSETS_PATH = PROJECT_ROOT / "data" / "curated" / "global-assets.json"
 GLOBAL_ADMIN1_PATH = PROJECT_ROOT / "data" / "curated" / "global-admin1.geojson"

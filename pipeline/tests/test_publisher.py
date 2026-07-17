@@ -59,6 +59,31 @@ def test_publish_rejects_duplicate_asset_ids_and_keeps_last_good(tmp_path) -> No
     assert json.loads((tmp_path / "latest.json").read_text())["snapshotId"] == "first"
 
 
+def test_publish_rejects_quarantined_source_claims(tmp_path) -> None:
+    artifacts = global_artifacts()
+    artifacts["assets.geojson"] = json.dumps({
+        "type": "FeatureCollection",
+        "features": [{
+            "type": "Feature",
+            "id": "restricted-asset",
+            "geometry": {"type": "Point", "coordinates": [25, -30]},
+            "properties": {
+                "country": "AE",
+                "sourceIds": ["sapp"],
+            },
+        }],
+    }).encode()
+    manifest = {
+        "snapshotId": "quarantine-leak",
+        "publication": {"quarantinedSourceIds": ["sapp"]},
+    }
+
+    with pytest.raises(ValueError, match="quarantined source"):
+        SnapshotPublisher(tmp_path).publish(
+            "quarantine-leak", artifacts, manifest
+        )
+
+
 def test_publish_rejects_invalid_asset_coordinates_and_unknown_country(tmp_path) -> None:
     publisher = SnapshotPublisher(tmp_path)
     invalid = global_artifacts()

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -19,6 +19,16 @@ class StoredCapture:
     path: Path
     media_type: str
     retrieved_at: datetime
+
+
+@dataclass(frozen=True)
+class StoredImport:
+    source_id: str
+    checksum: str
+    observation_date: date
+    source_version: str
+    publication_state: str
+    imported_at: datetime
 
 
 class RawCaptureStore:
@@ -40,6 +50,19 @@ class RawCaptureStore:
                     path VARCHAR NOT NULL,
                     media_type VARCHAR NOT NULL,
                     retrieved_at TIMESTAMPTZ NOT NULL,
+                    PRIMARY KEY (source_id, checksum)
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS source_imports (
+                    source_id VARCHAR NOT NULL,
+                    checksum VARCHAR NOT NULL,
+                    observation_date DATE NOT NULL,
+                    source_version VARCHAR NOT NULL,
+                    publication_state VARCHAR NOT NULL,
+                    imported_at TIMESTAMPTZ NOT NULL,
                     PRIMARY KEY (source_id, checksum)
                 )
                 """
@@ -176,6 +199,73 @@ class RawCaptureStore:
             if capture is not None:
                 return capture
         return None
+
+    def save_import_metadata(
+        self,
+        *,
+        source_id: str,
+        checksum: str,
+        observation_date: date,
+        source_version: str,
+        publication_state: str,
+    ) -> None:
+        source_id = self._source_id(source_id)
+        if re.fullmatch(r"[0-9a-f]{64}", checksum) is None:
+            raise ValueError("import checksum must be SHA-256")
+        if not source_version.strip():
+            raise ValueError("source version must be nonblank")
+        if not publication_state.strip():
+            raise ValueError("publication state must be nonblank")
+        self._assert_store_paths()
+        with duckdb.connect(str(self.database_path)) as connection:
+            connection.execute(
+                """
+                INSERT INTO source_imports VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT (source_id, checksum) DO UPDATE SET
+                    observation_date = excluded.observation_date,
+                    source_version = excluded.source_version,
+                    publication_state = excluded.publication_state,
+                    imported_at = excluded.imported_at
+                """,
+                [
+                    source_id,
+                    checksum,
+                    observation_date,
+                    source_version,
+                    publication_state,
+                    datetime.now(UTC),
+                ],
+            )
+
+    def latest_import(self, source_id: str) -> StoredImport | None:
+        source_id = self._source_id(source_id)
+        self._assert_store_paths()
+        with duckdb.connect(str(self.database_path)) as connection:
+            row = connection.execute(
+                """
+                SELECT source_id, checksum, CAST(observation_date AS VARCHAR),
+                       source_version, publication_state,
+                       CAST(imported_at AS VARCHAR)
+                FROM source_imports
+                WHERE source_id = ?
+                ORDER BY imported_at DESC
+                LIMIT 1
+                """,
+                [source_id],
+            ).fetchone()
+        if row is None:
+            return None
+        imported_at = datetime.fromisoformat(str(row[5]).replace("Z", "+00:00"))
+        if imported_at.tzinfo is None:
+            imported_at = imported_at.replace(tzinfo=UTC)
+        return StoredImport(
+            source_id=str(row[0]),
+            checksum=str(row[1]),
+            observation_date=datetime.fromisoformat(str(row[2])).date(),
+            source_version=str(row[3]),
+            publication_state=str(row[4]),
+            imported_at=imported_at,
+        )
 
     def save_canonical_assets(self, assets: list[dict]) -> None:
         self._assert_store_paths()

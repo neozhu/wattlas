@@ -147,6 +147,28 @@ class SnapshotPublisher:
         missing = required - artifacts.keys()
         if missing:
             raise ValueError(f"missing required artifacts: {', '.join(sorted(missing))}")
+        publication = manifest.get("publication")
+        quarantined_ids = set()
+        if isinstance(publication, dict):
+            raw_ids = publication.get("quarantinedSourceIds", [])
+            if isinstance(raw_ids, list):
+                quarantined_ids = {
+                    value for value in raw_ids if isinstance(value, str) and value
+                }
+        if quarantined_ids:
+            for filename, body in artifacts.items():
+                if filename == "source-catalog.json":
+                    continue
+                try:
+                    payload = json.loads(body)
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    continue
+                if SnapshotPublisher._contains_source_claim(
+                    payload, quarantined_ids
+                ):
+                    raise ValueError(
+                        f"{filename} contains a quarantined source claim"
+                    )
         for filename in (
             "countries.geojson", "admin1.geojson", "regions.geojson", "assets.geojson",
             "generator-overview.geojson",
@@ -165,6 +187,7 @@ class SnapshotPublisher:
                 ]
                 if any(not identifier for identifier in semantic) or len(semantic) != len(set(semantic)):
                     raise ValueError(f"duplicate semantic geography id in {filename}")
+
         countries = json.loads(artifacts["countries.geojson"])
         if not countries.get("features"):
             raise ValueError("countries.geojson must contain at least one country")
@@ -475,6 +498,25 @@ class SnapshotPublisher:
         coverage = manifest.get("coverage", {}) if isinstance(manifest, dict) else {}
         if has_osm and isinstance(coverage, dict) and coverage.get("dataCentres", 0) < 3_500:
             raise ValueError("OSM data-centre coverage guard failed")
+
+    @staticmethod
+    def _contains_source_claim(value: object, quarantined_ids: set[str]) -> bool:
+        if isinstance(value, dict):
+            source_ids = value.get("sourceIds")
+            if isinstance(source_ids, list) and any(
+                source_id in quarantined_ids for source_id in source_ids
+            ):
+                return True
+            return any(
+                SnapshotPublisher._contains_source_claim(child, quarantined_ids)
+                for child in value.values()
+            )
+        if isinstance(value, list):
+            return any(
+                SnapshotPublisher._contains_source_claim(child, quarantined_ids)
+                for child in value
+            )
+        return False
 
     @staticmethod
     def _nonnegative_number(value: object, *, label: str) -> float:

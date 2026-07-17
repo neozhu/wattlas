@@ -17,9 +17,12 @@ from grid_scope.config import (
     GLOBAL_ASSETS_PATH,
     MODEL_VERSION,
     PUBLISH_DIR,
+    QUARANTINE_DIR,
+    QUARANTINE_WAREHOUSE_PATH,
     QLEVER_OSM_URL,
     RAW_DIR,
     SOURCE_REGISTRY_PATH,
+    SOURCE_CATALOG_PATH,
     UN_GEODATA_URL,
     WAREHOUSE_PATH,
 )
@@ -46,6 +49,7 @@ from grid_scope.connectors.regional_electricity import (
 from grid_scope.connectors.un_geodata import UnGeodataConnector
 from grid_scope.connectors.wri_power import WriPowerConnector
 from grid_scope.models import ConnectorState, SourceRef
+from grid_scope.manual_import import GovernedCaptureStores, import_source_snapshot
 from grid_scope.population import load_population_artifact
 from grid_scope.power_balance import (
     build_regional_energy_forecasts,
@@ -64,6 +68,7 @@ from grid_scope.scoring import score_power_balance
 from grid_scope.publisher import SnapshotPublisher
 from grid_scope.snapshot_builder import build_global_snapshot_artifacts, build_snapshot_artifacts
 from grid_scope.storage import RawCaptureStore
+from grid_scope.source_catalog import load_source_catalog
 
 
 POWER_SOURCE_PRECEDENCE = (
@@ -1617,13 +1622,56 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Build the Wattlas daily snapshot from public sources."
     )
-    parser.add_argument("command", nargs="?", choices=["refresh"], default="refresh")
+    parser.add_argument(
+        "command", nargs="?", choices=["refresh", "import-source"],
+        default="refresh",
+    )
+    parser.add_argument("--source-id")
+    parser.add_argument("--file", type=Path)
+    parser.add_argument("--sha256")
+    parser.add_argument("--observation-date", type=date.fromisoformat)
+    parser.add_argument("--source-version")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    parser.parse_args(argv)
+    arguments = parser.parse_args(argv)
+    if arguments.command == "import-source":
+        missing = [
+            flag
+            for flag, value in (
+                ("--source-id", arguments.source_id),
+                ("--file", arguments.file),
+                ("--sha256", arguments.sha256),
+                ("--observation-date", arguments.observation_date),
+                ("--source-version", arguments.source_version),
+            )
+            if value is None
+        ]
+        if missing:
+            parser.error(
+                "import-source requires " + ", ".join(missing)
+            )
+        result = import_source_snapshot(
+            catalog=load_source_catalog(SOURCE_CATALOG_PATH),
+            source_id=arguments.source_id,
+            input_path=arguments.file,
+            expected_checksum=arguments.sha256,
+            observation_date=arguments.observation_date,
+            stores=GovernedCaptureStores(
+                public=RawCaptureStore(RAW_DIR, WAREHOUSE_PATH),
+                quarantine=RawCaptureStore(
+                    QUARANTINE_DIR, QUARANTINE_WAREHOUSE_PATH
+                ),
+            ),
+            source_version=arguments.source_version,
+        )
+        print(
+            f"Imported {result.source_id} {result.source_version} "
+            f"as {result.publication_state.value} ({result.checksum})."
+        )
+        return 0
     path = refresh()
     print(f"Published daily snapshot: {path}")
     return 0
