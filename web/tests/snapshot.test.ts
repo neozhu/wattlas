@@ -9,6 +9,7 @@ import {
   manifestSchema,
   regionalEnergySchema,
   scoreContributionSchema,
+  sourceCatalogSchema,
 } from "@/lib/snapshot/schema";
 import { loadSnapshot, serverSnapshotArtifactPaths } from "@/lib/snapshot/load";
 import {
@@ -113,6 +114,19 @@ describe("snapshot manifest", () => {
     expect(parsed.coverage.canonicalPowerUnits).toBe(120);
     expect(parsed.coverage.powerSourceRecordsBySource?.gem_power).toBe(80);
     expect(parsed.quality?.generatorArtifactsReconciled).toBe(true);
+  });
+
+  it("validates governed public source metadata", () => {
+    const source = {
+      id: "brazil-aneel-siga", name: "SIGA", publisher: "ANEEL",
+      url: "https://example.com/siga", categories: ["generation"],
+      continents: ["South America"], countries: ["BR"], accessMode: "automatic",
+      publicationState: "publishable", refreshCadence: "monthly",
+      licence: "ODbL 1.0", licenceUrl: "https://example.com/licence",
+      licenceDecidedAt: "2026-07-17", requiredEnv: [], manualPathEnv: null, notes: null,
+    };
+    expect(sourceCatalogSchema.parse({ schemaVersion: "1.0", sources: [source] }).sources[0].id).toBe("brazil-aneel-siga");
+    expect(() => sourceCatalogSchema.parse({ schemaVersion: "1.0", sources: [{ ...source, licence: null }] })).toThrow();
   });
 });
 
