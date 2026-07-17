@@ -1,0 +1,596 @@
+{
+  "schemaVersion": "1.0",
+  "sources": [
+    {
+      "id": "gem-africa-energy-tracker",
+      "name": "Africa Energy Tracker",
+      "publisher": "Global Energy Monitor",
+      "url": "https://globalenergymonitor.org/projects/africa-energy-tracker/download-data/",
+      "categories": [
+        "generation",
+        "projects"
+      ],
+      "continents": [
+        "Africa"
+      ],
+      "countries": [],
+      "accessMode": "manual_snapshot",
+      "publicationState": "publishable",
+      "refreshCadence": "manual",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": "GEM_AFRICA_ENERGY_TRACKER_PATH",
+      "notes": "Form and CAPTCHA release; imported manually with checksum."
+    },
+    {
+      "id": "world-bank-dre-atlas",
+      "name": "DRE Atlas",
+      "publisher": "World Bank",
+      "url": "https://energydata.info/",
+      "categories": [
+        "electrification",
+        "grid_context"
+      ],
+      "continents": [
+        "Africa"
+      ],
+      "countries": [],
+      "accessMode": "metadata_only",
+      "publicationState": "quarantined",
+      "refreshCadence": "metadata_only",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Catalogue entry retained until the exact downloadable resource and reuse terms are pinned."
+    },
+    {
+      "id": "world-bank-africa-electricity-grid",
+      "name": "Africa Electricity Transmission and Distribution Grid Map",
+      "publisher": "World Bank",
+      "url": "https://datacatalog.worldbank.org/search/dataset/0040465/africa-electricity-transmission-and-distribution-grid-map",
+      "categories": [
+        "grid_context"
+      ],
+      "continents": [
+        "Africa"
+      ],
+      "countries": [],
+      "accessMode": "automatic",
+      "publicationState": "quarantined",
+      "refreshCadence": "irregular",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Contains multiple upstream sources; publication waits for a resource-level licence decision."
+    },
+    {
+      "id": "iea-africa-gis-catalogue",
+      "name": "Africa GIS Catalogue for Energy Planning",
+      "publisher": "International Energy Agency",
+      "url": "https://www.iea.org/data-and-statistics/data-tools/africa-gis-catalogue-for-energy-planning",
+      "categories": [
+        "source_catalogue"
+      ],
+      "continents": [
+        "Africa"
+      ],
+      "countries": [],
+      "accessMode": "metadata_only",
+      "publicationState": "quarantined",
+      "refreshCadence": "metadata_only",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Discovery metadata only; every linked resource receives its own licence decision."
+    },
+    {
+      "id": "iea-building-demand-africa",
+      "name": "Building-level Electricity Access and Demand Model",
+      "publisher": "International Energy Agency",
+      "url": "https://www.iea.org/data-and-statistics/data-product/building-level-electricity-access-and-demand-model",
+      "categories": [
+        "demand",
+        "electrification"
+      ],
+      "continents": [
+        "Africa"
+      ],
+      "countries": [],
+      "accessMode": "manual_snapshot",
+      "publicationState": "publishable",
+      "refreshCadence": "manual",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": "IEA_BUILDING_DEMAND_PATH",
+      "notes": "Model output remains estimated and is aggregated before publication."
+    },
+    {
+      "id": "afdb-mapafrica",
+      "name": "MapAfrica",
+      "publisher": "African Development Bank",
+      "url": "https://mapafrica.afdb.org/",
+      "categories": [
+        "projects"
+      ],
+      "continents": [
+        "Africa"
+      ],
+      "countries": [],
+      "accessMode": "automatic",
+      "publicationState": "quarantined",
+      "refreshCadence": "irregular",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Public project portal; records remain quarantined until API and reuse terms are confirmed."
+    },
+    {
+      "id": "peeringdb",
+      "name": "PeeringDB facilities",
+      "publisher": "PeeringDB",
+      "url": "https://www.peeringdb.com/apidocs/",
+      "categories": [
+        "digital_infrastructure"
+      ],
+      "continents": [
+        "Africa",
+        "South America"
+      ],
+      "countries": [],
+      "accessMode": "automatic",
+      "publicationState": "quarantined",
+      "refreshCadence": "monthly",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Facility identity only; no MW inference. Licence decision pending."
+    },
+    {
+      "id": "sapp",
+      "name": "Southern African Power Pool data",
+      "publisher": "Southern African Power Pool",
+      "url": "https://www.sapp.co.zw/",
+      "categories": [
+        "generation",
+        "demand",
+        "national_control"
+      ],
+      "continents": [
+        "Africa"
+      ],
+      "countries": [],
+      "accessMode": "manual_snapshot",
+      "publicationState": "quarantined",
+      "refreshCadence": "manual",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": "SAPP_DATA_PATH",
+      "notes": "Reuse rights require confirmation."
+    },
+    {
+      "id": "eskom",
+      "name": "Eskom system and generation data",
+      "publisher": "Eskom",
+      "url": "https://www.eskom.co.za/dataportal/",
+      "categories": [
+        "generation",
+        "demand",
+        "national_control"
+      ],
+      "continents": [
+        "Africa"
+      ],
+      "countries": [
+        "ZA"
+      ],
+      "accessMode": "automatic",
+      "publicationState": "quarantined",
+      "refreshCadence": "monthly",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Endpoint and resource-level terms must be verified before publication."
+    },
+    {
+      "id": "ecowas-waeis",
+      "name": "West African Energy Information System",
+      "publisher": "ECOWAS Centre for Renewable Energy and Energy Efficiency",
+      "url": "https://www.ecreee.org/",
+      "categories": [
+        "generation",
+        "demand",
+        "national_control"
+      ],
+      "continents": [
+        "Africa"
+      ],
+      "countries": [],
+      "accessMode": "manual_snapshot",
+      "publicationState": "quarantined",
+      "refreshCadence": "manual",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": "WAEIS_DATA_PATH",
+      "notes": "Reuse rights require confirmation."
+    },
+    {
+      "id": "brazil-aneel-siga",
+      "name": "SIGA generation registry",
+      "publisher": "Agência Nacional de Energia Elétrica",
+      "url": "https://dadosabertos.aneel.gov.br/pt_BR/dataset/siga-sistema-de-informacoes-de-geracao-da-aneel",
+      "categories": [
+        "generation",
+        "projects"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "BR"
+      ],
+      "accessMode": "automatic",
+      "publicationState": "publishable",
+      "refreshCadence": "monthly",
+      "licence": "ODbL 1.0",
+      "licenceUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Official CKAN registry."
+    },
+    {
+      "id": "brazil-epe-webmap",
+      "name": "EPE WebMap",
+      "publisher": "Empresa de Pesquisa Energética",
+      "url": "https://gisepeprd.epe.gov.br/WebMapEPE/",
+      "categories": [
+        "generation",
+        "projects",
+        "grid_context"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "BR"
+      ],
+      "accessMode": "automatic",
+      "publicationState": "quarantined",
+      "refreshCadence": "monthly",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "ArcGIS layer reuse terms require resource-level confirmation."
+    },
+    {
+      "id": "brazil-epe-consumption",
+      "name": "Monthly electricity consumption",
+      "publisher": "Empresa de Pesquisa Energética",
+      "url": "https://www.epe.gov.br/pt/publicacoes-dados-abertos/publicacoes/consumo-de-energia-eletrica",
+      "categories": [
+        "demand"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "BR"
+      ],
+      "accessMode": "automatic",
+      "publicationState": "quarantined",
+      "refreshCadence": "monthly",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Official open-data page; exact downloadable resource and licence will be pinned."
+    },
+    {
+      "id": "brazil-ons-load",
+      "name": "ONS open system data",
+      "publisher": "Operador Nacional do Sistema Elétrico",
+      "url": "https://dados.ons.org.br/",
+      "categories": [
+        "generation",
+        "demand",
+        "national_control"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "BR"
+      ],
+      "accessMode": "automatic",
+      "publicationState": "quarantined",
+      "refreshCadence": "monthly",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Dataset-level licence confirmation required."
+    },
+    {
+      "id": "chile-coordinador",
+      "name": "Chile electricity system data",
+      "publisher": "Coordinador Eléctrico Nacional",
+      "url": "https://www.coordinador.cl/mercados/documentos/",
+      "categories": [
+        "generation",
+        "demand",
+        "national_control"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "CL"
+      ],
+      "accessMode": "credentialled",
+      "publicationState": "quarantined",
+      "refreshCadence": "monthly",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [
+        "CHILE_COORDINADOR_API_KEY"
+      ],
+      "manualPathEnv": null,
+      "notes": "Supports configured credentials; reuse terms require confirmation."
+    },
+    {
+      "id": "chile-sea-projects",
+      "name": "Chile environmental project records",
+      "publisher": "Servicio de Evaluación Ambiental",
+      "url": "https://www.sea.gob.cl/",
+      "categories": [
+        "projects"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "CL"
+      ],
+      "accessMode": "automatic",
+      "publicationState": "quarantined",
+      "refreshCadence": "monthly",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Environmental approval is not operational status; reuse terms require confirmation."
+    },
+    {
+      "id": "colombia-xm-simem",
+      "name": "XM SIMEM electricity data",
+      "publisher": "XM Compañía de Expertos en Mercados",
+      "url": "https://www.simem.co/",
+      "categories": [
+        "generation",
+        "demand",
+        "national_control"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "CO"
+      ],
+      "accessMode": "automatic",
+      "publicationState": "quarantined",
+      "refreshCadence": "monthly",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Public access does not by itself establish redistribution rights."
+    },
+    {
+      "id": "colombia-ipse",
+      "name": "IPSE non-interconnected zones",
+      "publisher": "Instituto de Planificación y Promoción de Soluciones Energéticas",
+      "url": "https://ipse.gov.co/cnm/",
+      "categories": [
+        "generation",
+        "demand",
+        "electrification"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "CO"
+      ],
+      "accessMode": "manual_snapshot",
+      "publicationState": "quarantined",
+      "refreshCadence": "manual",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": "COLOMBIA_IPSE_PATH",
+      "notes": "Versioned reports; reuse terms require confirmation."
+    },
+    {
+      "id": "peru-coes",
+      "name": "Peru electricity system data",
+      "publisher": "Comité de Operación Económica del Sistema Interconectado Nacional",
+      "url": "https://www.coes.org.pe/Portal/portalinformacion/",
+      "categories": [
+        "generation",
+        "demand",
+        "national_control"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "PE"
+      ],
+      "accessMode": "automatic",
+      "publicationState": "quarantined",
+      "refreshCadence": "monthly",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Endpoint and reuse terms require confirmation."
+    },
+    {
+      "id": "peru-minem",
+      "name": "Peru energy project registry",
+      "publisher": "Ministerio de Energía y Minas",
+      "url": "https://www.gob.pe/minem",
+      "categories": [
+        "generation",
+        "projects"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "PE"
+      ],
+      "accessMode": "manual_snapshot",
+      "publicationState": "quarantined",
+      "refreshCadence": "manual",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": "PERU_MINEM_PATH",
+      "notes": "Versioned official releases; reuse terms require confirmation."
+    },
+    {
+      "id": "ecuador-cenace",
+      "name": "Ecuador electricity system data",
+      "publisher": "Operador Nacional de Electricidad CENACE",
+      "url": "https://www.cenace.gob.ec/",
+      "categories": [
+        "generation",
+        "demand",
+        "national_control"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "EC"
+      ],
+      "accessMode": "manual_snapshot",
+      "publicationState": "quarantined",
+      "refreshCadence": "manual",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": "ECUADOR_CENACE_PATH",
+      "notes": "Versioned official releases; reuse terms require confirmation."
+    },
+    {
+      "id": "uruguay-adme",
+      "name": "Uruguay electricity system data",
+      "publisher": "Administración del Mercado Eléctrico",
+      "url": "https://adme.com.uy/",
+      "categories": [
+        "generation",
+        "demand",
+        "national_control"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "UY"
+      ],
+      "accessMode": "automatic",
+      "publicationState": "quarantined",
+      "refreshCadence": "monthly",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": null,
+      "notes": "Endpoint and reuse terms require confirmation."
+    },
+    {
+      "id": "argentina-official-power",
+      "name": "Argentina official power data",
+      "publisher": "Secretaría de Energía",
+      "url": "https://www.argentina.gob.ar/economia/energia",
+      "categories": [
+        "generation",
+        "demand",
+        "national_control"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [
+        "AR"
+      ],
+      "accessMode": "manual_snapshot",
+      "publicationState": "quarantined",
+      "refreshCadence": "manual",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": "ARGENTINA_POWER_PATH",
+      "notes": "Currency and reuse rights must be confirmed; stale records receive lower confidence."
+    },
+    {
+      "id": "olade-sielac",
+      "name": "sieLAC energy information",
+      "publisher": "Latin American Energy Organization",
+      "url": "https://sielac.olade.org/",
+      "categories": [
+        "national_control"
+      ],
+      "continents": [
+        "South America"
+      ],
+      "countries": [],
+      "accessMode": "credentialled",
+      "publicationState": "quarantined",
+      "refreshCadence": "irregular",
+      "licence": null,
+      "licenceUrl": null,
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [
+        "OLADE_SIELAC_API_KEY"
+      ],
+      "manualPathEnv": null,
+      "notes": "National validation only; no facility points."
+    }
+  ]
+}
+
