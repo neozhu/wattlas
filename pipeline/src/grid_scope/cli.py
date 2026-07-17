@@ -153,7 +153,7 @@ def load_refresh_model_artifacts(
     *,
     validate_population: bool = True,
 ) -> dict[str, dict[str, Any]]:
-    """Load compact, versioned model inputs; daily refresh never opens a raster."""
+    """Load compact, versioned model inputs; monthly refresh never opens a raster."""
 
     population = (
         load_population_artifact(population_path)
@@ -507,7 +507,7 @@ def build_connector_status(
     return {
         "id": result.source_id,
         "state": result.state.value,
-        # Daily means checked today. It never rewrites upstream observation dates.
+        # A refresh records today's check. It never rewrites observation dates.
         "checkedAt": checked_at,
         "lastSuccessAt": (
             checked_at if result.state == ConnectorState.CURRENT else last_success_at
@@ -1658,7 +1658,7 @@ def refresh() -> Path:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Build the Wattlas daily snapshot from public sources."
+        description="Build the Wattlas monthly snapshot from public sources."
     )
     parser.add_argument(
         "command", nargs="?", choices=["refresh", "import-source"],
@@ -1711,7 +1711,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
     path = refresh()
-    print(f"Published daily snapshot: {path}")
+    print(f"Published monthly snapshot: {path}")
     return 0
 
 

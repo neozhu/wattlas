@@ -58,7 +58,7 @@ def test_cli_help_exits_cleanly(capsys) -> None:
     with pytest.raises(SystemExit) as exc:
         main(["--help"])
     assert exc.value.code == 0
-    assert "daily snapshot" in capsys.readouterr().out.lower()
+    assert "monthly snapshot" in capsys.readouterr().out.lower()
 
 
 def test_cli_describes_wattlas() -> None:

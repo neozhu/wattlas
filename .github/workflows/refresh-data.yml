@@ -2,16 +2,16 @@ name: Refresh public data snapshot
 
 on:
   schedule:
-    # The Berlin-time gate below selects exactly one of these UTC runs across DST.
-    - cron: "0 2 * * *"
-    - cron: "0 3 * * *"
+    # The Berlin-time gate selects one first-of-month UTC run across DST.
+    - cron: "0 2 1 * *"
+    - cron: "0 3 1 * *"
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: daily-public-data-refresh
+  group: monthly-public-data-refresh
   cancel-in-progress: false
 
 jobs:
@@ -74,5 +74,5 @@ jobs:
             echo "No snapshot change to publish."
             exit 0
           fi
-          git commit -m "data: refresh daily public snapshot"
+          git commit -m "data: refresh monthly public snapshot"
           git push
