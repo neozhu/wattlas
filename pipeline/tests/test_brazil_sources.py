@@ -1,4 +1,9 @@
+from datetime import UTC, datetime
+
+import httpx
+
 from grid_scope.connectors.brazil import (
+    AneelSigaConnector,
     normalize_aneel_siga,
     normalize_epe_consumption,
     normalize_ons_load,
@@ -39,3 +44,24 @@ def test_ons_load_is_not_mislabeled_as_energy() -> None:
     }])
     assert rows[0]["loadMw"] == 12000.5
     assert "demandGwh" not in rows[0]
+
+
+def test_aneel_connector_publishes_normalized_json_capture() -> None:
+    csv_body = (
+        "NomEmpreendimento;CodCEG;SigUFPrincipal;SigTipoGeracao;"
+        "DscFaseUsina;MdaPotenciaFiscalizadaKw;"
+        "NumCoordNEmpreendimento;NumCoordEEmpreendimento\n"
+        "Parque Solar Azul;CEG-123;BA;UFV;Operação;150000,0;-12,5;-41,2\n"
+    ).encode()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=csv_body, request=request)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = AneelSigaConnector(minimum_records=1).fetch(
+            client, now=datetime(2026, 7, 17, tzinfo=UTC)
+        )
+
+    assert result.payload is not None
+    assert b'brazil-aneel-siga' in result.payload.body
+    assert b'"central":150.0' in result.payload.body

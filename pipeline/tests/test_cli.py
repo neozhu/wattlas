@@ -106,7 +106,7 @@ def test_merge_asset_feeds_assigns_country_and_keeps_official_precedence() -> No
 
 def test_power_sources_and_refresh_steps_have_approved_precedence() -> None:
     assert POWER_SOURCE_PRECEDENCE == (
-        "official_power", "gem_power", "wri_power", "osm_power"
+        "official_power", "brazil-aneel-siga", "gem_power", "wri_power", "osm_power"
     )
     assert REFRESH_STEPS == (
         "boundaries", "population", "plant_sources", "plant_canonicalization",
@@ -379,13 +379,16 @@ def test_power_record_collection_is_deterministic_and_source_ordered() -> None:
     payloads = {
         "osm_power": b'{"records":[{"id":"osm"}]}',
         "official_power": b'{"records":[{"id":"official"}]}',
+        "brazil-aneel-siga": b'{"records":[{"id":"aneel"}]}',
         "wri_power": b'{"records":[{"id":"wri"}]}',
         "gem_power": b'{"records":[{"id":"gem"}]}',
     }
 
     records, counts = collect_power_source_records(payloads)
 
-    assert [row["id"] for row in records] == ["official", "gem", "wri", "osm"]
+    assert [row["id"] for row in records] == [
+        "official", "aneel", "gem", "wri", "osm"
+    ]
     assert counts == {name: 1 for name in POWER_SOURCE_PRECEDENCE}
 
 

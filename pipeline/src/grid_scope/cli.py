@@ -28,6 +28,7 @@ from grid_scope.config import (
 )
 from grid_scope.canonicalize import assign_asset_country, canonicalize_assets
 from grid_scope.connectors.base import ConnectorResult, FetchPayload
+from grid_scope.connectors.brazil import AneelSigaConnector
 from grid_scope.connectors.curated import CuratedConnector
 from grid_scope.connectors.entsoe import EntsoeConnector
 from grid_scope.connectors.ember import normalize_ember_yearly_csv
@@ -73,6 +74,7 @@ from grid_scope.source_catalog import load_source_catalog
 
 POWER_SOURCE_PRECEDENCE = (
     "official_power",
+    "brazil-aneel-siga",
     "gem_power",
     "wri_power",
     "osm_power",
@@ -1312,6 +1314,11 @@ def refresh() -> Path:
         gem_body, gem_status = _optional_network_result(
             lambda: GemPowerConnector().fetch(client, now=now), "gem_power", store
         )
+        aneel_body, aneel_status = _optional_network_result(
+            lambda: AneelSigaConnector().fetch(client, now=now),
+            "brazil-aneel-siga",
+            store,
+        )
         wri_body, wri_status = _optional_network_result(
             lambda: WriPowerConnector().fetch(client, now=now), "wri_power", store
         )
@@ -1332,6 +1339,7 @@ def refresh() -> Path:
     )
     source_bodies.update({
         "official_power": official_power_body,
+        "brazil-aneel-siga": aneel_body,
         "gem_power": gem_body,
         "wri_power": wri_body,
         "osm_power": osm_power_body,
@@ -1513,6 +1521,7 @@ def refresh() -> Path:
         curated_result,
         entsoe_status,
         official_power_status,
+        aneel_status,
         gem_status,
         wri_status,
         osm_power_status,

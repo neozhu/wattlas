@@ -1,10 +1,26 @@
 from __future__ import annotations
 
+import csv
 from datetime import datetime
+from io import StringIO
+import json
 import math
 import re
 from typing import Any
 import unicodedata
+
+import httpx
+
+from grid_scope.connectors.base import ConnectorResult, FetchPayload
+from grid_scope.models import ConnectorState, PublicationState
+
+
+ANEEL_SIGA_CSV_URL = (
+    "https://dadosabertos.aneel.gov.br/dataset/"
+    "6d90b77c-c5f5-4d81-bdec-7bc619494bb9/resource/"
+    "11ec447d-698d-4ab8-977f-b424d5deee6a/download/"
+    "siga-empreendimentos-geracao.csv"
+)
 
 
 def _text(value: Any) -> str:
@@ -138,3 +154,46 @@ def normalize_epe_webmap(features: list[dict[str, Any]]) -> list[dict[str, Any]]
         for feature in features
     ]
 
+
+class AneelSigaConnector:
+    source_id = "brazil-aneel-siga"
+
+    def __init__(
+        self,
+        url: str = ANEEL_SIGA_CSV_URL,
+        *,
+        minimum_records: int = 100,
+    ) -> None:
+        self.url = url
+        self.minimum_records = minimum_records
+
+    def fetch(
+        self, client: httpx.Client, *, now: datetime
+    ) -> ConnectorResult:
+        response = client.get(self.url)
+        response.raise_for_status()
+        text = response.content.decode("utf-8-sig")
+        sample = text[:8192]
+        delimiter = csv.Sniffer().sniff(sample, delimiters=";,\t").delimiter
+        rows = list(csv.DictReader(StringIO(text), delimiter=delimiter))
+        records = normalize_aneel_siga(rows)
+        if len(records) < self.minimum_records:
+            raise ValueError(
+                f"too few ANEEL SIGA records: {len(records)} < {self.minimum_records}"
+            )
+        body = json.dumps(
+            {"source": self.source_id, "records": records},
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode()
+        return ConnectorResult(
+            source_id=self.source_id,
+            state=ConnectorState.CURRENT,
+            payload=FetchPayload(
+                source_id=self.source_id,
+                retrieved_at=now,
+                media_type="application/json",
+                body=body,
+            ),
+            publication_state=PublicationState.PUBLISHABLE,
+        )
