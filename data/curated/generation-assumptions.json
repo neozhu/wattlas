@@ -2,6 +2,17 @@
   "schemaVersion": "wattlas-generation-assumptions-v1",
   "methodId": "regional-power-supply-v1",
   "publicDataOnly": true,
+  "supplySemantics": {
+    "currentSupply": "Only operational facilities contribute to the current year.",
+    "plannedSupply": "Planned facilities enter only in a supported commissioning year and retain lifecycle delivery uncertainty.",
+    "retirements": "Retired and cancelled facilities contribute no future supply; recorded retirement years reduce future supply.",
+    "measures": [
+      "nameplate_capacity_mw",
+      "operating_capacity_mw",
+      "dependable_capacity_mw",
+      "annual_generation_gwh"
+    ]
+  },
   "observedFactorAdequacy": {
     "minimumYears": 2,
     "minimumCapacityMw": 100
