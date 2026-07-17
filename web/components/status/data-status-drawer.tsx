@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { connectorLabel, formatSnapshotTime } from "@/lib/format";
 import type { SnapshotManifest } from "@/lib/snapshot/types";
 
@@ -11,6 +13,7 @@ export function DataStatusDrawer({ manifest, open, onClose }: Props) {
         <div className="drawer-header"><div><small>Snapshot integrity</small><h2>Data source status</h2></div><button type="button" onClick={onClose} aria-label="Close data source status">×</button></div>
         <p className="drawer-intro">The map serves the last successful validated snapshot. One failed source cannot erase usable data.</p>
         <div className="status-summary"><span>Snapshot</span><strong>{formatSnapshotTime(manifest.generatedAt)}</strong><span>Model</span><strong>{manifest.modelVersion}</strong></div>
+        <Link className="methodology-link" href="/methodology">Methodology and sources →</Link>
         <div className="connector-list">
           {manifest.connectors.map((connector) => (
             <article key={connector.id} className="connector-row">
