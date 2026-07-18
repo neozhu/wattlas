@@ -7,7 +7,7 @@ import {
   manifestSchema,
   sourceCatalogSchema,
 } from "@/lib/snapshot/schema";
-import type { SnapshotData, SnapshotManifest, SourceCatalog } from "@/lib/snapshot/types";
+import type { SnapshotData, SnapshotManifest, SourceCatalog, SourceCoverage } from "@/lib/snapshot/types";
 import { migrateLegacyContributions } from "@/lib/snapshot/legacy";
 
 async function fetchJson<T>(artifactPath: string, signal?: AbortSignal): Promise<T> {
@@ -66,4 +66,18 @@ export async function loadSourceCatalog(
   const expected = `snapshots/${manifest.snapshotId}/source-catalog.json`;
   if (artifactPath !== expected) throw new Error(`Snapshot artifact path must be ${expected}`);
   return sourceCatalogSchema.parse(await fetchJson<unknown>(artifactPath, signal));
+}
+
+export async function loadMethodologyFromStaticAssets(signal?: AbortSignal): Promise<{
+  catalog: SourceCatalog;
+  generatedAt: string | null;
+  sourceCoverage: SourceCoverage | null;
+}> {
+  const manifest = manifestSchema.parse(await fetchJson<unknown>("latest.json", signal));
+  const catalog = await loadSourceCatalog(manifest, signal);
+  return {
+    catalog: catalog ?? { schemaVersion: "1.0", sources: [] },
+    generatedAt: manifest.generatedAt,
+    sourceCoverage: manifest.sourceCoverage ?? null,
+  };
 }
