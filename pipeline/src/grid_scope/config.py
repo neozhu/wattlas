@@ -26,8 +26,42 @@ UN_GEODATA_URL = os.getenv(
     "d7caaff3ef4b4f7c82689b7c4694ad92/data",
 )
 QLEVER_OSM_URL = os.getenv("QLEVER_OSM_URL", "https://qlever.dev/api/osm-planet")
-GEM_GIPT_PATH = Path(os.environ["GEM_GIPT_PATH"]) if os.getenv("GEM_GIPT_PATH") else None
+_DEFAULT_MANUAL_SOURCE_DIR = PROJECT_ROOT / "data" / "manual-sources"
+_DEFAULT_GEM_GIPT_PATH = (
+    _DEFAULT_MANUAL_SOURCE_DIR / "gem-global-integrated-power-march-2026.xlsx"
+)
+GEM_GIPT_PATH = (
+    Path(os.environ["GEM_GIPT_PATH"])
+    if os.getenv("GEM_GIPT_PATH")
+    else _DEFAULT_GEM_GIPT_PATH if _DEFAULT_GEM_GIPT_PATH.exists() else None
+)
 GEM_GIPT_URL = os.getenv("GEM_GIPT_URL") or None
+BRAZIL_EPE_CONSUMPTION_PATH = (
+    Path(os.environ["BRAZIL_EPE_CONSUMPTION_PATH"])
+    if os.getenv("BRAZIL_EPE_CONSUMPTION_PATH")
+    else (
+        _DEFAULT_MANUAL_SOURCE_DIR / "brazil-epe-monthly-consumption.xlsx"
+        if (_DEFAULT_MANUAL_SOURCE_DIR / "brazil-epe-monthly-consumption.xlsx").exists()
+        else None
+    )
+)
+AFRICA_GRID_PATH = (
+    Path(os.environ["AFRICA_GRID_PATH"])
+    if os.getenv("AFRICA_GRID_PATH")
+    else (
+        _DEFAULT_MANUAL_SOURCE_DIR / "africa-grid-2017.geojson.gz"
+        if (_DEFAULT_MANUAL_SOURCE_DIR / "africa-grid-2017.geojson.gz").exists()
+        else None
+    )
+)
+_DEFAULT_EMBER_YEARLY_PATH = (
+    _DEFAULT_MANUAL_SOURCE_DIR / "ember-yearly-electricity.csv.gz"
+)
+EMBER_YEARLY_PATH = (
+    Path(os.environ["EMBER_YEARLY_PATH"])
+    if os.getenv("EMBER_YEARLY_PATH")
+    else _DEFAULT_EMBER_YEARLY_PATH if _DEFAULT_EMBER_YEARLY_PATH.exists() else None
+)
 WRI_POWER_URL = os.getenv("WRI_POWER_URL") or None
 EIA_API_V2_URL = os.getenv("EIA_API_V2_URL") or None
 EIA_API_KEY = os.getenv("EIA_API_KEY") or None

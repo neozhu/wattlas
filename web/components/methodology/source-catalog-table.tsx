@@ -9,7 +9,7 @@ export function SourceCatalogTable({ sources }: { sources: SourceDescriptor[] })
         <article className="source-catalog-card" key={source.id}>
           <header>
             <div>
-              <span className={"source-state " + source.publicationState}>{labelToken(source.publicationState)}</span>
+              <span className={"source-state " + source.publicationState}>{source.publicationState === "publishable" ? "Eligible for publication" : labelToken(source.publicationState)}</span>
               <h3>{source.name}</h3>
               <p>{source.publisher}</p>
             </div>
@@ -28,4 +28,3 @@ export function SourceCatalogTable({ sources }: { sources: SourceDescriptor[] })
     </div>
   );
 }
-

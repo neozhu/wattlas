@@ -8,7 +8,7 @@ import math
 from pathlib import Path
 import posixpath
 import re
-from typing import Any
+from typing import Any, Iterable, Iterator
 from urllib.parse import urlparse
 import xml.etree.ElementTree as ET
 from zipfile import BadZipFile, ZipFile
@@ -24,6 +24,7 @@ GEM_SOURCE_ID = "gem-global-integrated-power-tracker"
 GEM_LICENCE = "CC-BY-4.0"
 DEFAULT_MINIMUM_GEM_RECORDS = 10_000
 _MAX_PLAUSIBLE_CAPACITY_MW = 100_000
+_NORMALIZED_KEYS_MARKER = "__wattlas_normalized_keys__"
 
 _TECHNOLOGY_ALIASES = {
     "photovoltaic": "solar",
@@ -69,7 +70,10 @@ _LIFECYCLE_ALIASES = {
     "decommissioned": "retired",
     "cancelled": "cancelled",
     "canceled": "cancelled",
+    "cancelled inferred 4 y": "cancelled",
+    "canceled inferred 4 y": "cancelled",
     "shelved": "shelved",
+    "shelved inferred 2 y": "shelved",
 }
 
 
@@ -85,7 +89,11 @@ def _key(value: str) -> str:
 
 
 def _row_value(row: dict[str, Any], *aliases: str) -> str | None:
-    values = {_key(str(key)): value for key, value in row.items()}
+    values = (
+        row
+        if row.get(_NORMALIZED_KEYS_MARKER) is True
+        else {_key(str(key)): value for key, value in row.items()}
+    )
     for alias in aliases:
         value = _clean(values.get(_key(alias)))
         if value is not None:
@@ -152,42 +160,66 @@ def _coordinates(latitude: str | None, longitude: str | None) -> list[float] | N
 def _year(value: str | None, *, label: str) -> int | None:
     if value is None:
         return None
+    if _key(value) in {"n a", "na", "unknown", "not found", "not applicable"}:
+        return None
     match = re.search(r"\b(?:19|20)\d{2}\b", value)
     if not match:
+        if re.fullmatch(r"\d{4}(?:\.0+)?", value.strip()):
+            return None
         raise ValueError(f"invalid {label}: {value}")
     return int(match.group())
 
 
-def _worksheet_matrix(
+def _worksheet_rows(
     archive: ZipFile,
     worksheet_path: str,
     shared_strings: list[str],
-) -> list[list[str]]:
-    namespace = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
-    worksheet_root = ET.fromstring(archive.read(worksheet_path))
-    table: list[list[str]] = []
-    for row in worksheet_root.findall(".//m:sheetData/m:row", namespace):
-        cells: dict[int, str] = {}
-        for cell in row.findall("m:c", namespace):
-            reference = cell.attrib.get("r", "A1")
-            letters = re.match(r"[A-Z]+", reference)
-            if letters is None:
+) -> Iterator[list[str]]:
+    namespace = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    with archive.open(worksheet_path) as source:
+        for _, row in ET.iterparse(source, events=("end",)):
+            if row.tag != f"{namespace}row":
                 continue
-            column = 0
-            for character in letters.group():
-                column = column * 26 + ord(character) - 64
-            cell_type = cell.attrib.get("t")
-            if cell_type == "inlineStr":
-                value = "".join(node.text or "" for node in cell.findall(".//m:t", namespace))
-            else:
-                node = cell.find("m:v", namespace)
-                value = node.text if node is not None and node.text is not None else ""
-                if cell_type == "s" and value:
-                    value = shared_strings[int(value)]
-            cells[column - 1] = value
-        width = max(cells, default=-1) + 1
-        table.append([cells.get(index, "") for index in range(width)])
-    return table
+            cells: dict[int, str] = {}
+            for cell in row.findall(f"{namespace}c"):
+                reference = cell.attrib.get("r", "A1")
+                letters = re.match(r"[A-Z]+", reference)
+                if letters is None:
+                    continue
+                column = 0
+                for character in letters.group():
+                    column = column * 26 + ord(character) - 64
+                cell_type = cell.attrib.get("t")
+                if cell_type == "inlineStr":
+                    value = "".join(
+                        node.text or "" for node in cell.findall(f".//{namespace}t")
+                    )
+                else:
+                    node = cell.find(f"{namespace}v")
+                    value = node.text if node is not None and node.text is not None else ""
+                    if cell_type == "s" and value:
+                        value = shared_strings[int(value)]
+                cells[column - 1] = value
+            width = max(cells, default=-1) + 1
+            yield [cells.get(index, "") for index in range(width)]
+            row.clear()
+
+
+def _shared_strings(archive: ZipFile) -> list[str]:
+    path = "xl/sharedStrings.xml"
+    if path not in archive.namelist():
+        return []
+    namespace = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+    strings: list[str] = []
+    with archive.open(path) as source:
+        for _, item in ET.iterparse(source, events=("end",)):
+            if item.tag != f"{namespace}si":
+                continue
+            strings.append(
+                "".join(text.text or "" for text in item.iter(f"{namespace}t"))
+            )
+            item.clear()
+    return strings
 
 
 def _workbook_worksheets(archive: ZipFile) -> list[tuple[str, str]]:
@@ -238,17 +270,10 @@ def _hierarchy_header_index(table: list[list[str]]) -> int | None:
     return None
 
 
-def _xlsx_rows(data: bytes) -> list[dict[str, str]]:
-    namespace = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+def _xlsx_rows(data: bytes) -> Iterator[dict[str, str]]:
     try:
         with ZipFile(io.BytesIO(data)) as archive:
-            shared_strings: list[str] = []
-            if "xl/sharedStrings.xml" in archive.namelist():
-                shared_root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
-                shared_strings = [
-                    "".join(text.text or "" for text in item.findall(".//m:t", namespace))
-                    for item in shared_root.findall("m:si", namespace)
-                ]
+            shared_strings = _shared_strings(archive)
             worksheets = _workbook_worksheets(archive)
             if not worksheets:
                 raise ValueError("GEM workbook has no worksheets")
@@ -262,29 +287,33 @@ def _xlsx_rows(data: bytes) -> list[dict[str, str]]:
                     item[0],
                 ),
             )
-            selected_table: list[list[str]] | None = None
-            header_index: int | None = None
             for _, (_, worksheet_path) in prioritized:
-                table = _worksheet_matrix(archive, worksheet_path, shared_strings)
-                candidate_index = _hierarchy_header_index(table)
-                if candidate_index is not None:
-                    selected_table = table
-                    header_index = candidate_index
-                    break
+                rows = _worksheet_rows(archive, worksheet_path, shared_strings)
+                headers: list[str] | None = None
+                for candidate_index, values in enumerate(rows):
+                    if candidate_index >= 100:
+                        break
+                    if _hierarchy_header_index([values]) is not None:
+                        headers = [header.strip() for header in values]
+                        break
+                if headers is None:
+                    continue
+                for values in rows:
+                    if not any(value.strip() for value in values):
+                        continue
+                    yield {
+                        header: values[index] if index < len(values) else ""
+                        for index, header in enumerate(headers)
+                    }
+                return
     except (BadZipFile, ET.ParseError, IndexError, KeyError) as error:
         raise ValueError("invalid GEM Excel workbook") from error
-
-    if selected_table is None or header_index is None:
-        raise ValueError("GEM workbook has no unit-data hierarchy header row")
-    headers = [header.strip() for header in selected_table[header_index]]
-    return [
-        {header: values[index] if index < len(values) else "" for index, header in enumerate(headers)}
-        for values in selected_table[header_index + 1:]
-        if any(value.strip() for value in values)
-    ]
+    raise ValueError("GEM workbook has no unit-data hierarchy header row")
 
 
-def _read_rows(source: Path | str | bytes, *, suffix: str | None = None) -> list[dict[str, Any]]:
+def _read_rows(
+    source: Path | str | bytes, *, suffix: str | None = None
+) -> Iterable[dict[str, Any]]:
     if isinstance(source, bytes):
         data = source
         source_suffix = (suffix or ".csv").lower()
@@ -303,34 +332,49 @@ def _read_rows(source: Path | str | bytes, *, suffix: str | None = None) -> list
 def parse_gem_power(source: Path | str | bytes, *, suffix: str | None = None) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for index, row in enumerate(_read_rows(source, suffix=suffix), start=2):
+        row = {_key(str(key)): value for key, value in row.items()}
+        row[_NORMALIZED_KEYS_MARKER] = True
         plant_id = _row_value(
             row, "Plant ID", "GEM Plant ID", "GEM Location ID", "Project ID"
         )
         unit_id = _row_value(row, "Unit ID", "GEM Unit ID", "GEM Unit/Phase ID")
         name = _row_value(
-            row, "Unit Name", "Unit/Phase Name", "Project Name", "Project/Plant Name", "Plant Name"
+            row, "Unit Name", "Unit/Phase Name", "Project Name", "Project/Plant Name",
+            "Plant / Project name", "Plant Name"
         )
         if not plant_id or not unit_id or not name:
             raise ValueError(f"GEM row {index} lacks plant ID, unit ID, or name")
         raw_status = _row_value(row, "Status", "Unit status")
-        raw_technology = _row_value(row, "Technology", "Type")
-        primary_fuel = _row_value(row, "Fuel 1", "Primary fuel", "Fuel")
+        lifecycle = _lifecycle(raw_status)
+        raw_technology = _row_value(row, "Technology")
+        tracker_type = _row_value(row, "Type")
+        primary_fuel = _row_value(
+            row, "Fuel 1", "Primary fuel", "Fuel", "Fuel (combustion only)"
+        )
         secondary_fuel = _row_value(row, "Fuel 2", "Secondary fuel")
         capacity, capacity_kind = _capacity(
             _row_value(row, "Capacity (MW)", "Capacity MW", "Unit capacity MW")
         )
         source_url = _row_value(row, "GEM Wiki URL", "Wiki URL", "URL")
+        start_year = _year(
+            _row_value(row, "Start year", "Commissioning year"),
+            label="commissioning year",
+        )
+        expected_year = _year(
+            _row_value(row, "Expected COD", "Expected commissioning year"),
+            label="expected commissioning year",
+        )
         record = {
             "id": f"gem-unit-{unit_id}",
             "name": name,
             "plantName": _row_value(
-                row, "Project Name", "Project/Plant Name", "Plant Name"
+                row, "Project Name", "Project/Plant Name", "Plant / Project name", "Plant Name"
             ) or name,
             "category": "power_generation",
-            "technology": _technology(raw_technology, primary_fuel),
+            "technology": _technology(raw_technology, primary_fuel, tracker_type),
             "primaryFuel": primary_fuel,
             "secondaryFuel": secondary_fuel,
-            "lifecycle": _lifecycle(raw_status),
+            "lifecycle": lifecycle,
             "rawStatus": raw_status,
             "capacityMw": capacity,
             "capacityValueKind": capacity_kind,
@@ -338,28 +382,30 @@ def parse_gem_power(source: Path | str | bytes, *, suffix: str | None = None) ->
             "unitId": f"gem-unit-{unit_id}",
             "externalIds": {"gemPlant": plant_id, "gemUnit": unit_id},
             "country": _row_value(row, "Country", "Country/Area"),
-            "subnationalUnit": _row_value(row, "Subnational unit", "State/Province"),
+            "subnationalUnit": _row_value(
+                row, "Subnational unit", "Subnational unit (state, province)", "State/Province"
+            ),
             "coordinates": _coordinates(
                 _row_value(row, "Latitude"), _row_value(row, "Longitude")
             ),
-            "owner": _row_value(row, "Owner", "Owner name"),
-            "operator": _row_value(row, "Operator", "Operator name"),
-            "commissioningYear": _year(
-                _row_value(row, "Start year", "Commissioning year"), label="commissioning year"
+            "owner": _row_value(row, "Owner", "Owner(s)", "Owner name"),
+            "operator": _row_value(row, "Operator", "Operator(s)", "Operator name"),
+            "commissioningYear": (
+                start_year if lifecycle in {"operational", "retired"} else None
             ),
             "retirementYear": _year(
                 _row_value(row, "Retired year", "Retirement year"), label="retirement year"
             ),
-            "expectedCommissioningYear": _year(
-                _row_value(row, "Expected COD", "Expected commissioning year"),
-                label="expected commissioning year",
+            "expectedCommissioningYear": (
+                expected_year
+                or (start_year if lifecycle in {"announced", "under_construction"} else None)
             ),
             "sourceIds": [GEM_SOURCE_ID],
             "sourceType": "research_verified",
             "sourceUrl": source_url,
             "licence": GEM_LICENCE,
             "updatedAt": _row_value(row, "Last Updated", "Updated date"),
-            "sourceRecord": {str(key): value for key, value in row.items()},
+            "locationPrecision": _row_value(row, "Location accuracy"),
         }
         records.append(record)
     return records

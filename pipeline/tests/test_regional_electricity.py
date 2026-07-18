@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 from datetime import UTC, datetime
+import gzip
 import json
 from pathlib import Path
 import re
@@ -53,6 +54,16 @@ def test_ember_yearly_country_controls_keep_period_metric_units_and_mix() -> Non
     assert france["demandGwh"] is None
     assert france["localGenerationGwh"] is None
     assert france["generationMixGwh"] == {}
+
+
+def test_ember_yearly_csv_accepts_gzip_snapshot(tmp_path: Path) -> None:
+    path = tmp_path / "ember-yearly.csv.gz"
+    with gzip.open(path, "wt", encoding="utf-8") as target:
+        target.write((FIXTURES / "ember-yearly-sample.csv").read_text())
+
+    assert normalize_ember_yearly_csv(path) == normalize_ember_yearly_csv(
+        FIXTURES / "ember-yearly-sample.csv"
+    )
 
 
 def test_country_controls_cannot_be_merged_as_adm1_observations() -> None:

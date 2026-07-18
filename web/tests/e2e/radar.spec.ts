@@ -110,20 +110,32 @@ test("stacks the map and inspector without mobile overflow", async ({ page }, te
   expect(layout.inspector?.top).toBeGreaterThanOrEqual(layout.map?.bottom ?? 0);
 });
 
-test("methodology section links use normal document scrolling", async ({ page }) => {
-  await page.goto("/methodology#data-sources", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "Data sources", exact: true })).toBeVisible();
-  await expect.poll(async () => page.locator("#data-sources").evaluate((element) => element.getBoundingClientRect().top)).toBeLessThan(120);
+test("methodology page uses normal document scrolling", async ({ page }) => {
+  await page.goto("/methodology", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "How Wattlas builds the Opportunity Radar" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /governed sources/ })).toBeVisible();
 
-  const layout = await page.evaluate(() => ({
+  const before = await page.evaluate(() => ({
     scrollY: window.scrollY,
-    viewport: window.innerWidth,
+    scrollHeight: document.documentElement.scrollHeight,
+    viewportHeight: window.innerHeight,
     scrollWidth: document.documentElement.scrollWidth,
-    targetTop: document.querySelector("#data-sources")?.getBoundingClientRect().top ?? null,
+    viewportWidth: window.innerWidth,
   }));
+  expect(before.scrollHeight).toBeGreaterThan(before.viewportHeight);
+  expect(before.scrollWidth).toBeLessThanOrEqual(before.viewportWidth);
 
-  expect(layout.scrollY).toBeGreaterThan(0);
-  expect(layout.targetTop).toBeGreaterThanOrEqual(50);
-  expect(layout.targetTop).toBeLessThan(120);
-  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewport);
+  await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(500);
+});
+
+test("loads published major cities into map search", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "desktop city assertion");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".map-container")).toHaveAttribute("data-map-loaded", "true");
+  const search = page.getByRole("combobox", { name: "Search Wattlas" });
+  await search.fill("Mesa");
+  const city = page.getByRole("option", { name: /^Mesa Million-plus city/ });
+  await city.click();
+  await expect(search).toHaveValue("Mesa");
 });

@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 from zipfile import ZipFile
+from xml.sax.saxutils import escape
 
 import pytest
 import httpx
@@ -542,7 +543,7 @@ def test_gem_power_parser_resolves_workbook_relationships_and_finds_header_row(t
         return "<row r=\"{}\">{}</row>".format(
             row_number,
             "".join(
-                f'<c r="{chr(65 + index)}{row_number}" t="inlineStr"><is><t>{value}</t></is></c>'
+                f'<c r="{chr(65 + index)}{row_number}" t="inlineStr"><is><t>{escape(value)}</t></is></c>'
                 for index, value in enumerate(cells)
             ),
         )
@@ -891,6 +892,62 @@ def test_gem_power_parser_reads_xlsx_without_a_dataframe_dependency(tmp_path) ->
     assert records[0]["externalIds"] == {"gemPlant": "GEM-X-1", "gemUnit": "GEM-X-U-1"}
     assert records[0]["technology"] == "solar"
     assert records[0]["capacityMw"]["central"] == 42
+
+
+def test_gem_power_parser_accepts_march_2026_integrated_release_headers(tmp_path) -> None:
+    workbook = tmp_path / "gem-integrated-march-2026.xlsx"
+    headers = [
+        "Type", "Country/area", "Plant / Project name", "Unit / Phase name",
+        "Capacity (MW)", "Status", "Technology", "Fuel (combustion only)",
+        "Operator(s)", "Owner(s)", "Latitude", "Longitude",
+        "Location accuracy", "Subnational unit (state, province)",
+        "GEM location ID", "GEM unit/phase ID", "GEM.Wiki URL", "Start year",
+    ]
+    rows = [
+        [
+            "solar", "Kenya", "Lake Solar Project", "", "80",
+            "cancelled - inferred 4 y", "photovoltaic", "", "Lake Operator",
+            "Lake Owner", "-0.5", "36.7", "exact", "Nakuru",
+            "L100", "G100", "https://www.gem.wiki/Lake_Solar_Project", "2925",
+        ],
+        [
+            "bioenergy", "Brazil", "Vale Bioenergy Project", "Unit 1", "45",
+            "shelved - inferred 2 y", "combustion", "bioenergy: wood & other biomass (solids)",
+            "Vale Operator", "Vale Owner", "-12.5", "-41.2", "approximate",
+            "Bahia", "L200", "G200", "https://www.gem.wiki/Vale_Bioenergy_Project", "",
+        ],
+    ]
+
+    def row_xml(row_number: int, cells: list[str]) -> str:
+        return "<row r=\"{}\">{}</row>".format(
+            row_number,
+            "".join(
+                f'<c r="{chr(65 + index)}{row_number}" t="inlineStr"><is><t>{escape(value)}</t></is></c>'
+                for index, value in enumerate(cells)
+            ),
+        )
+
+    worksheet = (
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
+        f"{row_xml(1, headers)}{row_xml(2, rows[0])}{row_xml(3, rows[1])}"
+        "</sheetData></worksheet>"
+    )
+    with ZipFile(workbook, "w") as archive:
+        archive.writestr("xl/worksheets/sheet1.xml", worksheet)
+
+    parsed = parse_gem_power(workbook)
+
+    assert parsed[0]["plantName"] == "Lake Solar Project"
+    assert parsed[0]["name"] == "Lake Solar Project"
+    assert parsed[0]["lifecycle"] == "cancelled"
+    assert parsed[0]["operator"] == "Lake Operator"
+    assert parsed[0]["owner"] == "Lake Owner"
+    assert parsed[0]["subnationalUnit"] == "Nakuru"
+    assert parsed[0]["locationPrecision"] == "exact"
+    assert parsed[0]["commissioningYear"] is None
+    assert parsed[1]["lifecycle"] == "shelved"
+    assert parsed[1]["technology"] == "biomass"
+    assert parsed[1]["primaryFuel"] == "bioenergy: wood & other biomass (solids)"
 
 
 def test_power_connectors_enforce_production_coverage_guards() -> None:

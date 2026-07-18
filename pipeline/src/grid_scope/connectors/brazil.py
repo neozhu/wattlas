@@ -1,17 +1,24 @@
 from __future__ import annotations
 
 import csv
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from io import StringIO
 import json
 import math
+from pathlib import Path
 import re
 from typing import Any
 import unicodedata
+from zipfile import BadZipFile, ZipFile
 
 import httpx
 
 from grid_scope.connectors.base import ConnectorResult, FetchPayload
+from grid_scope.connectors.gem_power import (
+    _shared_strings,
+    _workbook_worksheets,
+    _worksheet_rows,
+)
 from grid_scope.models import ConnectorState, PublicationState
 
 
@@ -124,6 +131,121 @@ def normalize_epe_consumption(rows: list[dict[str, Any]]) -> list[dict[str, Any]
             "transformationHistory": ["consumption_mwh_to_gwh"],
         })
     return sorted(records, key=lambda row: (row["geographyCode"], row["year"], row["month"]))
+
+
+def _excel_date(value: Any) -> date:
+    serial = int(float(_text(value)))
+    if serial <= 0:
+        raise ValueError("EPE data version must be a positive Excel date")
+    return date(1899, 12, 30) + timedelta(days=serial)
+
+
+def _epe_state_rows(path: Path | str) -> list[dict[str, str]]:
+    try:
+        with ZipFile(Path(path)) as archive:
+            shared_strings = _shared_strings(archive)
+            worksheets = _workbook_worksheets(archive)
+            worksheet_path = next(
+                physical_path
+                for name, physical_path in worksheets
+                if _fold(name) == "consumo e numcons sam uf"
+            )
+            rows = _worksheet_rows(archive, worksheet_path, shared_strings)
+            headers = [value.strip() for value in next(rows)]
+            required = {"Data", "UF", "Consumo", "DataVersao"}
+            if not required.issubset(headers):
+                raise ValueError("EPE state workbook is missing required columns")
+            return [
+                {
+                    header: values[index] if index < len(values) else ""
+                    for index, header in enumerate(headers)
+                }
+                for values in rows
+                if any(value.strip() for value in values)
+            ]
+    except (BadZipFile, StopIteration, IndexError) as error:
+        raise ValueError("invalid EPE monthly consumption workbook") from error
+
+
+def load_epe_annual_observations(
+    path: Path | str,
+    *,
+    region_mapping: dict[str, str],
+) -> list[dict[str, Any]]:
+    """Aggregate EPE class rows into complete official ADM1 calendar years."""
+
+    groups: dict[tuple[str, int], dict[str, Any]] = {}
+    observed_states: set[str] = set()
+    for row in _epe_state_rows(path):
+        state = _text(row.get("UF")).upper()
+        data = _text(row.get("Data"))
+        if len(state) != 2 or re.fullmatch(r"\d{8}", data) is None:
+            continue
+        observed_states.add(state)
+        year, month = int(data[:4]), int(data[4:6])
+        if not 1 <= month <= 12:
+            raise ValueError(f"invalid EPE consumption month: {data}")
+        consumption_mwh = _number(row.get("Consumo"))
+        key = (state, year)
+        group = groups.setdefault(
+            key,
+            {"months": set(), "demandMwh": 0.0, "updatedAt": date.min},
+        )
+        group["months"].add(month)
+        group["demandMwh"] += consumption_mwh
+        group["updatedAt"] = max(group["updatedAt"], _excel_date(row["DataVersao"]))
+
+    unmapped = sorted(observed_states - set(region_mapping))
+    if unmapped:
+        raise ValueError(f"unmapped EPE state codes: {', '.join(unmapped)}")
+
+    observations: list[dict[str, Any]] = []
+    for (state, year), group in sorted(groups.items()):
+        if group["months"] != set(range(1, 13)):
+            continue
+        if group["demandMwh"] < 0:
+            raise ValueError(f"EPE annual consumption cannot be negative: {state} {year}")
+        observation_date = date(year, 12, 31)
+        updated_at = group["updatedAt"]
+        observations.append({
+            "geographyId": region_mapping[state],
+            "geographyLevel": "admin_1",
+            "countryIso3": "BRA",
+            "year": year,
+            "period": "annual",
+            "demandGwh": round(group["demandMwh"] / 1000, 6),
+            "localGenerationGwh": None,
+            "peakDemandMw": None,
+            "netInterchangeGwh": None,
+            "observedUnmetDemandGwh": None,
+            "installedCapacityMw": None,
+            "dependableCapacityMw": None,
+            "generationMixGwh": {},
+            "sourceIds": ["brazil-epe-consumption"],
+            "sourceId": "brazil-epe-consumption",
+            "sourceRecordId": f"epe-{state}-{year}",
+            "sourceType": "official_verified",
+            "sourceUrl": (
+                "https://www.epe.gov.br/pt/publicacoes-dados-abertos/"
+                "publicacoes/consumo-de-energia-eletrica"
+            ),
+            "licence": "CC BY 4.0",
+            "updatedAt": updated_at.isoformat(),
+            "observationDate": observation_date.isoformat(),
+            "freshnessDays": (updated_at - observation_date).days,
+            "valueKind": "observed",
+            "methodId": "epe-state-consumption-annual-sum-v1",
+            "publicationState": "publishable",
+            "unitMetadata": {
+                "demandGwh": {"sourceUnit": "MWh", "canonicalUnit": "GWh"}
+            },
+            "transformationHistory": [
+                "sum_consumer_classes_and_market_types",
+                "complete_calendar_year_only",
+                "consumption_mwh_to_gwh",
+            ],
+        })
+    return observations
 
 
 def normalize_ons_load(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

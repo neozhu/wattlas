@@ -100,12 +100,14 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
   const preparedRegions = useMemo(() => activeRegions(regions, lens, year), [regions, lens, year]);
   const preparedGeneratorOverview = useMemo(() => filterGeneratorOverview(generatorOverview ?? EMPTY_OVERVIEW, technologies, lifecycles), [generatorOverview, lifecycles, technologies]);
   const generatorOverviewRef = useRef(preparedGeneratorOverview);
+  const citiesRef = useRef(cities);
   const countriesRef = useRef(preparedCountries);
   const admin1Ref = useRef(preparedAdmin1);
   const regionsRef = useRef(preparedRegions);
   const selectedIdRef = useRef(selectedId);
   const lensRef = useRef(lens);
   const hoveredAdmin1Ref = useRef<string | number | null>(null);
+  citiesRef.current = cities;
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -142,8 +144,8 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
       map.addSource("countries", { type: "geojson", data: countriesRef.current, promoteId: "id" });
       map.addSource("admin1", { type: "geojson", data: admin1Ref.current, promoteId: "id" });
       map.addSource("regions", { type: "geojson", data: regionsRef.current, promoteId: "id" });
-      map.addSource("million-cities", { type: "geojson", data: cityClass(cities, "million_plus") });
-      map.addSource("german-cities", { type: "geojson", data: cityClass(cities, "german_large_city") });
+      map.addSource("million-cities", { type: "geojson", data: cityClass(citiesRef.current, "million_plus") });
+      map.addSource("german-cities", { type: "geojson", data: cityClass(citiesRef.current, "german_large_city") });
       map.addSource("assets", {
         type: "geojson",
         data: visibleAssets(assets, infrastructureRef.current),
@@ -432,7 +434,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map?.isStyleLoaded()) return;
+    if (!map) return;
     (map.getSource("million-cities") as GeoJSONSource | undefined)?.setData(cityClass(cities, "million_plus"));
     (map.getSource("german-cities") as GeoJSONSource | undefined)?.setData(cityClass(cities, "german_large_city"));
   }, [cities]);

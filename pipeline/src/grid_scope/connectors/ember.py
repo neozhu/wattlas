@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 from datetime import date
+import gzip
 from pathlib import Path
 import re
 from typing import Any
@@ -271,5 +272,11 @@ def normalize_ember_yearly_csv(
     *,
     country_lookup: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
-    with Path(path).open(newline="", encoding="utf-8-sig") as source:
+    source_path = Path(path)
+    source_handle = (
+        gzip.open(source_path, "rt", newline="", encoding="utf-8-sig")
+        if source_path.suffix == ".gz"
+        else source_path.open(newline="", encoding="utf-8-sig")
+    )
+    with source_handle as source:
         return normalize_ember_yearly_rows(list(csv.DictReader(source)), country_lookup=country_lookup)

@@ -4,15 +4,20 @@ import argparse
 from datetime import UTC, date, datetime
 from hashlib import sha256
 import json
+import math
 import os
 from pathlib import Path
 import re
 from typing import Any, Callable, Iterable, Mapping
+import unicodedata
 
 import httpx
 
 from grid_scope.config import (
     CURATED_PATH,
+    BRAZIL_EPE_CONSUMPTION_PATH,
+    AFRICA_GRID_PATH,
+    EMBER_YEARLY_PATH,
     GLOBAL_ADMIN1_PATH,
     CITIES_PATH,
     GRID_INTELLIGENCE_PATH,
@@ -32,7 +37,8 @@ from grid_scope.config import (
 from grid_scope.canonicalize import assign_asset_country, canonicalize_assets
 from grid_scope.coverage_report import build_source_coverage_summary
 from grid_scope.connectors.base import ConnectorResult, FetchPayload
-from grid_scope.connectors.brazil import AneelSigaConnector
+from grid_scope.connectors.africa_grid import load_africa_grid
+from grid_scope.connectors.brazil import AneelSigaConnector, load_epe_annual_observations
 from grid_scope.connectors.curated import CuratedConnector
 from grid_scope.connectors.entsoe import EntsoeConnector
 from grid_scope.connectors.ember import normalize_ember_yearly_csv
@@ -128,6 +134,19 @@ _US_STATE_CODES = {
     "South Carolina": "SC", "South Dakota": "SD", "Tennessee": "TN", "Texas": "TX",
     "Utah": "UT", "Vermont": "VT", "Virginia": "VA", "Washington": "WA",
     "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY",
+}
+
+_BRAZIL_STATE_CODES = {
+    "acre": "AC", "alagoas": "AL", "amapa": "AP", "amazonas": "AM",
+    "bahia": "BA", "ceara": "CE", "distrito federal": "DF",
+    "espirito santo": "ES", "goias": "GO", "maranhao": "MA",
+    "mato grosso": "MT", "mato grosso do sul": "MS", "minas gerais": "MG",
+    "para": "PA", "paraiba": "PB", "parana": "PR", "pernambuco": "PE",
+    "piaui": "PI", "rio de janeiro": "RJ", "rio de jeneiro": "RJ",
+    "rio grande do norte": "RN", "rio granda do norte": "RN",
+    "rio grande do sul": "RS", "rondonia": "RO", "roraima": "RR",
+    "santa catarina": "SC", "sao paulo": "SP", "sergipe": "SE",
+    "tocantins": "TO",
 }
 
 
@@ -394,6 +413,32 @@ def _eia_state_mapping(admin1_payload: Mapping[str, Any]) -> dict[str, str]:
         region_id = str(properties.get("id") or feature.get("id") or "").strip()
         if code and region_id:
             mapping[code] = region_id
+    return dict(sorted(mapping.items()))
+
+
+def _brazil_state_mapping(
+    admin1_payload: Mapping[str, Any], *, require_complete: bool = True
+) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for feature in admin1_payload.get("features", []):
+        properties = feature.get("properties") or {}
+        if properties.get("country") != "BR":
+            continue
+        name = "".join(
+            character
+            for character in unicodedata.normalize(
+                "NFKD", str(properties.get("name") or "")
+            )
+            if not unicodedata.combining(character)
+        ).casefold().strip()
+        code = _BRAZIL_STATE_CODES.get(name)
+        region_id = str(properties.get("id") or feature.get("id") or "").strip()
+        if code and region_id:
+            mapping[code] = region_id
+    if require_complete:
+        missing = sorted(set(_BRAZIL_STATE_CODES.values()) - set(mapping))
+        if missing:
+            raise ValueError(f"Brazil ADM1 mapping is incomplete: {', '.join(missing)}")
     return dict(sorted(mapping.items()))
 
 
@@ -926,6 +971,99 @@ def attach_evidence_sources(
             existing.add(source["id"])
 
 
+def governed_evidence_sources(
+    source_catalog: Any, generation_assumptions: Mapping[str, Any]
+) -> list[dict[str, Any]]:
+    """Convert governed data and modelling sources to public evidence references."""
+
+    references: list[dict[str, Any]] = []
+    for source in source_catalog.sources:
+        state = getattr(source.publication_state, "value", source.publication_state)
+        if state != "publishable":
+            continue
+        references.append({
+            "id": source.id,
+            "name": source.name,
+            "tier": "B",
+            "url": str(source.url),
+            "licence": source.licence,
+            "licenceUrl": str(source.licence_url) if source.licence_url else None,
+        })
+    for source in generation_assumptions.get("sources", []):
+        source_id = str(source.get("id") or "").strip()
+        if not source_id:
+            continue
+        references.append({
+            "id": source_id,
+            "name": str(source.get("name") or source_id.replace("-", " ").title()),
+            "tier": "B",
+            "url": source.get("url"),
+            "licence": source.get("licence"),
+            "licenceUrl": source.get("licenceUrl"),
+            "checksumSha256": source.get("checksumSha256"),
+            "lastModified": source.get("lastModified"),
+        })
+    return references
+
+
+def _official_demand_rows_for_year(
+    observations: Iterable[Mapping[str, Any]],
+    *,
+    country: str,
+    year: int,
+    active_ids: set[str],
+    country_control: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    """Use exact ADM1 observations, or scale a complete latest baseline to control."""
+
+    eligible = [
+        dict(row) for row in observations
+        if str(row.get("countryIso3") or "").upper() == country
+        and row.get("geographyId") in active_ids
+        and row.get("demandGwh") is not None
+        and int(row.get("year", 0)) <= year
+    ]
+    exact = [row for row in eligible if int(row.get("year", 0)) == year]
+    if exact:
+        return exact
+    latest: dict[str, dict[str, Any]] = {}
+    for row in eligible:
+        geography_id = str(row["geographyId"])
+        if geography_id not in latest or int(row["year"]) > int(latest[geography_id]["year"]):
+            latest[geography_id] = row
+    if set(latest) != active_ids:
+        return []
+
+    def central(value: Any) -> float:
+        return float(value["central"] if isinstance(value, Mapping) else value)
+
+    observed_total = math.fsum(central(row["demandGwh"]) for row in latest.values())
+    target_total = central(country_control["demandGwh"])
+    if observed_total <= 0 or target_total < 0:
+        return []
+    factor = target_total / observed_total
+    control_source_ids = {
+        str(source_id).strip() for source_id in country_control.get("sourceIds", [])
+        if str(source_id).strip()
+    }
+    projected: list[dict[str, Any]] = []
+    for geography_id, row in sorted(latest.items()):
+        source_ids = sorted(
+            control_source_ids
+            | {str(source_id).strip() for source_id in row.get("sourceIds", []) if str(source_id).strip()}
+        )
+        projected.append({
+            **row,
+            "year": year,
+            "demandGwh": central(row["demandGwh"]) * factor,
+            "sourceIds": source_ids,
+            "valueKind": "estimated",
+            "methodId": "country-control-scaled-official-adm1-shares-v1",
+            "confidence": min(float(row.get("confidence", 90)), 85.0),
+        })
+    return projected
+
+
 def build_regional_energy_model(
     *,
     demand_weights: Mapping[str, Any],
@@ -1057,18 +1195,17 @@ def build_regional_energy_model(
                     else "latest-country-control-flat-baseline-v1"
                 ),
             }
+            active_year_ids = {str(item.get("geographyId")) for item in year_weights}
             allocated = allocate_country_demand(
                 regions=year_weights,
                 country_control=projected_control,
-                official_observations=[
-                    row for row in allocation_official
-                    if str(row.get("countryIso3") or "").upper() == country
-                    and int(row.get("year", 0)) == year
-                    and row.get("demandGwh") is not None
-                    and row.get("geographyId") in {
-                        item.get("geographyId") for item in year_weights
-                    }
-                ],
+                official_observations=_official_demand_rows_for_year(
+                    allocation_official,
+                    country=country,
+                    year=year,
+                    active_ids=active_year_ids,
+                    country_control=projected_control,
+                ),
                 as_of_year=year,
                 covariate_year=year,
                 method_config=method_config,
@@ -1283,6 +1420,7 @@ def refresh() -> Path:
         if name != expected:
             raise RuntimeError(f"refresh stage order violation: {name} before {expected}")
         completed_stages.append(name)
+        print(f"refresh stage {len(completed_stages)}/{len(REFRESH_STEPS)}: {name}", flush=True)
 
     stage("boundaries")
     with httpx.Client(timeout=90, follow_redirects=True) as client:
@@ -1305,6 +1443,40 @@ def refresh() -> Path:
         global_admin1_result.payload.media_type,
     )
     admin1_payload = json.loads(global_admin1_result.payload.body)
+    grid_context = _read_json(GRID_INTELLIGENCE_PATH)
+    africa_grid_path = AFRICA_GRID_PATH
+    if africa_grid_path is not None and africa_grid_path.exists():
+        africa_grid = load_africa_grid(africa_grid_path)
+        features_by_id = {
+            str(feature.get("id") or (feature.get("properties") or {}).get("id")): feature
+            for feature in [
+                *grid_context.get("features", []),
+                *africa_grid.get("features", []),
+            ]
+        }
+        grid_context = {
+            "type": "FeatureCollection",
+            "metadata": {
+                **(grid_context.get("metadata") or {}),
+                "africaGrid": africa_grid.get("metadata") or {},
+            },
+            "features": [features_by_id[key] for key in sorted(features_by_id)],
+        }
+    africa_grid_status = _records_result(
+        [{
+            "featureCount": len(africa_grid.get("features", []))
+            if africa_grid_path is not None and africa_grid_path.exists()
+            else 0,
+            "sourceChecksum": (
+                sha256(africa_grid_path.read_bytes()).hexdigest()
+                if africa_grid_path is not None and africa_grid_path.exists()
+                else None
+            ),
+        }],
+        source_id="world-bank-africa-electricity-grid",
+        now=now,
+        configured=bool(africa_grid_path and africa_grid_path.exists()),
+    )
     population_path = Path(os.getenv(
         "ADM1_POPULATION_ARTIFACT_PATH",
         str(CURATED_PATH.parent / "admin1-population.json"),
@@ -1391,7 +1563,13 @@ def refresh() -> Path:
     curated = json.loads(curated_result.payload.body)
     europe_artifacts = build_snapshot_artifacts(geometry, population, curated, generated_at)
     registry = load_asset_registry(GLOBAL_ASSETS_PATH, SOURCE_REGISTRY_PATH)
+    generation_assumptions = load_generation_assumptions(
+        CURATED_PATH.parent / "generation-assumptions.json"
+    )
     attach_evidence_sources(registry, curated.get("sources", []))
+    attach_evidence_sources(
+        registry, governed_evidence_sources(source_catalog, generation_assumptions)
+    )
     attach_population_evidence_sources(registry, model_artifacts["population"])
     countries = json.loads(countries_body)
     registry = merge_asset_feeds(
@@ -1425,11 +1603,11 @@ def refresh() -> Path:
     ]
 
     stage("country_electricity_controls")
-    ember_path_value = os.getenv("EMBER_YEARLY_PATH")
+    ember_path_value = EMBER_YEARLY_PATH
     country_controls, country_control_status = _local_records_with_lkg(
-        lambda: normalize_ember_yearly_csv(Path(ember_path_value or "")),
+        lambda: normalize_ember_yearly_csv(ember_path_value or ""),
         source_id="country_electricity_controls", store=store, now=now,
-        configured=bool(ember_path_value),
+        configured=bool(ember_path_value and ember_path_value.exists()),
     )
     stage("official_adm1_observations")
     official_observations: list[dict[str, Any]] = []
@@ -1466,8 +1644,19 @@ def refresh() -> Path:
         eia_observations, eia_status = _fetch_eia_observations(
             eia_client, now=now, store=store, admin1_payload=admin1_payload
         )
+    epe_path = BRAZIL_EPE_CONSUMPTION_PATH
+    epe_observations, epe_status = _local_records_with_lkg(
+        lambda: load_epe_annual_observations(
+            epe_path or "",
+            region_mapping=_brazil_state_mapping(admin1_payload),
+        ),
+        source_id="brazil-epe-consumption",
+        store=store,
+        now=now,
+        configured=bool(epe_path and epe_path.exists()),
+    )
     official_observations = merge_regional_observations([
-        *curated_official, *eia_observations,
+        *curated_official, *eia_observations, *epe_observations,
     ])
     official_regional_status = _records_result(
         official_observations, source_id="official_adm1_electricity_merged",
@@ -1499,9 +1688,7 @@ def refresh() -> Path:
             demand_increments=demand_increments,
             attach_scores=False,
             before_supply=lambda: stage("supply_balance_forecast"),
-            assumptions=load_generation_assumptions(
-                CURATED_PATH.parent / "generation-assumptions.json"
-            ),
+            assumptions=generation_assumptions,
             method_config=load_regional_demand_methods(
                 CURATED_PATH.parent / "regional-demand-methods.json"
             ),
@@ -1524,7 +1711,7 @@ def refresh() -> Path:
             model_artifacts["population"].get("records", [])
         ),
         cities=_read_json(CITIES_PATH),
-        grid=_read_json(GRID_INTELLIGENCE_PATH),
+        grid=grid_context,
         cooling=_read_json(COOLING_EVIDENCE_PATH),
     )
     artifacts["source-catalog.json"] = json.dumps(
@@ -1557,6 +1744,8 @@ def refresh() -> Path:
         country_control_status,
         curated_regional_status,
         eia_status,
+        epe_status,
+        africa_grid_status,
         official_regional_status,
     ]
     country_count = len(json.loads(artifacts["countries.geojson"])["features"])
@@ -1598,6 +1787,9 @@ def refresh() -> Path:
             "publishedPowerPlants": len(publishable_plants),
             "generatorRegions": len(json.loads(artifacts["generator-overview.geojson"])["features"]),
             "regionalEnergyRegions": len(regional_energy),
+            "cities": len(json.loads(artifacts["cities.geojson"])["features"]),
+            "gridRecords": len(json.loads(artifacts["grid.geojson"])["features"]),
+            "coolingRecords": len(json.loads(artifacts["cooling.json"])["records"]),
         },
         "quality": {
             "countryDemandReconciled": country_demand_reconciled,
@@ -1611,7 +1803,7 @@ def refresh() -> Path:
                 model_artifacts["demandWeights"].get("buildFingerprint")
             ),
             "cities": len(_read_json(CITIES_PATH).get("features", [])),
-            "gridRecords": len(_read_json(GRID_INTELLIGENCE_PATH).get("features", [])),
+            "gridRecords": len(grid_context.get("features", [])),
             "coolingRecords": len(_read_json(COOLING_EVIDENCE_PATH).get("records", [])),
         },
         "boundaryDisclaimer": json.loads(artifacts["countries.geojson"]).get("metadata", {}).get("disclaimer"),
@@ -1637,6 +1829,13 @@ def refresh() -> Path:
         "official_adm1_electricity": (
             curated_regional_status.payload.body
             if curated_regional_status.payload is not None else b""
+        ),
+        "brazil-epe-consumption": (
+            epe_status.payload.body if epe_status.payload is not None else b""
+        ),
+        "world-bank-africa-electricity-grid": (
+            africa_grid_status.payload.body
+            if africa_grid_status.payload is not None else b""
         ),
         "eia_state_observations": (
             eia_status.payload.body if eia_status.payload is not None else b""

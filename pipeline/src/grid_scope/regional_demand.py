@@ -206,8 +206,10 @@ def _official_observations(
         if int(raw.get("year")) != year:
             raise ValueError(f"official observation year mismatch for {geography_id}")
         value_kind = str(raw.get("valueKind") or "").strip()
-        if value_kind not in {"observed", "reported"}:
-            raise ValueError("official observations must be observed or reported")
+        if value_kind not in {"observed", "reported", "estimated", "inherited"}:
+            raise ValueError(
+                "official-derived ADM1 constraints require a valid evidence value kind"
+            )
         result[geography_id] = {
             **dict(raw),
             "demandGwh": _range(raw.get("demandGwh"), label=f"official demand for {geography_id}"),

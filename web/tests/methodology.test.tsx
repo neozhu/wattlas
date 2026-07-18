@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { MethodologyPage } from "@/components/methodology/methodology-page";
-import type { SourceCatalog } from "@/lib/snapshot/types";
+import type { SourceCatalog, SourceCoverage } from "@/lib/snapshot/types";
 
 
 const catalog: SourceCatalog = {
@@ -27,15 +27,41 @@ const catalog: SourceCatalog = {
   ],
 };
 
+const sourceCoverage: SourceCoverage = {
+  sourceCount: 24,
+  sourcesByPublicationState: { publishable: 3, quarantined: 21 },
+  sourcesByAccessMode: { automatic: 12, credentialled: 2, manual_snapshot: 8, metadata_only: 2 },
+  connectorStates: { current: 10, failed: 1, not_configured: 7 },
+  publishedRecords: 55_967,
+  publishedRecordsBySource: { osm_power: 55_967, "brazil-aneel-siga": 0, gem_power: 0 },
+};
+
 afterEach(cleanup);
 
 
 describe("methodology and sources", () => {
+  it("marks the page as a normally scrollable document", () => {
+    const { container } = render(<MethodologyPage catalog={catalog} generatedAt="2026-07-17T00:00:00Z" />);
+    expect(container.querySelector("main")).toHaveClass("methodology-page");
+  });
+
+  it("distinguishes records on the map from registered and quarantined sources", () => {
+    render(<MethodologyPage catalog={catalog} generatedAt="2026-07-17T00:00:00Z" sourceCoverage={sourceCoverage} />);
+    expect(screen.getByText("55,967")).toBeInTheDocument();
+    expect(screen.getByText(/records currently published on the map/i)).toBeInTheDocument();
+    expect(screen.getByText("21")).toBeInTheDocument();
+    expect(screen.getByText(/sources quarantined/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/eligible for publication/i).length).toBeGreaterThan(0);
+  });
+
   it("explains units, hierarchy, forecasts, and quarantine", () => {
     render(<MethodologyPage catalog={catalog} generatedAt="2026-07-17T00:00:00Z" />);
     expect(screen.getByText(/Demand is measured in GWh/i)).toBeInTheDocument();
     expect(screen.getByText(/official observed measurements/i)).toBeInTheDocument();
     expect(screen.getByText(/retirements reduce future supply/i)).toBeInTheDocument();
+    expect(screen.getByText(/Global Energy Monitor’s March 2026 integrated tracker/i)).toBeInTheDocument();
+    expect(screen.getByText(/Official EPE monthly state consumption/i)).toBeInTheDocument();
+    expect(screen.getByText(/62,001 existing and planned line features/i)).toBeInTheDocument();
     expect(screen.getByText(/Source status from snapshot 17 Jul 2026, 00:00 UTC/i)).toBeInTheDocument();
     expect(screen.getByText("SIGA")).toBeInTheDocument();
     expect(screen.getByText("SAPP data")).toBeInTheDocument();

@@ -141,11 +141,12 @@ describe("snapshot manifest", () => {
     const parsed = manifestSchema.parse({
       ...validManifest,
       coverage: { ...validManifest.coverage, canonicalPowerUnits: 120, powerSourceRecordsBySource: { gem_power: 80, osm_power: 40 } },
-      quality: { countryDemandReconciled: true, generatorArtifactsReconciled: true, populationBuildFingerprint: null, demandWeightsBuildFingerprint: "b".repeat(64) },
+      quality: { countryDemandReconciled: true, generatorArtifactsReconciled: true, populationBuildFingerprint: null, demandWeightsBuildFingerprint: "b".repeat(64), cities: 575, gridRecords: 2, coolingRecords: 3 },
     });
     expect(parsed.coverage.canonicalPowerUnits).toBe(120);
     expect(parsed.coverage.powerSourceRecordsBySource?.gem_power).toBe(80);
     expect(parsed.quality?.generatorArtifactsReconciled).toBe(true);
+    expect(parsed.quality?.cities).toBe(575);
   });
 
   it("validates governed public source metadata", () => {

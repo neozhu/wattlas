@@ -27,10 +27,14 @@ from grid_scope.cli import (
     _demand_weights_with_iso3,
     attach_population_evidence_sources,
     attach_evidence_sources,
+    governed_evidence_sources,
+    _official_demand_rows_for_year,
+    _brazil_state_mapping,
 )
 from grid_scope.connectors.base import ConnectorResult, FetchPayload
 from grid_scope.models import ConnectorState
 from grid_scope.storage import RawCaptureStore
+from grid_scope.source_catalog import load_source_catalog
 from grid_scope.power_balance import load_generation_assumptions
 from grid_scope.power_plants import canonicalize_power_plants
 from grid_scope.regional_demand import (
@@ -64,6 +68,18 @@ def test_cli_help_exits_cleanly(capsys) -> None:
 def test_cli_describes_wattlas() -> None:
     parser = __import__("grid_scope.cli", fromlist=["build_parser"]).build_parser()
     assert "Wattlas" in parser.description
+
+
+def test_brazil_state_mapping_handles_publisher_and_boundary_spellings() -> None:
+    admin1 = {"features": [
+        {"properties": {"id": "BR-BAHIA", "country": "BR", "name": "Bahia"}},
+        {"properties": {"id": "BR-RJ", "country": "BR", "name": "Rio de Jeneiro"}},
+    ]}
+
+    assert _brazil_state_mapping(admin1, require_complete=False) == {
+        "BA": "BR-BAHIA",
+        "RJ": "BR-RJ",
+    }
 
 
 def test_refresh_script_sets_pipeline_source_path() -> None:
@@ -837,6 +853,41 @@ def test_regional_model_preserves_mixed_field_specific_official_lineage() -> Non
     ]
     assert contributions["observed_unmet_demand"]["sourceIds"] == ["curated-unmet"]
     assert contributions["forecast_demand_growth"]["sourceIds"] == ["curated-demand"]
+
+
+def test_governed_data_and_assumption_sources_are_exposed_as_evidence() -> None:
+    root = Path(__file__).resolve().parents[2]
+    catalog = load_source_catalog(root / "data" / "curated" / "source-catalog.json")
+    assumptions = load_generation_assumptions(
+        root / "data" / "curated" / "generation-assumptions.json"
+    )
+
+    references = governed_evidence_sources(catalog, assumptions)
+    reference_ids = {source["id"] for source in references}
+
+    assert "gem-global-integrated-power-tracker" in reference_ids
+    assert "gem-gipt" in reference_ids
+    assert "world-bank-dre-atlas" not in reference_ids
+
+
+def test_complete_latest_official_adm1_demand_is_scaled_to_country_control() -> None:
+    rows = _official_demand_rows_for_year(
+        [
+            {"geographyId": "BR-A", "countryIso3": "BRA", "year": 2025,
+             "demandGwh": 40, "sourceIds": ["epe"], "valueKind": "observed",
+             "methodId": "epe-v1", "confidence": 95, "coverage": 100},
+            {"geographyId": "BR-B", "countryIso3": "BRA", "year": 2025,
+             "demandGwh": 60, "sourceIds": ["epe"], "valueKind": "observed",
+             "methodId": "epe-v1", "confidence": 95, "coverage": 100},
+        ],
+        country="BRA", year=2026, active_ids={"BR-A", "BR-B"},
+        country_control={"demandGwh": 120, "sourceIds": ["ember"]},
+    )
+
+    assert [row["demandGwh"] for row in rows] == pytest.approx([48, 72])
+    assert rows[0]["sourceIds"] == ["ember", "epe"]
+    assert rows[0]["methodId"] == "country-control-scaled-official-adm1-shares-v1"
+    assert rows[0]["valueKind"] == "estimated"
 
 
 def test_field_lineage_falls_back_only_for_complete_legacy_observations() -> None:

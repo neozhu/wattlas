@@ -39,7 +39,7 @@ vi.mock("maplibre-gl", () => ({
 }));
 
 import { GLOBAL_VIEW, GlobalMap } from "@/components/map/global-map";
-import type { AssetCollection, GeographyCollection } from "@/lib/snapshot/types";
+import type { AssetCollection, CityCollection, GeographyCollection } from "@/lib/snapshot/types";
 
 describe("GlobalMap", () => {
   beforeEach(() => {
@@ -103,6 +103,16 @@ describe("GlobalMap", () => {
     expect(mapCalls.layers.find((layer) => layer.id === "million-city-labels")).toMatchObject({ type: "symbol", minzoom: 4.5 });
     expect(mapCalls.layers.find((layer) => layer.id === "german-city-points")).toMatchObject({ type: "circle", minzoom: 5.3, paint: { "circle-radius": 3 } });
     expect(mapCalls.layers.find((layer) => layer.id === "german-city-labels")).toMatchObject({ type: "symbol", minzoom: 5.3 });
+  });
+
+  it("applies asynchronously loaded cities while the style reports a transient loading state", () => {
+    const props = { countries: { type: "FeatureCollection", features: [] } as GeographyCollection, admin1: { type: "FeatureCollection", features: [] } as GeographyCollection, regions: { type: "FeatureCollection", features: [] } as GeographyCollection, assets: { type: "FeatureCollection", features: [] } as AssetCollection, lens: "infrastructureDemand" as const, year: 2026, selectedId: null, onSelect: () => undefined, coverage: { countries: 1, regions: 0, admin1Regions: 0, countriesWithAdmin1: 0, assets: 0, dataCentres: 0, waterInfrastructure: 0 } };
+    const empty: CityCollection = { type: "FeatureCollection", features: [] };
+    const berlin = { type: "FeatureCollection", features: [{ type: "Feature", id: "city-de-berlin", geometry: { type: "Point", coordinates: [13.405, 52.52] }, properties: { id: "city-de-berlin", name: "Berlin", country: "DE", population: 3_800_000, populationYear: 2025, populationDefinition: "municipality", classes: ["million_plus", "german_large_city"], sourceId: "destatis", observedAt: "2026-07-12T00:00:00Z" } }] } as CityCollection;
+    const { rerender } = render(<GlobalMap {...props} cities={empty} />);
+    rerender(<GlobalMap {...props} cities={berlin} />);
+    expect(mapCalls.sourceUpdates.some(([id, data]) => id === "million-cities" && (data as CityCollection).features[0]?.properties.name === "Berlin")).toBe(true);
+    expect(mapCalls.sourceUpdates.some(([id, data]) => id === "german-cities" && (data as CityCollection).features[0]?.properties.name === "Berlin")).toBe(true);
   });
 
   it("renders overview and technology generators with neutral composition-aware clusters", () => {

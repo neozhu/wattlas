@@ -11,6 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CATALOG_PATH = PROJECT_ROOT / "data" / "curated" / "source-catalog.json"
 
 APPROVED_SOURCE_IDS = {
+    "gem-global-integrated-power-tracker",
     "gem-africa-energy-tracker",
     "world-bank-dre-atlas",
     "world-bank-africa-electricity-grid",
@@ -45,7 +46,10 @@ def test_curated_catalog_contains_every_approved_source() -> None:
     assert catalog.by_id["sapp"].publication_state == "quarantined"
     assert catalog.by_id["ecowas-waeis"].publication_state == "quarantined"
     assert catalog.by_id["gem-africa-energy-tracker"].access_mode == "manual_snapshot"
+    assert catalog.by_id["gem-global-integrated-power-tracker"].publication_state == "publishable"
     assert catalog.by_id["brazil-aneel-siga"].publication_state == "publishable"
+    assert catalog.by_id["brazil-epe-consumption"].publication_state == "publishable"
+    assert catalog.by_id["world-bank-africa-electricity-grid"].licence == "ODbL 1.0"
 
 
 def test_catalog_rejects_duplicate_source_ids(tmp_path: Path) -> None:

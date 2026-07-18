@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 
 import { SourceCatalogTable } from "@/components/methodology/source-catalog-table";
 import { filterSources } from "@/lib/methodology";
-import type { SourceCatalog } from "@/lib/snapshot/types";
+import type { SourceCatalog, SourceCoverage } from "@/lib/snapshot/types";
 import styles from "@/app/methodology/methodology.module.css";
 
 const snapshotDateFormatter = new Intl.DateTimeFormat("en-GB", {
@@ -19,7 +19,7 @@ const snapshotDateFormatter = new Intl.DateTimeFormat("en-GB", {
   timeZoneName: "short",
 });
 
-export function MethodologyPage({ catalog, generatedAt }: { catalog: SourceCatalog; generatedAt: string | null }) {
+export function MethodologyPage({ catalog, generatedAt, sourceCoverage = null }: { catalog: SourceCatalog; generatedAt: string | null; sourceCoverage?: SourceCoverage | null }) {
   const [continent, setContinent] = useState("");
   const [country, setCountry] = useState("");
   const [category, setCategory] = useState("");
@@ -31,7 +31,7 @@ export function MethodologyPage({ catalog, generatedAt }: { catalog: SourceCatal
   const categories = [...new Set(sources.flatMap((source) => source.categories))].sort();
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} methodology-page`}>
       <nav><Link href="/">← Return to Wattlas</Link><span>Methodology and sources</span></nav>
       <header className={styles.hero}>
         <p>PUBLIC DATA · EXPLAINABLE METHODS · 2026–2031</p>
@@ -49,6 +49,22 @@ export function MethodologyPage({ catalog, generatedAt }: { catalog: SourceCatal
         <article><b>06</b><h2>Publication safety</h2><p>Every claim keeps lineage. Unclear reuse rights stay quarantined and cannot affect the map, search, scores, or public facility totals.</p></article>
       </section>
 
+      <section className={styles.regionalSources} aria-label="Regional data additions">
+        <div><p>REGIONAL DATA ADDITIONS</p><h2>More detail without weakening the method</h2></div>
+        <article><b>Global generation</b><p>Global Energy Monitor’s March 2026 integrated tracker adds reported power units and projects across 226 countries and areas. Wattlas reconciles units into canonical facilities and preserves technology, lifecycle, capacity, and source lineage.</p></article>
+        <article><b>Brazil demand</b><p>Official EPE monthly state consumption is summed across consumer classes and market types and published only for complete calendar years. The latest complete state shares are scaled to the Ember national control for each horizon year, keeping ADM1 detail and national reconciliation together.</p></article>
+        <article><b>Africa grid context</b><p>The World Bank grid release adds 62,001 existing and planned line features as dated topology context. Lines never count as generation capacity, dependable supply, or proof of connection headroom.</p></article>
+      </section>
+
+      {sourceCoverage ? (
+        <section className={styles.publicationSummary} aria-label="Current publication status">
+          <article><strong>{sourceCoverage.publishedRecords.toLocaleString("en-US")}</strong><span>Power-source records currently published on the map</span></article>
+          <article><strong>{sourceCoverage.sourcesByPublicationState.publishable ?? 0}</strong><span>Sources eligible for publication when their connector returns usable records</span></article>
+          <article><strong>{sourceCoverage.sourcesByPublicationState.quarantined ?? 0}</strong><span>Sources quarantined and excluded from maps, search, totals, and scores</span></article>
+          <p>“Eligible for publication” describes licence and policy readiness; it does not mean that a source contributed records to this snapshot. The record total above is the authoritative live-map count.</p>
+        </section>
+      ) : null}
+
       <section className={styles.catalog}>
         <div className={styles.catalogHeader}>
           <div><p>SOURCE REGISTER</p><h2>{sources.length} governed sources</h2></div>
@@ -58,7 +74,7 @@ export function MethodologyPage({ catalog, generatedAt }: { catalog: SourceCatal
           <label>Continent<select aria-label="Continent" value={continent} onChange={(event) => setContinent(event.target.value)}><option value="">All</option>{continents.map((value) => <option key={value}>{value}</option>)}</select></label>
           <label>Country<select aria-label="Country" value={country} onChange={(event) => setCountry(event.target.value)}><option value="">All</option>{countries.map((value) => <option key={value}>{value}</option>)}</select></label>
           <label>Category<select aria-label="Category" value={category} onChange={(event) => setCategory(event.target.value)}><option value="">All</option>{categories.map((value) => <option key={value}>{value}</option>)}</select></label>
-          <label>Publication state<select aria-label="Publication state" value={publicationState} onChange={(event) => setPublicationState(event.target.value)}><option value="">All</option><option value="publishable">Publishable</option><option value="quarantined">Quarantined</option><option value="rejected">Rejected</option><option value="superseded">Superseded</option></select></label>
+          <label>Publication state<select aria-label="Publication state" value={publicationState} onChange={(event) => setPublicationState(event.target.value)}><option value="">All</option><option value="publishable">Eligible for publication</option><option value="quarantined">Quarantined</option><option value="rejected">Rejected</option><option value="superseded">Superseded</option></select></label>
         </div>
         <SourceCatalogTable sources={filtered} />
       </section>

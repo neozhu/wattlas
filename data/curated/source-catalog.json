@@ -2,6 +2,34 @@
   "schemaVersion": "1.0",
   "sources": [
     {
+      "id": "gem-global-integrated-power-tracker",
+      "name": "Global Integrated Power Tracker — March 2026",
+      "publisher": "Global Energy Monitor",
+      "url": "https://globalenergymonitor.org/projects/global-integrated-power-tracker/",
+      "categories": [
+        "generation",
+        "projects"
+      ],
+      "continents": [
+        "Africa",
+        "Asia",
+        "Europe",
+        "North America",
+        "South America",
+        "Oceania"
+      ],
+      "countries": [],
+      "accessMode": "manual_snapshot",
+      "publicationState": "publishable",
+      "refreshCadence": "manual",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenceDecidedAt": "2026-07-17",
+      "requiredEnv": [],
+      "manualPathEnv": "GEM_GIPT_PATH",
+      "notes": "Downloaded March 2026 workbook. Wattlas validates and ingests 182,428 unit/phase rows across 226 countries/areas, then reconciles them to canonical facilities before publication."
+    },
+    {
       "id": "gem-africa-energy-tracker",
       "name": "Africa Energy Tracker",
       "publisher": "Global Energy Monitor",
@@ -22,7 +50,7 @@
       "licenceDecidedAt": "2026-07-17",
       "requiredEnv": [],
       "manualPathEnv": "GEM_AFRICA_ENERGY_TRACKER_PATH",
-      "notes": "Form and CAPTCHA release; imported manually with checksum."
+      "notes": "Retained as a governed Africa-specific source option. The current snapshot uses the broader March 2026 Global Integrated Power Tracker instead, so this entry contributes no duplicate records."
     },
     {
       "id": "world-bank-dre-atlas",
@@ -59,15 +87,15 @@
         "Africa"
       ],
       "countries": [],
-      "accessMode": "automatic",
-      "publicationState": "quarantined",
-      "refreshCadence": "irregular",
-      "licence": null,
-      "licenceUrl": null,
+      "accessMode": "manual_snapshot",
+      "publicationState": "publishable",
+      "refreshCadence": "manual",
+      "licence": "ODbL 1.0",
+      "licenceUrl": "https://opendatacommons.org/licenses/odbl/1-0/",
       "licenceDecidedAt": "2026-07-17",
       "requiredEnv": [],
-      "manualPathEnv": null,
-      "notes": "Contains multiple upstream sources; publication waits for a resource-level licence decision."
+      "manualPathEnv": "AFRICA_GRID_PATH",
+      "notes": "Downloaded World Bank release with 62,001 existing and planned transmission/distribution line features. Published only as dated grid context; it is not treated as available MW, dependable capacity, or proof of connection headroom."
     },
     {
       "id": "iea-africa-gis-catalogue",
@@ -298,15 +326,15 @@
       "countries": [
         "BR"
       ],
-      "accessMode": "automatic",
-      "publicationState": "quarantined",
+      "accessMode": "manual_snapshot",
+      "publicationState": "publishable",
       "refreshCadence": "monthly",
-      "licence": null,
-      "licenceUrl": null,
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/",
       "licenceDecidedAt": "2026-07-17",
       "requiredEnv": [],
-      "manualPathEnv": null,
-      "notes": "Official open-data page; exact downloadable resource and licence will be pinned."
+      "manualPathEnv": "BRAZIL_EPE_CONSUMPTION_PATH",
+      "notes": "Downloaded official monthly state workbook. Wattlas sums consumer classes and market types, publishes only complete calendar years, converts MWh to GWh, and currently contributes 594 state-year observations (2004–2025)."
     },
     {
       "id": "brazil-ons-load",
@@ -593,4 +621,3 @@
     }
   ]
 }
-
