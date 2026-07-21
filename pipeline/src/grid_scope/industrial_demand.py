@@ -13,6 +13,10 @@ from openpyxl import load_workbook
 
 HYDROGEN_PRODUCTION_SOURCE_ID = "iea-hydrogen-production-2026"
 HYDROGEN_INFRASTRUCTURE_SOURCE_ID = "iea-hydrogen-infrastructure-2026"
+GEM_CEMENT_SOURCE_ID = "gem-global-cement-concrete-2025"
+GEM_STEEL_PLANT_SOURCE_ID = "gem-global-steel-plants-2026"
+GEM_STEEL_UNIT_SOURCE_ID = "gem-global-steel-units-2026"
+GEM_IRON_UNIT_SOURCE_ID = "gem-global-iron-units-2026"
 
 
 def _key(value: object) -> str:
@@ -95,6 +99,24 @@ def _coordinate(value: object, *, latitude: bool) -> float | None:
         return None
     maximum = 90 if latitude else 180
     return number if -maximum <= number <= maximum else None
+
+
+def _coordinate_pair(value: object) -> list[float] | None:
+    if value is None:
+        return None
+    parts = [part.strip() for part in str(value).split(",")]
+    if len(parts) != 2:
+        return None
+    latitude = _coordinate(parts[0], latitude=True)
+    longitude = _coordinate(parts[1], latitude=False)
+    if latitude is None or longitude is None:
+        return None
+    return [longitude, latitude]
+
+
+def _country_name(value: object, mapping: Mapping[str, str]) -> str | None:
+    name = _key(value)
+    return mapping.get(name)
 
 
 def _lifecycle(value: object) -> str:
@@ -309,4 +331,214 @@ def parse_hydrogen_infrastructure(
                     "confidence": 78 if location else 68,
                 }
             )
+    return sorted(assets, key=lambda asset: asset["id"])
+
+
+def parse_gem_cement(
+    path: Path, *, country_name_to_iso2: Mapping[str, str]
+) -> list[dict[str, Any]]:
+    assets: list[dict[str, Any]] = []
+    for row in _records(path, "Plant Data", header_row=1):
+        plant_id = _text(_pick(row, "gem_plant_id"))
+        name = _text(_pick(row, "gem_asset_name_english"))
+        country = _country_name(_pick(row, "country_area"), country_name_to_iso2)
+        coordinates = _coordinate_pair(_pick(row, "coordinates"))
+        if plant_id is None or name is None or country is None or coordinates is None:
+            continue
+        status = _text(_pick(row, "operating_status"))
+        year = _year(_pick(row, "start_date"))
+        cement_capacity = _number(
+            _pick(row, "cement_capacity_millions_metric_tonnes_per_annum")
+        )
+        clinker_capacity = _number(
+            _pick(row, "clinker_capacity_millions_metric_tonnes_per_annum")
+        )
+        reported_capacity = cement_capacity if cement_capacity is not None else clinker_capacity
+        assets.append(
+            {
+                "id": f"gem-cement-{_slug(plant_id)}",
+                "name": name,
+                "geographyId": "",
+                "country": country,
+                "category": "industrial_load",
+                "subtype": "cement_plant",
+                "lifecycle": _lifecycle(status),
+                "rawStatus": status,
+                "targetYear": year if year is not None and 2026 <= year <= 2031 else None,
+                "coordinates": coordinates,
+                "locationName": _text(_pick(row, "municipality")),
+                "locationPrecision": "exact"
+                if _key(_pick(row, "coordinate_accuracy")) == "exact"
+                else "city_centroid",
+                "cementCapacityMtpa": cement_capacity,
+                "clinkerCapacityMtpa": clinker_capacity,
+                "reportedCapacity": reported_capacity,
+                "reportedCapacityUnit": "Mtpa" if reported_capacity is not None else None,
+                "gridConnectionType": "other_or_unknown",
+                "gridDemandEligible": bool(cement_capacity is not None),
+                "gridDemandContribution": False,
+                "annualDemandGwh": None,
+                "technologyDetail": " · ".join(
+                    value
+                    for value in (
+                        _text(_pick(row, "plant_type")),
+                        _text(_pick(row, "production_type")),
+                        _text(_pick(row, "majority_cement_type")),
+                    )
+                    if value
+                ) or None,
+                "operator": _text(_pick(row, "owner_name_english")),
+                "demandMw": None,
+                "valueKind": "reported",
+                "sourceType": "research_verified",
+                "sourceIds": [GEM_CEMENT_SOURCE_ID],
+                "sourceRecordIds": [plant_id],
+                "externalIds": {"gemPlantId": plant_id},
+                "projectUrl": _text(_pick(row, "gem_wiki_page")),
+                "confidence": 86 if _key(_pick(row, "coordinate_accuracy")) == "exact" else 76,
+            }
+        )
+    return sorted(assets, key=lambda asset: asset["id"])
+
+
+def _unit_index(path: Path, sheet_name: str) -> dict[str, list[dict[str, Any]]]:
+    indexed: dict[str, list[dict[str, Any]]] = {}
+    for row in _records(path, sheet_name, header_row=1):
+        plant_id = _text(_pick(row, "gem_plant_id"))
+        unit_id = _text(_pick(row, "gem_unit_id"))
+        if plant_id is None or unit_id is None:
+            continue
+        indexed.setdefault(plant_id, []).append(
+            {
+                "unitId": unit_id,
+                "status": _text(_pick(row, "unit_status")),
+                "year": _year(
+                    _pick(row, "start_date", "construction_date", "announced_date")
+                ),
+                "capacityTtpa": _number(_pick(row, "current_capacity_ttpa")),
+                "projectUrl": _text(_pick(row, "gem_wiki_page")),
+                "furnaceType": _text(_pick(row, "furnace_type")),
+                "reductant": _text(_pick(row, "current_or_initial_reductant")),
+                "hydrogenStatus": _text(_pick(row, "hydrogen_reductant_status")),
+            }
+        )
+    return indexed
+
+
+def parse_gem_steel(
+    plant_path: Path,
+    *,
+    steel_units_path: Path,
+    iron_units_path: Path,
+    country_name_to_iso2: Mapping[str, str],
+) -> list[dict[str, Any]]:
+    plants: dict[str, dict[str, Any]] = {}
+    for row in _records(plant_path, "Plant data", header_row=1):
+        plant_id = _text(_pick(row, "gem_plant_id"))
+        if plant_id is None:
+            continue
+        plants[plant_id] = {
+            "name": _text(_pick(row, "plant_name_english")),
+            "country": _country_name(_pick(row, "country_area"), country_name_to_iso2),
+            "coordinates": _coordinate_pair(_pick(row, "coordinates")),
+            "coordinateAccuracy": _key(_pick(row, "coordinate_accuracy")),
+            "locationName": _text(_pick(row, "municipality")),
+            "operator": _text(_pick(row, "owner")),
+            "projectUrl": _text(_pick(row, "gem_wiki_page")),
+            "powerSource": _text(_pick(row, "power_source")),
+        }
+    eaf_units = _unit_index(steel_units_path, "Electric arc furnaces")
+    dri_units = _unit_index(iron_units_path, "Direct reduced iron furnaces")
+    assets: list[dict[str, Any]] = []
+    for row_number, row in enumerate(
+        _records(plant_path, "Plant capacities and status", header_row=1), start=2
+    ):
+        plant_id = _text(_pick(row, "gem_plant_id"))
+        plant = plants.get(plant_id or "")
+        if plant_id is None or plant is None:
+            continue
+        if plant["name"] is None or plant["country"] is None or plant["coordinates"] is None:
+            continue
+        status = _text(_pick(row, "status"))
+        year = _year(_pick(row, "start_date"))
+        lifecycle = _lifecycle(status)
+        eaf_capacity = _number(_pick(row, "nominal_eaf_steel_capacity_ttpa"))
+        dri_capacity = _number(_pick(row, "nominal_dri_capacity_ttpa"))
+        induction_capacity = _number(_pick(row, "nominal_if_steel_capacity_ttpa"))
+        related_eaf = eaf_units.get(plant_id, [])
+        related_dri = dri_units.get(plant_id, [])
+        if eaf_capacity is None:
+            values = [unit["capacityTtpa"] for unit in related_eaf if unit["capacityTtpa"] is not None]
+            eaf_capacity = sum(values) if values else None
+        if dri_capacity is None:
+            values = [unit["capacityTtpa"] for unit in related_dri if unit["capacityTtpa"] is not None]
+            dri_capacity = sum(values) if values else None
+        unit_ids = sorted(
+            {unit["unitId"] for unit in [*related_eaf, *related_dri]}
+        )
+        crude_capacity = _number(_pick(row, "nominal_crude_steel_capacity_ttpa"))
+        equipment = _text(_pick(row, "main_production_equipment"))
+        id_suffix = f"{_slug(status)}-{year or row_number}"
+        assets.append(
+            {
+                "id": f"gem-steel-{_slug(plant_id)}-{id_suffix}",
+                "name": plant["name"],
+                "geographyId": "",
+                "country": plant["country"],
+                "category": "industrial_load",
+                "subtype": "steel_plant",
+                "lifecycle": lifecycle,
+                "rawStatus": status,
+                "targetYear": year if year is not None and 2026 <= year <= 2031 else None,
+                "coordinates": plant["coordinates"],
+                "locationName": plant["locationName"],
+                "locationPrecision": "exact"
+                if plant["coordinateAccuracy"] == "exact"
+                else "city_centroid",
+                "electricArcCapacityTtpa": eaf_capacity,
+                "driCapacityTtpa": dri_capacity,
+                "inductionCapacityTtpa": induction_capacity,
+                "reportedCapacity": crude_capacity,
+                "reportedCapacityUnit": "ktpa" if crude_capacity is not None else None,
+                "gridConnectionType": "grid"
+                if "grid" in _key(plant["powerSource"])
+                else "other_or_unknown",
+                "gridDemandEligible": bool(eaf_capacity is not None or induction_capacity is not None),
+                "gridDemandContribution": False,
+                "annualDemandGwh": None,
+                "technologyDetail": equipment,
+                "operator": plant["operator"],
+                "demandMw": None,
+                "valueKind": "reported",
+                "sourceType": "research_verified",
+                "sourceIds": sorted(
+                    {
+                        GEM_STEEL_PLANT_SOURCE_ID,
+                        *([GEM_STEEL_UNIT_SOURCE_ID] if related_eaf else []),
+                        *([GEM_IRON_UNIT_SOURCE_ID] if related_dri else []),
+                    }
+                ),
+                "sourceRecordIds": sorted({plant_id, *unit_ids}),
+                "externalIds": {"gemPlantId": plant_id},
+                "projectUrl": plant["projectUrl"]
+                or next(
+                    (
+                        unit["projectUrl"]
+                        for unit in [*related_eaf, *related_dri]
+                        if unit["projectUrl"]
+                    ),
+                    None,
+                ),
+                "confidence": 86 if plant["coordinateAccuracy"] == "exact" else 76,
+                "driHydrogenContext": [
+                    {
+                        "unitId": unit["unitId"],
+                        "furnaceType": unit["furnaceType"],
+                        "reductant": unit["reductant"],
+                        "hydrogenStatus": unit["hydrogenStatus"],
+                    }
+                    for unit in related_dri
+                ],
+            }
+        )
     return sorted(assets, key=lambda asset: asset["id"])

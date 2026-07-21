@@ -3,12 +3,15 @@ from pathlib import Path
 from openpyxl import Workbook
 
 from grid_scope.industrial_demand import (
+    parse_gem_cement,
+    parse_gem_steel,
     parse_hydrogen_infrastructure,
     parse_hydrogen_production,
 )
 
 
 ISO3_TO_ISO2 = {"DEU": "DE", "NLD": "NL", "AUS": "AU"}
+COUNTRY_TO_ISO2 = {"germany": "DE", "namibia": "NA", "australia": "AU"}
 
 
 def _production_workbook(path: Path) -> None:
@@ -126,3 +129,130 @@ def test_hydrogen_infrastructure_is_context_only_even_with_mwel(tmp_path: Path) 
     assert blend["locationName"] == "Tonsley"
     assert blend["annualDemandGwh"] is None
     assert blend["gridDemandContribution"] is False
+
+
+def _cement_workbook(path: Path) -> None:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Plant Data"
+    sheet.append([
+        "GEM Plant ID", "GEM Asset name (English)", "Coordinates", "Coordinate accuracy",
+        "GEM wiki page", "Municipality", "Subnational unit", "Country/Area",
+        "Cement Capacity (millions metric tonnes per annum)",
+        "Clinker Capacity (millions metric tonnes per annum)", "Majority Cement Type",
+        "Operating status", "Start date", "Owner name (English)", "Plant type",
+        "Production type",
+    ])
+    sheet.append([
+        "P-CEM-1", "Alpha Cement Plant", "-23.8, 151.25", "exact",
+        "https://www.gem.wiki/Alpha_Cement_Plant", "Gladstone", "Queensland", "Australia",
+        2.4, 1.8, "opc", "construction", 2028, "Alpha Cement [100%]", "integrated",
+        "clinker and cement",
+    ])
+    workbook.save(path)
+
+
+def _steel_workbooks(plant_path: Path, steel_path: Path, iron_path: Path) -> None:
+    plant_workbook = Workbook()
+    plant = plant_workbook.active
+    plant.title = "Plant data"
+    plant.append([
+        "GEM plant ID", "Plant name (English)", "Owner", "Municipality",
+        "Subnational unit", "Country/area", "Coordinates", "Coordinate accuracy",
+        "GEM wiki page", "Power source",
+    ])
+    plant.append([
+        "P-STEEL-1", "Alpha Green Steel", "Alpha Steel", "Bremen", "Bremen", "Germany",
+        "53.1, 8.8", "exact", "https://www.gem.wiki/Alpha_Green_Steel", "grid",
+    ])
+    capacity = plant_workbook.create_sheet("Plant capacities and status")
+    capacity.append([
+        "GEM plant ID", "Plant name (English)", "Country/area", "Main production equipment",
+        "Status", "Start date", "Nominal crude steel capacity (ttpa)",
+        "Nominal BOF steel capacity (ttpa)", "Nominal EAF steel capacity (ttpa)",
+        "Nominal IF steel capacity (ttpa)", "Nominal DRI capacity (ttpa)",
+        "Nominal BF capacity (ttpa)",
+    ])
+    capacity.append([
+        "P-STEEL-1", "Alpha Green Steel", "Germany", "EAF, DRI", "construction", 2029,
+        2200, None, 1200, None, 1000, None,
+    ])
+    plant_workbook.save(plant_path)
+
+    steel_workbook = Workbook()
+    eaf = steel_workbook.active
+    eaf.title = "Electric arc furnaces"
+    eaf.append([
+        "GEM plant ID", "GEM unit ID", "Unit name", "GEM wiki page", "Country/area",
+        "Unit status", "Announced date", "Construction date", "Start date",
+        "Current capacity (ttpa)",
+    ])
+    eaf.append([
+        "P-STEEL-1", "U-EAF-1", "EAF 1", "https://www.gem.wiki/Alpha_Green_Steel",
+        "Germany", "construction", 2025, 2027, 2029, 1200,
+    ])
+    steel_workbook.save(steel_path)
+
+    iron_workbook = Workbook()
+    dri = iron_workbook.active
+    dri.title = "Direct reduced iron furnaces"
+    dri.append([
+        "GEM plant ID", "GEM unit ID", "Unit name", "GEM wiki page", "Country/area",
+        "Unit status", "Announced date", "Construction date", "Start date", "Furnace type",
+        "Current capacity (ttpa)", "Current or initial Reductant", "Hydrogen reductant status",
+    ])
+    dri.append([
+        "P-STEEL-1", "U-DRI-1", "DRI 1", "https://www.gem.wiki/Alpha_Green_Steel",
+        "Germany", "announced", 2025, None, 2029, "shaft furnace", 1000,
+        "natural gas", "hydrogen-ready",
+    ])
+    iron_workbook.save(iron_path)
+
+
+def test_gem_cement_preserves_capacity_status_and_project_page(tmp_path: Path) -> None:
+    path = tmp_path / "cement.xlsx"
+    _cement_workbook(path)
+
+    assets = parse_gem_cement(path, country_name_to_iso2=COUNTRY_TO_ISO2)
+
+    assert len(assets) == 1
+    asset = assets[0]
+    assert asset["id"] == "gem-cement-p-cem-1"
+    assert asset["country"] == "AU"
+    assert asset["coordinates"] == [151.25, -23.8]
+    assert asset["lifecycle"] == "under_construction"
+    assert asset["targetYear"] == 2028
+    assert asset["cementCapacityMtpa"] == 2.4
+    assert asset["clinkerCapacityMtpa"] == 1.8
+    assert asset["projectUrl"] == "https://www.gem.wiki/Alpha_Cement_Plant"
+
+
+def test_gem_steel_joins_plant_eaf_and_dri_evidence(tmp_path: Path) -> None:
+    plant_path = tmp_path / "plants.xlsx"
+    steel_path = tmp_path / "steel-units.xlsx"
+    iron_path = tmp_path / "iron-units.xlsx"
+    _steel_workbooks(plant_path, steel_path, iron_path)
+
+    assets = parse_gem_steel(
+        plant_path,
+        steel_units_path=steel_path,
+        iron_units_path=iron_path,
+        country_name_to_iso2=COUNTRY_TO_ISO2,
+    )
+
+    assert len(assets) == 1
+    asset = assets[0]
+    assert asset["id"] == "gem-steel-p-steel-1-construction-2029"
+    assert asset["country"] == "DE"
+    assert asset["coordinates"] == [8.8, 53.1]
+    assert asset["lifecycle"] == "under_construction"
+    assert asset["targetYear"] == 2029
+    assert asset["electricArcCapacityTtpa"] == 1200
+    assert asset["driCapacityTtpa"] == 1000
+    assert asset["sourceRecordIds"] == ["P-STEEL-1", "U-DRI-1", "U-EAF-1"]
+    assert asset["sourceIds"] == [
+        "gem-global-iron-units-2026",
+        "gem-global-steel-plants-2026",
+        "gem-global-steel-units-2026",
+    ]
+    assert asset["projectUrl"] == "https://www.gem.wiki/Alpha_Green_Steel"
