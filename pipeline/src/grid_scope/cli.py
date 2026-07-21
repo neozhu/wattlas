@@ -738,6 +738,65 @@ def _optional_network_result(
         )
 
 
+def _entsoe_network_result(
+    fetch: Callable[[], ConnectorResult], store: RawCaptureStore
+) -> tuple[bytes, ConnectorResult]:
+    """Publish partial ENTSO-E evidence without replacing a complete capture."""
+
+    source_id = "entsoe"
+    try:
+        result = fetch()
+        _validate_connector_identity(result, source_id)
+        previous = store.latest_capture(source_id)
+        if result.payload is not None and result.payload.body:
+            if result.state == ConnectorState.CURRENT:
+                capture = store.save(
+                    source_id, result.payload.body, result.payload.media_type
+                )
+                return capture.path.read_bytes(), result
+            if previous is not None:
+                return previous.path.read_bytes(), ConnectorResult(
+                    source_id=source_id,
+                    state=ConnectorState.CACHED,
+                    payload=None,
+                    message=(
+                        "Using last complete ENTSO-E capture because the current "
+                        "month is incomplete."
+                    ),
+                )
+            return result.payload.body, result
+        if previous is not None:
+            return previous.path.read_bytes(), ConnectorResult(
+                source_id=source_id,
+                state=ConnectorState.CACHED,
+                payload=None,
+                message=(
+                    "Using last complete ENTSO-E capture: "
+                    f"{result.message or 'source returned no payload'}"
+                ),
+            )
+        if result.state == ConnectorState.NOT_CONFIGURED:
+            return b'{"records":[]}', result
+        return b'{"records":[]}', result
+    except ValueError:
+        raise
+    except Exception as error:
+        previous = store.latest_capture(source_id)
+        if previous is not None:
+            return previous.path.read_bytes(), ConnectorResult(
+                source_id=source_id,
+                state=ConnectorState.CACHED,
+                payload=None,
+                message=f"Using last complete ENTSO-E capture: {error}",
+            )
+        return b'{"records":[]}', ConnectorResult(
+            source_id=source_id,
+            state=ConnectorState.FAILED,
+            payload=None,
+            message=f"ENTSO-E failed without a complete cached capture: {error}",
+        )
+
+
 def _contains_credential_material(value: object) -> bool:
     if isinstance(value, Mapping):
         return any(
@@ -1598,11 +1657,10 @@ def refresh() -> Path:
             "osm_power",
             store,
         )
-        entsoe_body, entsoe_status = _optional_network_result(
+        entsoe_body, entsoe_status = _entsoe_network_result(
             lambda: EntsoeConnector(os.getenv("ENTSOE_SECURITY_TOKEN")).fetch(
                 client, now=now, areas=entsoe_areas
             ),
-            "entsoe",
             store,
         )
     entsoe_publication = normalize_entsoe_publication(entsoe_body)

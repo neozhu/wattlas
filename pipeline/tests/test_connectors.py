@@ -134,6 +134,58 @@ def test_entsoe_retries_rate_limit_before_succeeding() -> None:
     assert attempts == 3
 
 
+def test_entsoe_keeps_successful_areas_when_one_area_has_no_matching_data() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        area_code = (
+            request.url.params.get("outBiddingZone_Domain")
+            or request.url.params.get("in_Domain")
+        )
+        if area_code == "10Y1001A1001A59C":
+            return httpx.Response(
+                200,
+                content=(Path(__file__).parents[2] / "data" / "fixtures" / "entsoe-acknowledgement.xml").read_bytes(),
+            )
+        fixture = (
+            "entsoe-actual-load.xml"
+            if request.url.params["documentType"] == "A65"
+            else "entsoe-generation-by-type.xml"
+        )
+        return httpx.Response(
+            200,
+            content=(Path(__file__).parents[2] / "data" / "fixtures" / fixture).read_bytes(),
+        )
+
+    areas = [
+        {
+            "areaCode": "10Y1001A1001A59C", "name": "SEM", "countries": ["IE", "GB"],
+            "geographyIds": ["IE", "GB"], "mappingMode": "composite",
+        },
+        {
+            "areaCode": "10YBE----------2", "name": "Belgium", "countries": ["BE"],
+            "geographyIds": ["BE"], "mappingMode": "direct",
+        },
+    ]
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = EntsoeConnector(token="top-secret").fetch(
+            client, now=datetime(2026, 7, 21, tzinfo=UTC), areas=areas,
+        )
+
+    assert result.state == ConnectorState.STALE
+    assert result.payload is not None
+    payload = json.loads(result.payload.body)
+    assert payload["complete"] is False
+    assert [record["areaCode"] for record in payload["records"]] == ["10YBE----------2"]
+    assert payload["areaErrors"] == [{
+        "areaCode": "10Y1001A1001A59C",
+        "error": "no_matching_data",
+    }]
+    assert len(requests) == 3
+    assert "top-secret" not in repr(result)
+
+
 def test_connector_health_is_independent_from_publication_state() -> None:
     result = ConnectorResult(
         source_id="restricted-but-reachable",

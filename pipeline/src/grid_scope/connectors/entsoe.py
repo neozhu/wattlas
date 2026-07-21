@@ -396,30 +396,44 @@ class EntsoeConnector:
         period_start, period_end = previous_complete_month(now)
         retrieved_at = _format_time(now)
         records: list[dict[str, Any]] = []
+        area_errors: list[dict[str, str]] = []
         try:
             for area in areas:
                 area_code = str(area["areaCode"])
-                load_body = self._request(
-                    client,
-                    EntsoeQuery(area_code, "actual_load", period_start, period_end),
-                )
-                generation_body = self._request(
-                    client,
-                    EntsoeQuery(
-                        area_code,
-                        "actual_generation_by_type",
-                        period_start,
-                        period_end,
-                    ),
-                )
-                records.append(
-                    aggregate_entsoe_area(
-                        load_body,
-                        generation_body,
-                        area=dict(area),
-                        retrieved_at=retrieved_at,
+                try:
+                    load_body = self._request(
+                        client,
+                        EntsoeQuery(area_code, "actual_load", period_start, period_end),
                     )
-                )
+                    # Parse the first response before making the second request so a
+                    # zone with no load data does not consume another API call.
+                    parse_entsoe_document(load_body, metric="actual_load")
+                    generation_body = self._request(
+                        client,
+                        EntsoeQuery(
+                            area_code,
+                            "actual_generation_by_type",
+                            period_start,
+                            period_end,
+                        ),
+                    )
+                    records.append(
+                        aggregate_entsoe_area(
+                            load_body,
+                            generation_body,
+                            area=dict(area),
+                            retrieved_at=retrieved_at,
+                        )
+                    )
+                except EntsoeAcknowledgementError as error:
+                    area_errors.append({
+                        "areaCode": area_code,
+                        "error": (
+                            "no_matching_data"
+                            if "no matching data" in str(error).casefold()
+                            else "request_rejected"
+                        ),
+                    })
         except PermissionError:
             return ConnectorResult(
                 source_id=self.source_id,
@@ -427,7 +441,7 @@ class EntsoeConnector:
                 payload=None,
                 message="ENTSO-E authentication failed.",
             )
-        except (EntsoeAcknowledgementError, ET.ParseError, RuntimeError, ValueError) as error:
+        except (ET.ParseError, RuntimeError, ValueError) as error:
             message = re.sub(
                 r"(?i)(securityToken(?:=|%3D))[^&\s]+",
                 r"\1[REDACTED]",
@@ -447,8 +461,9 @@ class EntsoeConnector:
                 "periodStart": _format_time(period_start),
                 "periodEnd": _format_time(period_end),
                 "observationMonth": period_start.strftime("%Y-%m"),
-                "complete": True,
+                "complete": not area_errors and len(records) == len(areas),
                 "areasRequested": len(areas),
+                "areaErrors": area_errors,
                 "records": records,
             },
             ensure_ascii=False,
@@ -456,11 +471,16 @@ class EntsoeConnector:
         ).encode()
         return ConnectorResult(
             source_id=self.source_id,
-            state=ConnectorState.CURRENT,
+            state=(ConnectorState.CURRENT if not area_errors else ConnectorState.STALE),
             payload=FetchPayload(
                 source_id=self.source_id,
                 retrieved_at=now,
                 media_type="application/json",
                 body=body,
+            ),
+            message=(
+                None
+                if not area_errors
+                else f"ENTSO-E returned usable data for {len(records)} of {len(areas)} areas."
             ),
         )

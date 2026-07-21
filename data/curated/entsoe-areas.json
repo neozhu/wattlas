@@ -1,6 +1,10 @@
 {
   "schemaVersion": "1.0.0",
   "source": "ENTSO-E Transparency Platform official area EIC codes",
+  "excludedAreas": [
+    {"areaCode":"10YGB-IESO-----S","name":"Great Britain","reason":"No actual-total-load data returned for the previous complete month in the authenticated 2026-07-21 validation."},
+    {"areaCode":"10Y1001A1001A59C","name":"Ireland and Northern Ireland SEM","reason":"No actual-total-load data returned for the previous complete month in the authenticated 2026-07-21 validation."}
+  ],
   "areas": [
     {"areaCode":"10YAL-KESH-----5","name":"Albania","countries":["AL"],"geographyIds":["AL"],"mappingMode":"direct"},
     {"areaCode":"10YAT-APG------L","name":"Austria","countries":["AT"],"geographyIds":["AT"],"mappingMode":"direct"},
@@ -15,11 +19,9 @@
     {"areaCode":"10YES-REE------0","name":"Spain","countries":["ES"],"geographyIds":["ES"],"mappingMode":"direct"},
     {"areaCode":"10YFI-1--------U","name":"Finland","countries":["FI"],"geographyIds":["FI"],"mappingMode":"direct"},
     {"areaCode":"10YFR-RTE------C","name":"France","countries":["FR"],"geographyIds":["FR"],"mappingMode":"direct"},
-    {"areaCode":"10YGB-IESO-----S","name":"Great Britain","countries":["GB"],"geographyIds":["GB"],"mappingMode":"direct"},
     {"areaCode":"10YGR-HTSO-----Y","name":"Greece","countries":["GR"],"geographyIds":["GR"],"mappingMode":"direct"},
     {"areaCode":"10YHR-HEP------M","name":"Croatia","countries":["HR"],"geographyIds":["HR"],"mappingMode":"direct"},
     {"areaCode":"10YHU-MAVIR----U","name":"Hungary","countries":["HU"],"geographyIds":["HU"],"mappingMode":"direct"},
-    {"areaCode":"10Y1001A1001A59C","name":"Ireland and Northern Ireland SEM","countries":["IE","GB"],"geographyIds":["IE","GB"],"mappingMode":"composite"},
     {"areaCode":"10Y1001A1001A70O","name":"Italy Centre-North","countries":["IT"],"geographyIds":["IT"],"mappingMode":"evidence_only"},
     {"areaCode":"10Y1001A1001A71M","name":"Italy Centre-South","countries":["IT"],"geographyIds":["IT"],"mappingMode":"evidence_only"},
     {"areaCode":"10Y1001A1001A73I","name":"Italy North","countries":["IT"],"geographyIds":["IT"],"mappingMode":"evidence_only"},

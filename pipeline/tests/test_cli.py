@@ -31,6 +31,7 @@ from grid_scope.cli import (
     _official_demand_rows_for_year,
     _brazil_state_mapping,
     normalize_entsoe_publication,
+    _entsoe_network_result,
 )
 from grid_scope.connectors.base import ConnectorResult, FetchPayload
 from grid_scope.models import ConnectorState
@@ -92,6 +93,50 @@ def test_entsoe_publication_rejects_credential_fields() -> None:
         normalize_entsoe_publication(
             b'{"records":[],"nested":{"securityToken":"nope"}}'
         )
+
+
+def test_entsoe_partial_capture_cannot_replace_complete_last_known_good(tmp_path) -> None:
+    store = RawCaptureStore(tmp_path / "raw", tmp_path / "warehouse.duckdb")
+    complete = b'{"complete":true,"records":[{"id":"complete"}]}'
+    partial = b'{"complete":false,"records":[{"id":"partial"}]}'
+    store.save("entsoe", complete, "application/json")
+    result = ConnectorResult(
+        source_id="entsoe",
+        state=ConnectorState.STALE,
+        payload=FetchPayload(
+            source_id="entsoe",
+            retrieved_at=datetime(2026, 7, 21, tzinfo=UTC),
+            media_type="application/json",
+            body=partial,
+        ),
+    )
+
+    body, selected = _entsoe_network_result(lambda: result, store)
+
+    assert body == complete
+    assert selected.state == ConnectorState.CACHED
+    assert store.latest_capture("entsoe").path.read_bytes() == complete
+
+
+def test_entsoe_partial_capture_is_visible_before_first_complete_capture(tmp_path) -> None:
+    store = RawCaptureStore(tmp_path / "raw", tmp_path / "warehouse.duckdb")
+    partial = b'{"complete":false,"records":[{"id":"partial"}]}'
+    result = ConnectorResult(
+        source_id="entsoe",
+        state=ConnectorState.STALE,
+        payload=FetchPayload(
+            source_id="entsoe",
+            retrieved_at=datetime(2026, 7, 21, tzinfo=UTC),
+            media_type="application/json",
+            body=partial,
+        ),
+    )
+
+    body, selected = _entsoe_network_result(lambda: result, store)
+
+    assert body == partial
+    assert selected.state == ConnectorState.STALE
+    assert store.latest_capture("entsoe") is None
 
 
 def test_brazil_state_mapping_handles_publisher_and_boundary_spellings() -> None:
