@@ -20,7 +20,7 @@ import { ALL_GENERATOR_CAPACITIES, generatorMatchesCapacity, isAllGeneratorCapac
 import { buildCapacityFilteredGeneratorOverview, DEFAULT_GENERATOR_LIFECYCLES, generatorMatchesLifecycles } from "@/lib/map/generator-shards";
 import { buildSearchIndex, type SearchResult } from "@/lib/search";
 import { cityFeatureCollectionSchema, geographyFeatureCollectionSchema } from "@/lib/snapshot/schema";
-import { loadGeneratorCountry, loadGeneratorIndex, loadGeneratorOverview, loadRegionalEnergy } from "@/lib/snapshot/generators";
+import { loadGeneratorCatalogue, loadGeneratorIndex, loadGeneratorOverview, loadRegionalEnergy } from "@/lib/snapshot/generators";
 import type { AssetFeature, CityCollection, GenerationTechnology, GeneratorFeature, GeneratorIndex, GeneratorOverviewCollection, GeographyCollection, GeographyFeature, LensKey, RegionalEnergyData, RegionFeature, SnapshotData } from "@/lib/snapshot/types";
 
 type Props = { snapshot: SnapshotData };
@@ -56,7 +56,13 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [capacityRange, setCapacityRange] = useState<GeneratorCapacityRange>(ALL_GENERATOR_CAPACITIES);
   const [generatorOverview, setGeneratorOverview] = useState<GeneratorOverviewCollection | null>(null);
   const [generatorIndex, setGeneratorIndex] = useState<GeneratorIndex | null>(null);
-  const [generatorCatalogueLoad, setGeneratorCatalogueLoad] = useState<{ snapshotId: string | null; features: GeneratorFeature[] }>({ snapshotId: null, features: [] });
+  const [generatorCatalogueLoad, setGeneratorCatalogueLoad] = useState<{
+    snapshotId: string | null;
+    state: "loading" | "ready" | "error";
+    features: GeneratorFeature[];
+    error: string | null;
+  }>({ snapshotId: null, state: "loading", features: [], error: null });
+  const [generatorCatalogueRetry, setGeneratorCatalogueRetry] = useState(0);
   const [regionalEnergyLoad, setRegionalEnergyLoad] = useState<{ path: string | null; state: "loading" | "ready" | "error"; data: RegionalEnergyData; error: string | null }>({ path: null, state: "loading", data: {}, error: null });
   const [regionalEnergyRetry, setRegionalEnergyRetry] = useState(0);
   const regionalEnergyRevision = useRef(0);
@@ -122,26 +128,17 @@ export function OpportunityRadar({ snapshot }: Props) {
     if (!generatorIndex || !snapshot.manifest.snapshotId) return;
     const snapshotId = snapshot.manifest.snapshotId;
     const root = `snapshots/${snapshotId}`;
-    const countries = Object.keys(generatorIndex.countries).sort();
     const controller = new AbortController();
-    let cursor = 0;
-    const collected: GeneratorFeature[] = [];
-    const concurrency = Math.min(4, countries.length);
-    const run = async () => {
-      await Promise.all(Array.from({ length: concurrency }, async () => {
-        while (!controller.signal.aborted && cursor < countries.length) {
-          const country = countries[cursor++];
-          const result = await loadGeneratorCountry(root, generatorIndex, country, { signal: controller.signal });
-          if (result.ok) collected.push(...result.data.features as GeneratorFeature[]);
-        }
-      }));
-      if (!controller.signal.aborted) {
-        setGeneratorCatalogueLoad({ snapshotId, features: collected });
+    void loadGeneratorCatalogue(root, generatorIndex, { signal: controller.signal }).then((result) => {
+      if (controller.signal.aborted) return;
+      if (result.ok) {
+        setGeneratorCatalogueLoad({ snapshotId, state: "ready", features: result.data.features as GeneratorFeature[], error: null });
+      } else if (result.error.kind !== "aborted") {
+        setGeneratorCatalogueLoad({ snapshotId, state: "error", features: [], error: result.error.message });
       }
-    };
-    void run();
+    });
     return () => controller.abort();
-  }, [generatorIndex, snapshot.manifest.snapshotId]);
+  }, [generatorCatalogueRetry, generatorIndex, snapshot.manifest.snapshotId]);
   useEffect(() => {
     const path = snapshot.manifest.artifacts.regionalEnergy;
     const revision = ++regionalEnergyRevision.current;
@@ -164,7 +161,9 @@ export function OpportunityRadar({ snapshot }: Props) {
   const selectedGeography = useMemo(() => selectableGeographies.find((feature) => feature.properties.id === selectedId) ?? null, [selectableGeographies, selectedId]);
   const selectedAsset = useMemo(() => snapshot.assets.features.find((feature) => feature.properties.id === selectedId) as AssetFeature | undefined ?? null, [snapshot.assets.features, selectedId]);
   const comparisonRegions = useMemo(() => comparisonIds.map((id) => selectableGeographies.find((feature) => feature.properties.id === id)).filter(Boolean) as RegionFeature[], [comparisonIds, selectableGeographies]);
-  const generatorCatalogueReady = generatorIndex != null && generatorCatalogueLoad.snapshotId === snapshot.manifest.snapshotId;
+  const generatorCatalogueReady = generatorIndex != null
+    && generatorCatalogueLoad.snapshotId === snapshot.manifest.snapshotId
+    && generatorCatalogueLoad.state === "ready";
   const generatorCatalogue = generatorCatalogueReady ? generatorCatalogueLoad.features : EMPTY_GENERATOR_CATALOGUE;
   const searchGenerators = useMemo(() => generatorCatalogue.filter((feature) => feature.properties.name && generatorMatchesCapacity(feature.properties.capacityMw, capacityRange)), [capacityRange, generatorCatalogue]);
   const capacityScaleMaximumMw = useMemo(() => {
@@ -280,6 +279,11 @@ export function OpportunityRadar({ snapshot }: Props) {
         capacityRange={capacityRange}
         capacityScaleMaximumMw={capacityScaleMaximumMw}
         generatorCatalogueReady={generatorCatalogueReady}
+        generatorCatalogueError={generatorCatalogueLoad.snapshotId === snapshot.manifest.snapshotId && generatorCatalogueLoad.state === "error" ? generatorCatalogueLoad.error : null}
+        onRetryGeneratorCatalogue={() => {
+          setGeneratorCatalogueLoad({ snapshotId: snapshot.manifest.snapshotId, state: "loading", features: [], error: null });
+          setGeneratorCatalogueRetry((value) => value + 1);
+        }}
         onCapacityRangeChange={(next) => {
           if (next.minMw === capacityRange.minMw && next.maxMw === capacityRange.maxMw) return;
           setCapacityRange(next);

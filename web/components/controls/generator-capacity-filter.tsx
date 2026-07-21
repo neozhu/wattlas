@@ -19,6 +19,8 @@ type Props = {
   scaleMaximumMw: number;
   disabled?: boolean;
   catalogueReady: boolean;
+  catalogueError?: string | null;
+  onRetryCatalogue?: () => void;
   onChange: (value: GeneratorCapacityRange) => void;
 };
 type ParsedCapacityDraft = { ok: true; value: GeneratorCapacityRange } | { ok: false; error: string };
@@ -30,7 +32,7 @@ export function GeneratorCapacityFilter(props: Props) {
   return <GeneratorCapacityFilterEditor key={`${props.value.minMw}:${props.value.maxMw ?? "unlimited"}`} {...props} />;
 }
 
-function GeneratorCapacityFilterEditor({ value, scaleMaximumMw, disabled = false, catalogueReady, onChange }: Props) {
+function GeneratorCapacityFilterEditor({ value, scaleMaximumMw, disabled = false, catalogueReady, catalogueError = null, onRetryCatalogue, onChange }: Props) {
   const [draftMin, setDraftMin] = useState(inputValue(value.minMw));
   const [draftMax, setDraftMax] = useState(value.maxMw == null ? "" : inputValue(value.maxMw));
   const [error, setError] = useState<string | null>(null);
@@ -138,8 +140,12 @@ function GeneratorCapacityFilterEditor({ value, scaleMaximumMw, disabled = false
         <button type="button" aria-label="Reset capacity range" disabled={disabled || isAllGeneratorCapacities(value)} onClick={() => onChange(ALL_GENERATOR_CAPACITIES)}>Reset</button>
       </div>
       {error && <p className="capacity-filter-error" role="alert">{error}</p>}
+      {catalogueError && <div className="capacity-filter-catalogue-error">
+        <p className="capacity-filter-error" role="alert">{catalogueError}</p>
+        {onRetryCatalogue && <button type="button" aria-label="Retry generator catalogue" onClick={onRetryCatalogue}>Retry</button>}
+      </div>}
       {value.minMw > 0 && <p className="capacity-filter-note">Unknown capacity excluded</p>}
-      {!isAllGeneratorCapacities(value) && !catalogueReady && <p className="capacity-filter-note loading">Preparing matching global plants…</p>}
+      {!catalogueError && !isAllGeneratorCapacities(value) && !catalogueReady && <p className="capacity-filter-note loading">Preparing matching global plants…</p>}
     </section>
   );
 }

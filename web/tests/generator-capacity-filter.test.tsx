@@ -73,4 +73,20 @@ describe("GeneratorCapacityFilter", () => {
       expect(control).toBeDisabled();
     }
   });
+
+  it("offers a retry when the complete generator catalogue could not load", () => {
+    const retry = vi.fn();
+    render(<GeneratorCapacityFilter
+      value={{ minMw: 0, maxMw: null }}
+      scaleMaximumMw={25_000}
+      catalogueReady={false}
+      catalogueError="US generator shard failed"
+      onRetryCatalogue={retry}
+      onChange={vi.fn()}
+    />);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("US generator shard failed");
+    fireEvent.click(screen.getByRole("button", { name: "Retry generator catalogue" }));
+    expect(retry).toHaveBeenCalledTimes(1);
+  });
 });

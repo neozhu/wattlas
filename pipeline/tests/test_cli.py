@@ -34,6 +34,8 @@ from grid_scope.cli import (
     _entsoe_network_result,
     _osm_infrastructure_result,
     _osm_power_result,
+    _published_industrial_assets,
+    _published_power_source_result,
 )
 from grid_scope.connectors.base import ConnectorResult, FetchPayload
 from grid_scope.models import ConnectorState
@@ -141,6 +143,37 @@ def test_entsoe_partial_capture_is_visible_before_first_complete_capture(tmp_pat
     assert store.latest_capture("entsoe") is None
 
 
+def test_entsoe_uses_governed_published_capture_when_ci_has_no_token_or_raw_cache(
+    tmp_path,
+) -> None:
+    publish_dir = tmp_path / "public" / "data"
+    snapshot_dir = publish_dir / "snapshots" / "baseline"
+    snapshot_dir.mkdir(parents=True)
+    (publish_dir / "latest.json").write_text(json.dumps({
+        "snapshotId": "baseline",
+        "artifacts": {"entsoeMonthly": "snapshots/baseline/entsoe-monthly.json"},
+    }))
+    expected = {
+        "source": "entsoe", "complete": True, "areasRequested": 1,
+        "records": [{"areaCode": "DE_LU", "actualLoadMwh": 1_000}],
+    }
+    (snapshot_dir / "entsoe-monthly.json").write_text(json.dumps(expected))
+    store = RawCaptureStore(tmp_path / "raw", tmp_path / "warehouse.duckdb")
+
+    body, selected = _entsoe_network_result(
+        lambda: ConnectorResult(
+            source_id="entsoe", state=ConnectorState.NOT_CONFIGURED,
+            payload=None, message="token unavailable",
+        ),
+        store,
+        publish_dir=publish_dir,
+    )
+
+    assert json.loads(body) == expected
+    assert selected.state == ConnectorState.CACHED
+    assert "baseline" in (selected.message or "")
+
+
 def test_osm_infrastructure_uses_published_snapshot_when_network_and_raw_cache_fail(
     tmp_path,
 ) -> None:
@@ -190,6 +223,192 @@ def test_osm_infrastructure_uses_published_snapshot_when_network_and_raw_cache_f
     assert [asset["id"] for asset in payload["assets"]] == ["osm-node-1"]
     assert payload["assets"][0]["coordinates"] == [7.1, 51.2]
     assert payload["assets"][0]["lastObservedAt"] == "2026-07-01T00:00:00Z"
+
+
+def test_published_industrial_assets_rehydrates_only_requested_governed_sources(
+    tmp_path,
+) -> None:
+    publish_dir = tmp_path / "public" / "data"
+    snapshot_dir = publish_dir / "snapshots" / "baseline"
+    snapshot_dir.mkdir(parents=True)
+    (publish_dir / "latest.json").write_text(json.dumps({
+        "snapshotId": "baseline",
+        "artifacts": {"assets": "snapshots/baseline/assets.geojson"},
+    }))
+    (snapshot_dir / "assets.geojson").write_text(json.dumps({
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature", "id": "cement-1",
+                "geometry": {"type": "Point", "coordinates": [7.1, 51.2]},
+                "properties": {
+                    "id": "cement-1", "name": "Existing cement plant",
+                    "category": "industrial_load", "country": "DE",
+                    "geographyId": "DE-NW", "gridDemandContribution": True,
+                    "targetYear": 2028, "lifecycle": "under_construction",
+                    "sourceIds": ["gem-global-cement-concrete-2025"],
+                },
+            },
+            {
+                "type": "Feature", "id": "cement-2",
+                "geometry": {"type": "Point", "coordinates": [7.2, 51.3]},
+                "properties": {
+                    "id": "cement-2", "name": "Second cement plant",
+                    "category": "industrial_load", "country": "DE",
+                    "geographyId": "DE-NW",
+                    "sourceIds": ["gem-global-cement-concrete-2025"],
+                },
+            },
+            {
+                "type": "Feature", "id": "hydrogen-network-1",
+                "geometry": {"type": "Point", "coordinates": [8.1, 52.2]},
+                "properties": {
+                    "id": "hydrogen-network-1", "name": "Existing H2 terminal",
+                    "category": "hydrogen_infrastructure", "country": "DE",
+                    "geographyId": "DE-NI",
+                    "sourceIds": ["iea-hydrogen-infrastructure-2026"],
+                },
+            },
+            {
+                "type": "Feature", "id": "data-centre-1",
+                "geometry": {"type": "Point", "coordinates": [9.1, 53.2]},
+                "properties": {
+                    "id": "data-centre-1", "category": "data_centre",
+                    "sourceIds": ["openstreetmap-infrastructure"],
+                },
+            },
+        ],
+    }))
+
+    assets, snapshot_ids = _published_industrial_assets(
+        publish_dir,
+        source_ids={
+            "gem-global-cement-concrete-2025",
+            "iea-hydrogen-infrastructure-2026",
+        },
+    )
+
+    assert snapshot_ids == {
+        "gem-global-cement-concrete-2025": "baseline",
+        "iea-hydrogen-infrastructure-2026": "baseline",
+    }
+    assert [asset["id"] for asset in assets] == ["cement-1", "cement-2", "hydrogen-network-1"]
+    assert assets[0]["coordinates"] == [7.1, 51.2]
+    assert all(asset["category"] != "data_centre" for asset in assets)
+
+
+def test_published_industrial_assets_rejects_unexpected_artifact_path(tmp_path) -> None:
+    publish_dir = tmp_path / "public" / "data"
+    publish_dir.mkdir(parents=True)
+    (publish_dir / "latest.json").write_text(json.dumps({
+        "snapshotId": "baseline",
+        "artifacts": {"assets": "../../private/assets.geojson"},
+    }))
+
+    with pytest.raises(ValueError, match="unexpected assets path"):
+        _published_industrial_assets(
+            publish_dir,
+            source_ids={"gem-global-cement-concrete-2025"},
+        )
+
+
+def test_published_industrial_assets_uses_newest_snapshot_with_requested_records(
+    tmp_path,
+) -> None:
+    publish_dir = tmp_path / "public" / "data"
+    current_dir = publish_dir / "snapshots" / "2026-07-21T11-46-20Z"
+    previous_dir = publish_dir / "snapshots" / "2026-07-21T06-27-02Z"
+    current_dir.mkdir(parents=True)
+    previous_dir.mkdir(parents=True)
+    (publish_dir / "latest.json").write_text(json.dumps({
+        "snapshotId": "2026-07-21T11-46-20Z",
+        "artifacts": {
+            "assets": "snapshots/2026-07-21T11-46-20Z/assets.geojson"
+        },
+    }))
+    (current_dir / "assets.geojson").write_text(json.dumps({
+        "type": "FeatureCollection", "features": [],
+    }))
+    (previous_dir / "manifest.json").write_text(json.dumps({
+        "snapshotId": "2026-07-21T06-27-02Z",
+        "artifacts": {
+            "assets": "snapshots/2026-07-21T06-27-02Z/assets.geojson"
+        },
+    }))
+    (previous_dir / "assets.geojson").write_text(json.dumps({
+        "type": "FeatureCollection", "features": [{
+            "type": "Feature", "id": "cement-older",
+            "geometry": {"type": "Point", "coordinates": [10.0, 20.0]},
+            "properties": {
+                "id": "cement-older", "category": "industrial_load",
+                "sourceIds": ["gem-global-cement-concrete-2025"],
+            },
+        }],
+    }))
+
+    assets, snapshot_ids = _published_industrial_assets(
+        publish_dir,
+        source_ids={"gem-global-cement-concrete-2025"},
+    )
+
+    assert snapshot_ids == {
+        "gem-global-cement-concrete-2025": "2026-07-21T06-27-02Z"
+    }
+    assert [asset["id"] for asset in assets] == ["cement-older"]
+
+
+def test_published_industrial_assets_recovers_each_source_from_its_newest_snapshot(
+    tmp_path,
+) -> None:
+    publish_dir = tmp_path / "public" / "data"
+    latest_id = "2026-07-21T11-46-20Z"
+    older_id = "2026-07-21T06-27-02Z"
+    latest_dir = publish_dir / "snapshots" / latest_id
+    older_dir = publish_dir / "snapshots" / older_id
+    latest_dir.mkdir(parents=True)
+    older_dir.mkdir(parents=True)
+    (publish_dir / "latest.json").write_text(json.dumps({
+        "snapshotId": latest_id,
+        "artifacts": {"assets": f"snapshots/{latest_id}/assets.geojson"},
+    }))
+    (latest_dir / "assets.geojson").write_text(json.dumps({
+        "type": "FeatureCollection", "features": [{
+            "type": "Feature", "id": "cement-new",
+            "geometry": {"type": "Point", "coordinates": [10.0, 20.0]},
+            "properties": {
+                "id": "cement-new", "category": "industrial_load",
+                "sourceIds": ["gem-global-cement-concrete-2025"],
+            },
+        }],
+    }))
+    (older_dir / "manifest.json").write_text(json.dumps({
+        "snapshotId": older_id,
+        "artifacts": {"assets": f"snapshots/{older_id}/assets.geojson"},
+    }))
+    (older_dir / "assets.geojson").write_text(json.dumps({
+        "type": "FeatureCollection", "features": [{
+            "type": "Feature", "id": "hydrogen-older",
+            "geometry": {"type": "Point", "coordinates": [11.0, 21.0]},
+            "properties": {
+                "id": "hydrogen-older", "category": "hydrogen_infrastructure",
+                "sourceIds": ["iea-hydrogen-infrastructure-2026"],
+            },
+        }],
+    }))
+
+    assets, snapshot_ids = _published_industrial_assets(
+        publish_dir,
+        source_ids={
+            "gem-global-cement-concrete-2025",
+            "iea-hydrogen-infrastructure-2026",
+        },
+    )
+
+    assert [asset["id"] for asset in assets] == ["cement-new", "hydrogen-older"]
+    assert snapshot_ids == {
+        "gem-global-cement-concrete-2025": latest_id,
+        "iea-hydrogen-infrastructure-2026": older_id,
+    }
 
 
 def test_osm_power_uses_published_generator_shards_when_network_cache_is_empty(
@@ -250,6 +469,100 @@ def test_osm_power_uses_published_generator_shards_when_network_cache_is_empty(
     assert payload["records"][0]["technology"] == "wind"
     assert payload["records"][0]["capacityMw"] == {"low": 90, "central": 90, "high": 90}
     assert payload["records"][0]["externalIds"] == {"osm": "way/1"}
+
+
+def test_published_power_source_result_rehydrates_governed_aneel_plants(
+    tmp_path,
+) -> None:
+    publish_dir = tmp_path / "public" / "data"
+    generator_dir = publish_dir / "snapshots" / "baseline" / "generators"
+    generator_dir.mkdir(parents=True)
+    (publish_dir / "latest.json").write_text(json.dumps({
+        "snapshotId": "baseline",
+        "artifacts": {
+            "generatorIndex": "snapshots/baseline/generators/index.json"
+        },
+    }))
+    (generator_dir / "index.json").write_text(json.dumps({
+        "countries": {"BR": {"path": "generators/BR.geojson"}},
+    }))
+    (generator_dir / "BR.geojson").write_text(json.dumps({
+        "type": "FeatureCollection", "features": [{
+            "type": "Feature", "id": "plant-1",
+            "geometry": {"type": "Point", "coordinates": [-43.6, -22.8]},
+            "properties": {
+                "id": "plant-1", "name": "Existing Brazilian plant",
+                "country": "BR", "geographyId": "BR-RJ",
+                "technologies": ["gas"], "technologyMixMw": {"gas": 120},
+                "capacityMw": 120, "lifecycleCounts": {"operational": 1},
+                "locationPrecision": "exact",
+                "sourceIds": ["brazil-aneel-siga"],
+                "sourceUrl": "https://dadosabertos.aneel.gov.br/",
+                "externalIds": {"aneelceg": "ABC"},
+                "aliases": ["Existing Brazilian plant"],
+                "recordIds": ["aneel-record-1"],
+            },
+        }],
+    }))
+
+    body, result = _published_power_source_result(
+        publish_dir,
+        source_id="brazil-aneel-siga",
+        source_type="official_verified",
+    )
+
+    records = json.loads(body)["records"]
+    assert result.state == ConnectorState.CACHED
+    assert [record["name"] for record in records] == ["Existing Brazilian plant"]
+    assert records[0]["capacityMw"] == {"low": 120, "central": 120, "high": 120}
+    assert records[0]["externalIds"] == {"aneelceg": "ABC"}
+
+
+def test_published_power_source_result_searches_older_governed_snapshots(
+    tmp_path,
+) -> None:
+    publish_dir = tmp_path / "public" / "data"
+    latest_id = "2026-07-21T11-46-20Z"
+    older_id = "2026-07-21T06-27-02Z"
+    latest_generators = publish_dir / "snapshots" / latest_id / "generators"
+    older_generators = publish_dir / "snapshots" / older_id / "generators"
+    latest_generators.mkdir(parents=True)
+    older_generators.mkdir(parents=True)
+    (publish_dir / "latest.json").write_text(json.dumps({
+        "snapshotId": latest_id,
+        "artifacts": {"generatorIndex": f"snapshots/{latest_id}/generators/index.json"},
+    }))
+    (latest_generators / "index.json").write_text(json.dumps({"countries": {}}))
+    (publish_dir / "snapshots" / older_id / "manifest.json").write_text(json.dumps({
+        "snapshotId": older_id,
+        "artifacts": {"generatorIndex": f"snapshots/{older_id}/generators/index.json"},
+    }))
+    (older_generators / "index.json").write_text(json.dumps({
+        "countries": {"BR": {"path": "generators/BR.geojson"}},
+    }))
+    (older_generators / "BR.geojson").write_text(json.dumps({
+        "type": "FeatureCollection", "features": [{
+            "type": "Feature", "id": "older-aneel",
+            "geometry": {"type": "Point", "coordinates": [-43.6, -22.8]},
+            "properties": {
+                "id": "older-aneel", "name": "Older governed plant",
+                "country": "BR", "geographyId": "BR-RJ",
+                "technologies": ["gas"], "technologyMixMw": {"gas": 120},
+                "capacityMw": 120, "lifecycleCounts": {"operational": 1},
+                "sourceIds": ["brazil-aneel-siga"],
+            },
+        }],
+    }))
+
+    body, result = _published_power_source_result(
+        publish_dir,
+        source_id="brazil-aneel-siga",
+        source_type="official_verified",
+    )
+
+    assert result.state == ConnectorState.CACHED
+    assert json.loads(body)["fallbackSnapshotId"] == older_id
+    assert json.loads(body)["records"][0]["name"] == "Older governed plant"
 
 
 def test_brazil_state_mapping_handles_publisher_and_boundary_spellings() -> None:
@@ -688,6 +1001,78 @@ def test_refresh_quality_allows_zero_optional_units_but_rejects_unit_regression(
         validate_refresh_quality({**current, "coverage": {**coverage, "canonicalPowerUnits": -1}})
     with pytest.raises(ValueError, match="coverage drop.*canonicalPowerUnits"):
         validate_refresh_quality(current, {"coverage": {**coverage, "canonicalPowerUnits": 3}})
+
+
+def test_refresh_quality_prevents_optional_demand_dataset_collapse() -> None:
+    required = {
+        "countries": 1, "admin1Regions": 2, "canonicalPowerPlants": 3,
+        "canonicalPowerUnits": 0, "generatorRegions": 2,
+        "regionalEnergyRegions": 2, "powerSourceRecords": 4,
+        "publishedPowerPlants": 3,
+    }
+    current = {"coverage": {
+        **required, "industrialLoads": 0, "hydrogenInfrastructure": 0,
+        "forecastIndustrialLoads": 0,
+    }, "quality": {
+        "countryDemandReconciled": True, "generatorArtifactsReconciled": True,
+    }}
+    previous = {"coverage": {
+        **required, "industrialLoads": 7_694, "hydrogenInfrastructure": 27,
+        "forecastIndustrialLoads": 236,
+    }}
+
+    with pytest.raises(ValueError, match="coverage drop.*industrialLoads"):
+        validate_refresh_quality(current, previous)
+
+
+def test_refresh_quality_prevents_governed_source_specific_record_collapse() -> None:
+    required = {
+        "countries": 1, "admin1Regions": 2, "canonicalPowerPlants": 3,
+        "canonicalPowerUnits": 0, "generatorRegions": 2,
+        "regionalEnergyRegions": 2, "powerSourceRecords": 4,
+        "publishedPowerPlants": 3,
+    }
+    current = {
+        "coverage": required,
+        "quality": {"countryDemandReconciled": True, "generatorArtifactsReconciled": True},
+        "sourceCoverage": {"publishedRecordsBySource": {
+            "gem-global-cement-concrete-2025": 0,
+            "iea-hydrogen-infrastructure-2026": 28,
+        }},
+    }
+    previous = {
+        "coverage": required,
+        "sourceCoverage": {"publishedRecordsBySource": {
+            "gem-global-cement-concrete-2025": 3_469,
+            "iea-hydrogen-infrastructure-2026": 27,
+        }},
+    }
+
+    with pytest.raises(ValueError, match="source coverage drop.*gem-global-cement"):
+        validate_refresh_quality(current, previous)
+
+
+def test_refresh_quality_prevents_aneel_published_facility_collapse() -> None:
+    required = {
+        "countries": 1, "admin1Regions": 2, "canonicalPowerPlants": 3,
+        "canonicalPowerUnits": 0, "generatorRegions": 2,
+        "regionalEnergyRegions": 2, "powerSourceRecords": 4,
+        "publishedPowerPlants": 3,
+    }
+    current = {
+        "coverage": {
+            **required,
+            "publishedPowerPlantsBySource": {"brazil-aneel-siga": 0},
+        },
+        "quality": {"countryDemandReconciled": True, "generatorArtifactsReconciled": True},
+    }
+    previous = {"coverage": {
+        **required,
+        "publishedPowerPlantsBySource": {"brazil-aneel-siga": 24_497},
+    }}
+
+    with pytest.raises(ValueError, match="published facility coverage drop.*brazil-aneel-siga"):
+        validate_refresh_quality(current, previous)
 
 
 def test_generator_reconciliation_is_computed_from_artifact_contents() -> None:

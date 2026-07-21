@@ -113,6 +113,8 @@ INDUSTRIAL_SOURCE_IDS = (
     GEM_STEEL_UNIT_SOURCE_ID,
     GEM_IRON_UNIT_SOURCE_ID,
 )
+PRESERVED_SOURCE_RECORD_IDS = INDUSTRIAL_SOURCE_IDS
+PRESERVED_POWER_FACILITY_SOURCE_IDS = ("brazil-aneel-siga",)
 REFRESH_STEPS = (
     "boundaries",
     "population",
@@ -142,6 +144,11 @@ _QUALITY_NONNEGATIVE_COUNT_FIELDS = ("canonicalPowerUnits",)
 _QUALITY_REQUIRED_POSITIVE_COUNT_FIELDS = tuple(
     field for field in _QUALITY_COUNT_FIELDS
     if field not in _QUALITY_NONNEGATIVE_COUNT_FIELDS
+)
+_OPTIONAL_PRESERVED_COUNT_FIELDS = (
+    "industrialLoads",
+    "hydrogenInfrastructure",
+    "forecastIndustrialLoads",
 )
 
 _US_STATE_CODES = {
@@ -640,7 +647,7 @@ def validate_refresh_quality(
     previous = previous_manifest.get("coverage")
     if not isinstance(previous, Mapping):
         return
-    for field in _QUALITY_COUNT_FIELDS:
+    for field in (*_QUALITY_COUNT_FIELDS, *_OPTIONAL_PRESERVED_COUNT_FIELDS):
         old = previous.get(field)
         new = coverage.get(field)
         if (
@@ -648,6 +655,41 @@ def validate_refresh_quality(
             and isinstance(new, int) and not isinstance(new, bool) and new < old
         ):
             raise ValueError(f"coverage drop for {field}: {new} < {old}")
+    previous_power_facilities = previous.get("publishedPowerPlantsBySource")
+    current_power_facilities = coverage.get("publishedPowerPlantsBySource")
+    if isinstance(previous_power_facilities, Mapping):
+        if not isinstance(current_power_facilities, Mapping):
+            raise ValueError("published power facility coverage report is missing")
+        for source_id in PRESERVED_POWER_FACILITY_SOURCE_IDS:
+            old = previous_power_facilities.get(source_id)
+            new = current_power_facilities.get(source_id)
+            if (
+                isinstance(old, int) and not isinstance(old, bool) and old > 0
+                and (not isinstance(new, int) or isinstance(new, bool) or new < old)
+            ):
+                raise ValueError(
+                    f"published facility coverage drop for {source_id}: {new} < {old}"
+                )
+    previous_source_coverage = previous_manifest.get("sourceCoverage")
+    current_source_coverage = current_manifest.get("sourceCoverage")
+    if not isinstance(previous_source_coverage, Mapping):
+        return
+    if not isinstance(current_source_coverage, Mapping):
+        raise ValueError("refresh source coverage report is missing")
+    previous_records = previous_source_coverage.get("publishedRecordsBySource")
+    current_records = current_source_coverage.get("publishedRecordsBySource")
+    if not isinstance(previous_records, Mapping):
+        return
+    if not isinstance(current_records, Mapping):
+        raise ValueError("refresh source-specific coverage report is missing")
+    for source_id in PRESERVED_SOURCE_RECORD_IDS:
+        old = previous_records.get(source_id)
+        new = current_records.get(source_id)
+        if (
+            isinstance(old, int) and not isinstance(old, bool) and old > 0
+            and (not isinstance(new, int) or isinstance(new, bool) or new < old)
+        ):
+            raise ValueError(f"source coverage drop for {source_id}: {new} < {old}")
 
 
 def _validate_connector_identity(
@@ -753,6 +795,114 @@ def _osm_infrastructure_result(
                 "QLever failed and no governed published OSM fallback was available: "
                 f"{fallback_error}"
             ) from network_error
+
+
+def _published_industrial_assets(
+    publish_dir: Path,
+    *,
+    source_ids: set[str],
+) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    """Read governed industrial assets from the last atomically published snapshot.
+
+    Manual releases are intentionally absent from a clean CI checkout. Reusing their
+    already-published normalized records preserves coverage without bypassing source
+    governance or reaching outside the declared snapshot artifact.
+    """
+
+    if not source_ids:
+        return [], {}
+    latest = _read_json(publish_dir / "latest.json")
+    latest_snapshot_id = str(latest.get("snapshotId") or "")
+    unresolved_source_ids = set(source_ids)
+    recovered_snapshot_ids: dict[str, str] = {}
+    recovered_assets: dict[str, dict[str, Any]] = {}
+
+    def from_manifest(
+        manifest: Mapping[str, Any], *, expected_snapshot_id: str | None = None
+    ) -> tuple[list[dict[str, Any]], str]:
+        snapshot_id = str(manifest.get("snapshotId") or "")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", snapshot_id):
+            raise ValueError("published snapshot has an unsafe ID")
+        if expected_snapshot_id is not None and snapshot_id != expected_snapshot_id:
+            raise ValueError("published snapshot manifest ID does not match its directory")
+        artifact_path = ((manifest.get("artifacts") or {}).get("assets"))
+        expected = f"snapshots/{snapshot_id}/assets.geojson"
+        if artifact_path != expected:
+            raise ValueError("published snapshot has an unexpected assets path")
+        collection = _read_json(publish_dir / expected)
+        if collection.get("type") != "FeatureCollection":
+            raise ValueError("published industrial fallback is not a FeatureCollection")
+        assets: list[dict[str, Any]] = []
+        for feature in collection.get("features", []):
+            if not isinstance(feature, Mapping):
+                continue
+            properties = feature.get("properties")
+            if not isinstance(properties, Mapping) or properties.get("category") not in {
+                "industrial_load", "hydrogen_infrastructure"
+            }:
+                continue
+            asset_source_ids = properties.get("sourceIds")
+            if not isinstance(asset_source_ids, list) or not source_ids.intersection(
+                str(source_id) for source_id in asset_source_ids
+            ):
+                continue
+            geometry = feature.get("geometry")
+            if not isinstance(geometry, Mapping) or geometry.get("type") != "Point":
+                continue
+            coordinates = geometry.get("coordinates")
+            if (
+                not isinstance(coordinates, list)
+                or len(coordinates) != 2
+                or any(
+                    isinstance(value, bool)
+                    or not isinstance(value, (int, float))
+                    or not math.isfinite(float(value))
+                    for value in coordinates
+                )
+            ):
+                continue
+            identifier = str(properties.get("id") or feature.get("id") or "").strip()
+            if not identifier:
+                continue
+            assets.append({**properties, "id": identifier, "coordinates": coordinates})
+        return sorted(assets, key=lambda asset: str(asset["id"])), snapshot_id
+
+    def recover(assets: Iterable[Mapping[str, Any]], snapshot_id: str) -> None:
+        wanted_source_ids = set(unresolved_source_ids)
+        recovered_in_snapshot: set[str] = set()
+        for asset in assets:
+            recovered_for_asset = wanted_source_ids.intersection(
+                str(source_id) for source_id in (asset.get("sourceIds") or [])
+            )
+            if not recovered_for_asset:
+                continue
+            recovered_assets[str(asset["id"])] = dict(asset)
+            recovered_in_snapshot.update(recovered_for_asset)
+        for source_id in recovered_in_snapshot:
+            recovered_snapshot_ids[source_id] = snapshot_id
+        unresolved_source_ids.difference_update(recovered_in_snapshot)
+
+    assets, snapshot_id = from_manifest(latest)
+    recover(assets, snapshot_id)
+    if not unresolved_source_ids:
+        return [recovered_assets[key] for key in sorted(recovered_assets)], recovered_snapshot_ids
+    snapshot_root = publish_dir / "snapshots"
+    for candidate in sorted(snapshot_root.iterdir(), key=lambda path: path.name, reverse=True):
+        if not candidate.is_dir() or candidate.name == latest_snapshot_id:
+            continue
+        manifest_path = candidate / "manifest.json"
+        if not manifest_path.exists():
+            continue
+        try:
+            assets, snapshot_id = from_manifest(
+                _read_json(manifest_path), expected_snapshot_id=candidate.name
+            )
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+        recover(assets, snapshot_id)
+        if not unresolved_source_ids:
+            break
+    return [recovered_assets[key] for key in sorted(recovered_assets)], recovered_snapshot_ids
 
 
 def _osm_power_result(
@@ -881,6 +1031,128 @@ def _osm_power_result(
         ) from failure
 
 
+def _published_power_source_result(
+    publish_dir: Path,
+    *,
+    source_id: str,
+    source_type: str,
+) -> tuple[bytes, ConnectorResult]:
+    """Rehydrate one governed source from canonical published generator shards."""
+
+    latest = _read_json(publish_dir / "latest.json")
+    lifecycle_precedence = (
+        "under_construction", "pre_construction", "announced", "operational",
+        "decommissioned", "paused", "cancelled",
+    )
+    latest_snapshot_id = str(latest.get("snapshotId") or "")
+    candidates: list[tuple[Mapping[str, Any], str | None]] = [(latest, None)]
+    snapshot_root = publish_dir / "snapshots"
+    for candidate in sorted(snapshot_root.iterdir(), key=lambda path: path.name, reverse=True):
+        if not candidate.is_dir() or candidate.name == latest_snapshot_id:
+            continue
+        manifest_path = candidate / "manifest.json"
+        if not manifest_path.exists():
+            continue
+        try:
+            candidates.append((_read_json(manifest_path), candidate.name))
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+
+    records: list[dict[str, Any]] = []
+    snapshot_id = latest_snapshot_id
+    for candidate_index, (manifest, expected_snapshot_id) in enumerate(candidates):
+        try:
+            snapshot_id = str(manifest.get("snapshotId") or "")
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", snapshot_id):
+                raise ValueError("published snapshot has an unsafe ID")
+            if expected_snapshot_id is not None and snapshot_id != expected_snapshot_id:
+                raise ValueError("published snapshot manifest ID does not match its directory")
+            index_path = ((manifest.get("artifacts") or {}).get("generatorIndex"))
+            expected_index = f"snapshots/{snapshot_id}/generators/index.json"
+            if index_path != expected_index:
+                raise ValueError("published snapshot has an unexpected generator index path")
+            snapshot_dir = publish_dir / "snapshots" / snapshot_id
+            index = _read_json(publish_dir / expected_index)
+            candidate_records: list[dict[str, Any]] = []
+            for country, entry in sorted((index.get("countries") or {}).items()):
+                expected_shard = f"generators/{country}.geojson"
+                if not isinstance(entry, dict) or entry.get("path") != expected_shard:
+                    raise ValueError("published generator index has an unexpected shard path")
+                shard = _read_json(snapshot_dir / expected_shard)
+                for feature in shard.get("features", []):
+                    properties = feature.get("properties") or {}
+                    if source_id not in (properties.get("sourceIds") or []):
+                        continue
+                    geometry = feature.get("geometry") or {}
+                    coordinates = geometry.get("coordinates")
+                    if geometry.get("type") != "Point" or not isinstance(coordinates, list) or len(coordinates) != 2:
+                        continue
+                    mix = properties.get("technologyMixMw") or {}
+                    technologies = properties.get("technologies") or list(mix)
+                    technology = max(
+                        (str(value) for value in technologies),
+                        key=lambda value: (float(mix.get(value, 0) or 0), value),
+                    ) if technologies else "other"
+                    lifecycle_counts = properties.get("lifecycleCounts") or {}
+                    lifecycle = next((
+                        value for value in lifecycle_precedence
+                        if float(lifecycle_counts.get(value, 0) or 0) > 0
+                    ), "operational")
+                    capacity = float(properties.get("capacityMw", 0) or 0)
+                    capacity_range = {"low": capacity, "central": capacity, "high": capacity} if capacity > 0 else None
+                    feature_id = str(properties.get("id") or feature.get("id") or "").strip()
+                    if not feature_id:
+                        continue
+                    candidate_records.append({
+                        "id": f"published-{source_id}-{feature_id}",
+                        "name": properties.get("name") or "Published power plant",
+                        "category": "power_generation", "technology": technology,
+                        "primaryFuel": technology, "secondaryFuel": None,
+                        "lifecycle": lifecycle, "capacityMw": capacity_range,
+                        "capacityValueKind": "reported" if capacity_range else "unavailable",
+                        "plantId": feature_id, "unitId": None,
+                        "externalIds": properties.get("externalIds") or {},
+                        "coordinates": coordinates,
+                        "country": properties.get("country") or country,
+                        "geographyId": properties.get("geographyId") or country,
+                        "locationPrecision": properties.get("locationPrecision") or "exact",
+                        "aliases": properties.get("aliases") or [],
+                        "sourceRecordIds": properties.get("recordIds") or [],
+                        "sourceIds": [source_id], "sourceType": source_type,
+                        "sourceUrl": properties.get("sourceUrl"),
+                        "valueKind": "reported" if capacity_range else "observed",
+                    })
+            if candidate_records:
+                records = candidate_records
+                break
+        except (OSError, ValueError, json.JSONDecodeError):
+            if candidate_index == 0:
+                raise
+            continue
+    if not records:
+        raise ValueError(
+            f"published snapshot contains no governed {source_id} power plants"
+        )
+    body = json.dumps(
+        {
+            "source": source_id,
+            "fallbackSnapshotId": snapshot_id,
+            "records": sorted(records, key=lambda record: str(record["id"])),
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode()
+    return body, ConnectorResult(
+        source_id=source_id,
+        state=ConnectorState.CACHED,
+        payload=None,
+        message=(
+            f"Public endpoint was unavailable; rehydrated governed {source_id} "
+            f"plants from snapshot {snapshot_id}."
+        ),
+    )
+
+
 def _optional_network_result(
     fetch: Callable[[], ConnectorResult],
     source_id: str,
@@ -931,11 +1203,50 @@ def _optional_network_result(
 
 
 def _entsoe_network_result(
-    fetch: Callable[[], ConnectorResult], store: RawCaptureStore
+    fetch: Callable[[], ConnectorResult],
+    store: RawCaptureStore,
+    *,
+    publish_dir: Path | None = None,
 ) -> tuple[bytes, ConnectorResult]:
     """Publish partial ENTSO-E evidence without replacing a complete capture."""
 
     source_id = "entsoe"
+
+    def published_fallback() -> tuple[bytes, ConnectorResult] | None:
+        if publish_dir is None:
+            return None
+        try:
+            latest = _read_json(publish_dir / "latest.json")
+            snapshot_id = str(latest.get("snapshotId") or "")
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", snapshot_id):
+                raise ValueError("published snapshot has an unsafe ID")
+            artifact_path = ((latest.get("artifacts") or {}).get("entsoeMonthly"))
+            expected = f"snapshots/{snapshot_id}/entsoe-monthly.json"
+            if artifact_path != expected:
+                raise ValueError("published snapshot has an unexpected ENTSO-E path")
+            body = (publish_dir / expected).read_bytes()
+            payload = json.loads(body)
+            if (
+                not isinstance(payload, Mapping)
+                or payload.get("source") != source_id
+                or payload.get("complete") is not True
+                or not isinstance(payload.get("records"), list)
+                or not payload["records"]
+                or _contains_credential_material(payload)
+            ):
+                raise ValueError("published ENTSO-E artifact is not a complete safe capture")
+            return body, ConnectorResult(
+                source_id=source_id,
+                state=ConnectorState.CACHED,
+                payload=None,
+                message=(
+                    "API credentials were unavailable during refresh; reused the "
+                    f"complete public ENTSO-E artifact from snapshot {snapshot_id}."
+                ),
+            )
+        except (OSError, ValueError, json.JSONDecodeError):
+            return None
+
     try:
         result = fetch()
         _validate_connector_identity(result, source_id)
@@ -968,7 +1279,10 @@ def _entsoe_network_result(
                 ),
             )
         if result.state == ConnectorState.NOT_CONFIGURED:
-            return b'{"records":[]}', result
+            return published_fallback() or (b'{"records":[]}', result)
+        fallback = published_fallback()
+        if fallback is not None:
+            return fallback
         return b'{"records":[]}', result
     except ValueError:
         raise
@@ -981,6 +1295,9 @@ def _entsoe_network_result(
                 payload=None,
                 message=f"Using last complete ENTSO-E capture: {error}",
             )
+        fallback = published_fallback()
+        if fallback is not None:
+            return fallback
         return b'{"records":[]}', ConnectorResult(
             source_id=source_id,
             state=ConnectorState.FAILED,
@@ -1841,6 +2158,16 @@ def refresh() -> Path:
             "brazil-aneel-siga",
             store,
         )
+        if not (json.loads(aneel_body).get("records") or []):
+            try:
+                aneel_body, aneel_status = _published_power_source_result(
+                    PUBLISH_DIR,
+                    source_id="brazil-aneel-siga",
+                    source_type="official_verified",
+                )
+            except (OSError, ValueError, json.JSONDecodeError):
+                # The coverage gate below will prevent a silent plant-count collapse.
+                pass
         wri_body, wri_status = _optional_network_result(
             lambda: WriPowerConnector().fetch(client, now=now), "wri_power", store
         )
@@ -1854,6 +2181,7 @@ def refresh() -> Path:
                 client, now=now, areas=entsoe_areas
             ),
             store,
+            publish_dir=PUBLISH_DIR,
         )
     entsoe_publication = normalize_entsoe_publication(entsoe_body)
 
@@ -1951,6 +2279,52 @@ def refresh() -> Path:
             CURATED_PATH.parent / "industrial-demand-assumptions.json"
         ),
     )
+    steel_source_ids = {
+        GEM_STEEL_PLANT_SOURCE_ID,
+        GEM_STEEL_UNIT_SOURCE_ID,
+        GEM_IRON_UNIT_SOURCE_ID,
+    }
+    industrial_fallback_source_ids = set(INDUSTRIAL_SOURCE_IDS).difference(
+        industrial_captures
+    )
+    if not steel_source_ids.issubset(industrial_captures):
+        # The three GEM steel workbooks form one normalized release.
+        industrial_fallback_source_ids.update(steel_source_ids)
+    fallback_industrial_assets: list[dict[str, Any]] = []
+    fallback_snapshot_ids: dict[str, str] = {}
+    if industrial_fallback_source_ids:
+        fallback_industrial_assets, fallback_snapshot_ids = (
+            _published_industrial_assets(
+                PUBLISH_DIR, source_ids=industrial_fallback_source_ids
+            )
+        )
+    industrial_assets_by_id = {
+        str(asset["id"]): asset for asset in fallback_industrial_assets
+    }
+    # Fresh governed imports replace their prior normalized records by stable ID.
+    industrial_assets_by_id.update({
+        str(asset["id"]): asset for asset in industrial_assets
+    })
+    industrial_assets = [
+        industrial_assets_by_id[identifier]
+        for identifier in sorted(industrial_assets_by_id)
+    ]
+    industrial_counts = {
+        "normalized": industrial_counts["normalized"] + len(fallback_industrial_assets),
+        "mappable": len(industrial_assets),
+        "forecastEligible": len({
+            str(asset["id"])
+            for asset in industrial_assets
+            if bool(asset.get("gridDemandContribution"))
+            and asset.get("lifecycle") in {
+                "announced", "planning_filed", "permitted", "pre_construction",
+                "under_construction",
+            }
+            and isinstance(asset.get("targetYear"), int)
+            and 2026 <= asset["targetYear"] <= 2031
+            and asset.get("geographyId") != asset.get("country")
+        }),
+    }
     registry = merge_industrial_assets(registry, industrial_assets)
     store.save_canonical_assets(registry["assets"])
     industrial_source_counts = {
@@ -1960,19 +2334,34 @@ def refresh() -> Path:
         )
         for source_id in INDUSTRIAL_SOURCE_IDS
     }
-    industrial_statuses = [
-        _records_result(
-            [{
-                "normalizedRecords": industrial_counts["normalized"],
-                "publishedRecords": industrial_source_counts[source_id],
-                "forecastEligibleRecords": industrial_counts["forecastEligible"],
-            }],
-            source_id=source_id,
-            now=now,
-            configured=source_id in industrial_captures,
-        )
-        for source_id in INDUSTRIAL_SOURCE_IDS
-    ]
+    industrial_statuses: list[ConnectorResult] = []
+    for source_id in INDUSTRIAL_SOURCE_IDS:
+        status_records = [{
+            "normalizedRecords": industrial_counts["normalized"],
+            "publishedRecords": industrial_source_counts[source_id],
+            "forecastEligibleRecords": industrial_counts["forecastEligible"],
+        }]
+        if (
+            source_id in industrial_fallback_source_ids
+            and industrial_source_counts[source_id] > 0
+        ):
+            industrial_statuses.append(ConnectorResult(
+                source_id=source_id,
+                state=ConnectorState.CACHED,
+                payload=None,
+                message=(
+                    "Manual release was unavailable during refresh; reused governed "
+                    "normalized facilities from snapshot "
+                    f"{fallback_snapshot_ids.get(source_id, 'unknown')}."
+                ),
+            ))
+        else:
+            industrial_statuses.append(_records_result(
+                status_records,
+                source_id=source_id,
+                now=now,
+                configured=source_id in industrial_captures,
+            ))
     publishable_plants = [
         plant for plant in canonical_power["plants"]
         if plant.get("geographyId") in active_admin1
@@ -2171,6 +2560,13 @@ def refresh() -> Path:
             "canonicalPowerPlants": len(canonical_power["plants"]),
             "canonicalPowerUnits": len(canonical_power["units"]),
             "publishedPowerPlants": len(publishable_plants),
+            "publishedPowerPlantsBySource": {
+                source_id: sum(
+                    source_id in (plant.get("sourceIds") or [])
+                    for plant in publishable_plants
+                )
+                for source_id in POWER_SOURCE_PRECEDENCE
+            },
             "generatorRegions": len(json.loads(artifacts["generator-overview.geojson"])["features"]),
             "regionalEnergyRegions": len(regional_energy),
             "cities": len(json.loads(artifacts["cities.geojson"])["features"]),

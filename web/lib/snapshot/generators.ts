@@ -34,7 +34,7 @@ const MAX_BYTES: Record<LayerKind, number> = {
   "regional-energy": 48 * 1024 * 1024,
   "generator-overview": 16 * 1024 * 1024,
   "generator-index": 2 * 1024 * 1024,
-  "generator-country": 32 * 1024 * 1024,
+  "generator-country": 64 * 1024 * 1024,
 };
 const MAX_COUNTRY_FEATURES = 250_000;
 const immutablePathCache = new Map<string, CacheEntry<unknown>>();
@@ -249,4 +249,56 @@ export function loadGeneratorCountry(
   return loadLayer("generator-country", `${root}/${entry.path}`, generatorCountryShardSchema, options.signal, {
     bytes: entry.bytes, checksum: entry.checksum, featureCount: entry.featureCount,
   });
+}
+
+type GeneratorCountryLoader = typeof loadGeneratorCountry;
+
+export async function loadGeneratorCatalogue(
+  snapshotRoot: string,
+  index: GeneratorIndex,
+  options: {
+    signal?: AbortSignal;
+    concurrency?: number;
+    loadCountry?: GeneratorCountryLoader;
+  } = {},
+): Promise<LayerResult<GeneratorCollection>> {
+  const countries = Object.keys(index.countries).sort();
+  const concurrency = Math.max(1, Math.min(options.concurrency ?? 4, countries.length || 1));
+  const loadCountry = options.loadCountry ?? loadGeneratorCountry;
+  const byCountry = new Map<string, GeneratorCollection>();
+  let cursor = 0;
+  let firstError: LayerError | null = null;
+
+  await Promise.all(Array.from({ length: concurrency }, async () => {
+    while (!options.signal?.aborted && firstError === null && cursor < countries.length) {
+      const country = countries[cursor++];
+      const result = await loadCountry(snapshotRoot, index, country, { signal: options.signal });
+      if (!result.ok) {
+        firstError ??= result.error;
+        return;
+      }
+      byCountry.set(country, result.data);
+    }
+  }));
+
+  if (options.signal?.aborted) {
+    return {
+      ok: false,
+      error: { kind: "aborted", message: "Generator catalogue request was superseded", recoverable: true, path: snapshotRoot },
+    };
+  }
+  if (firstError !== null) return { ok: false, error: firstError };
+  const features = countries.flatMap((country) => byCountry.get(country)?.features ?? []);
+  if (byCountry.size !== countries.length || features.length !== index.totals.featureCount) {
+    return {
+      ok: false,
+      error: {
+        kind: "invalid",
+        message: `Generator catalogue count mismatch (${features.length}/${index.totals.featureCount})`,
+        recoverable: true,
+        path: snapshotRoot,
+      },
+    };
+  }
+  return { ok: true, data: { type: "FeatureCollection", features } };
 }

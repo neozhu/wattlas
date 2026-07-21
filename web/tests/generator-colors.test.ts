@@ -76,7 +76,10 @@ describe("generator semantics", () => {
       geographyId: "US-X", country: "US", count: 1,
       capacityMw: 100, operatingCapacityMw: 80, plannedCapacityMw: 20,
       technologyMixMw: { solar: 100 }, dominantTechnology: "solar",
+      lifecycleCounts: { operational: 1 },
     });
+    expect(filterGeneratorOverview(filtered, new Set(["solar"]), new Set(["announced"])).features).toHaveLength(0);
+    expect(filterGeneratorOverview(filtered, new Set(["solar"]), new Set(["operational"])).features).toHaveLength(1);
   });
 
   it("reuses the immutable published overview for the default capacity range", () => {

@@ -19,11 +19,13 @@ import { loadSnapshot, serverSnapshotArtifactPaths } from "@/lib/snapshot/load";
 import {
   clearSnapshotLayerCache,
   loadAdmin1,
+  loadGeneratorCatalogue,
   loadGeneratorCountry,
   loadGeneratorIndex,
   loadGeneratorOverview,
   loadRegionalEnergy,
 } from "@/lib/snapshot/generators";
+import type { GeneratorCollection, GeneratorIndex } from "@/lib/snapshot/types";
 
 const validManifest = {
   snapshotId: "2026-06-27T04-12-00Z",
@@ -396,6 +398,65 @@ describe("lazy snapshot layers", () => {
     expect(first.ok && first.data).toEqual(payload);
     expect(second.ok).toBe(true);
     expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows governed country shards large enough for the published Brazil catalogue", async () => {
+    const payload = { type: "FeatureCollection", features: [] };
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse(payload));
+    vi.stubGlobal("fetch", fetcher);
+    const index = generatorIndexSchema.parse({
+      countries: {
+        BR: {
+          bbox: [-74, -34, -34, 6], path: "generators/BR.geojson", featureCount: 0,
+          checksum: "a".repeat(64), bytes: 41 * 1024 * 1024, capacityMw: 0,
+        },
+      },
+      totals: { featureCount: 0, capacityMw: 0 },
+    });
+
+    const result = await loadGeneratorCountry("snapshots/id", index, "BR");
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ ok: false, error: { kind: "invalid" } });
+    if (!result.ok) expect(result.error.message).not.toContain("safety limits");
+  });
+
+  it("rejects a generator catalogue when any published country shard fails", async () => {
+    const index = {
+      countries: {
+        DE: { bbox: [5, 47, 15, 55], path: "generators/DE.geojson", featureCount: 1, checksum: "a".repeat(64), bytes: 1, capacityMw: 80 },
+        US: { bbox: [-125, 24, -66, 50], path: "generators/US.geojson", featureCount: 1, checksum: "b".repeat(64), bytes: 1, capacityMw: 120 },
+      },
+      totals: { featureCount: 2, capacityMw: 200 },
+    } as GeneratorIndex;
+    const oneFeature = { type: "FeatureCollection", features: [{
+      type: "Feature", id: "plant-1", geometry: { type: "Point", coordinates: [8, 50] },
+      properties: {
+        id: "plant-1", category: "power_generation", country: "DE", geographyId: "DE-X",
+        technologies: ["solar"], capacityMw: 80, operatingCapacityMw: 80,
+        plannedCapacityMw: 0, technologyMixMw: { solar: 80 }, sourceIds: ["source"],
+      },
+    }] } as GeneratorCollection;
+    const loadCountry = vi.fn(async (_root: string, _index: GeneratorIndex, country: string) => country === "DE"
+      ? { ok: true as const, data: oneFeature }
+      : { ok: false as const, error: { kind: "network" as const, message: "offline", recoverable: true as const, path: "US" } });
+
+    const result = await loadGeneratorCatalogue("snapshots/id", index, { loadCountry });
+
+    expect(result).toMatchObject({ ok: false, error: { kind: "network", path: "US" } });
+    expect(loadCountry).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a generator catalogue whose collected count differs from the index", async () => {
+    const index = {
+      countries: { DE: { bbox: [5, 47, 15, 55], path: "generators/DE.geojson", featureCount: 2, checksum: "a".repeat(64), bytes: 1, capacityMw: 80 } },
+      totals: { featureCount: 2, capacityMw: 80 },
+    } as GeneratorIndex;
+    const loadCountry = vi.fn(async () => ({ ok: true as const, data: { type: "FeatureCollection", features: [] } as GeneratorCollection }));
+
+    const result = await loadGeneratorCatalogue("snapshots/id", index, { loadCountry });
+
+    expect(result).toMatchObject({ ok: false, error: { kind: "invalid" } });
   });
 
   it("evicts rejected and aborted requests and returns a recoverable layer error", async () => {

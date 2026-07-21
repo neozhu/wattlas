@@ -69,6 +69,7 @@ export function buildCapacityFilteredGeneratorOverview(data: GeneratorCollection
             plannedCapacityMw: 0,
             technologyMixMw: {},
             dominantTechnology: generator.properties.technologies[0] ?? published.properties.dominantTechnology,
+            lifecycleCounts: {},
           },
         } as OverviewFeature,
         technologyCounts: {},
@@ -80,6 +81,16 @@ export function buildCapacityFilteredGeneratorOverview(data: GeneratorCollection
     properties.capacityMw += generator.properties.capacityMw;
     properties.operatingCapacityMw += generator.properties.operatingCapacityMw;
     properties.plannedCapacityMw += generator.properties.plannedCapacityMw;
+    const lifecycleCounts = generator.properties.lifecycleCounts;
+    if (lifecycleCounts && Object.keys(lifecycleCounts).length > 0) {
+      for (const [lifecycle, count] of Object.entries(lifecycleCounts)) {
+        if (typeof count !== "number" || count <= 0) continue;
+        properties.lifecycleCounts![lifecycle] = (properties.lifecycleCounts![lifecycle] ?? 0) + count;
+      }
+    } else {
+      const lifecycle = generator.properties.lifecycle ?? "unknown";
+      properties.lifecycleCounts![lifecycle] = (properties.lifecycleCounts![lifecycle] ?? 0) + 1;
+    }
     for (const technology of generator.properties.technologies) {
       aggregate.technologyCounts[technology] = (aggregate.technologyCounts[technology] ?? 0) + 1;
     }
