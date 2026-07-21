@@ -118,7 +118,6 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
   const selectedIdRef = useRef(selectedId);
   const lensRef = useRef(lens);
   const hoveredAdmin1Ref = useRef<string | number | null>(null);
-  citiesRef.current = cities;
 
   useEffect(() => {
     onSelectRef.current = onSelect;
@@ -132,7 +131,8 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
     generatorFiltersRef.current = { technologies, lifecycles };
     infrastructureRef.current = infrastructure;
     generatorOverviewRef.current = preparedGeneratorOverview;
-  }, [infrastructure, lens, lifecycles, onSelect, onSelectGenerator, onVisibleGeneratorsChange, preparedAdmin1, preparedCountries, preparedGeneratorOverview, preparedRegions, selectedId, technologies]);
+    citiesRef.current = cities;
+  }, [cities, infrastructure, lens, lifecycles, onSelect, onSelectGenerator, onVisibleGeneratorsChange, preparedAdmin1, preparedCountries, preparedGeneratorOverview, preparedRegions, selectedId, technologies]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -146,13 +146,13 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
       maxZoom: 12,
       attributionControl: false,
     });
-    map.setProjection({ type: "globe" });
     hoveredAdmin1Ref.current = null;
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-left");
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
 
     map.on("load", () => {
+      map.setProjection({ type: "globe" });
       map.addSource("countries", { type: "geojson", data: countriesRef.current, promoteId: "id" });
       map.addSource("admin1", { type: "geojson", data: admin1Ref.current, promoteId: "id" });
       map.addSource("regions", { type: "geojson", data: regionsRef.current, promoteId: "id" });

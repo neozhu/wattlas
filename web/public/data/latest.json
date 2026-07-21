@@ -1,6 +1,6 @@
 {
-  "snapshotId": "2026-07-18T01-20-10Z",
-  "generatedAt": "2026-07-18T01:20:10Z",
+  "snapshotId": "2026-07-21T04-01-18Z",
+  "generatedAt": "2026-07-21T04:01:18Z",
   "modelVersion": "2.1.0",
   "activeYears": [
     2026,
@@ -11,27 +11,30 @@
     2031
   ],
   "artifacts": {
-    "countries": "snapshots/2026-07-18T01-20-10Z/countries.geojson",
-    "admin1": "snapshots/2026-07-18T01-20-10Z/admin1.geojson",
-    "regions": "snapshots/2026-07-18T01-20-10Z/regions.geojson",
-    "assets": "snapshots/2026-07-18T01-20-10Z/assets.geojson",
-    "evidence": "snapshots/2026-07-18T01-20-10Z/evidence.json",
-    "regionalEnergy": "snapshots/2026-07-18T01-20-10Z/regional-energy.json",
-    "generatorOverview": "snapshots/2026-07-18T01-20-10Z/generator-overview.geojson",
-    "generatorIndex": "snapshots/2026-07-18T01-20-10Z/generators/index.json",
-    "cities": "snapshots/2026-07-18T01-20-10Z/cities.geojson",
-    "grid": "snapshots/2026-07-18T01-20-10Z/grid.geojson",
-    "cooling": "snapshots/2026-07-18T01-20-10Z/cooling.json",
-    "sourceCatalog": "snapshots/2026-07-18T01-20-10Z/source-catalog.json"
+    "countries": "snapshots/2026-07-21T04-01-18Z/countries.geojson",
+    "admin1": "snapshots/2026-07-21T04-01-18Z/admin1.geojson",
+    "regions": "snapshots/2026-07-21T04-01-18Z/regions.geojson",
+    "assets": "snapshots/2026-07-21T04-01-18Z/assets.geojson",
+    "evidence": "snapshots/2026-07-21T04-01-18Z/evidence.json",
+    "regionalEnergy": "snapshots/2026-07-21T04-01-18Z/regional-energy.json",
+    "generatorOverview": "snapshots/2026-07-21T04-01-18Z/generator-overview.geojson",
+    "generatorIndex": "snapshots/2026-07-21T04-01-18Z/generators/index.json",
+    "cities": "snapshots/2026-07-21T04-01-18Z/cities.geojson",
+    "grid": "snapshots/2026-07-21T04-01-18Z/grid.geojson",
+    "cooling": "snapshots/2026-07-21T04-01-18Z/cooling.json",
+    "sourceCatalog": "snapshots/2026-07-21T04-01-18Z/source-catalog.json"
   },
   "coverage": {
     "countries": 246,
     "regions": 334,
     "admin1Regions": 3229,
     "countriesWithAdmin1": 197,
-    "assets": 4348,
+    "assets": 12069,
     "dataCentres": 4247,
     "waterInfrastructure": 101,
+    "industrialLoads": 7694,
+    "hydrogenInfrastructure": 27,
+    "forecastIndustrialLoads": 236,
     "powerSourceRecords": 238395,
     "powerSourceRecordsBySource": {
       "official_power": 0,
@@ -87,8 +90,8 @@
       "id": "un_geodata",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": null,
       "message": null
     },
@@ -96,8 +99,8 @@
       "id": "gisco",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": null,
       "message": null
     },
@@ -105,8 +108,8 @@
       "id": "eurostat",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": null,
       "message": null
     },
@@ -114,8 +117,8 @@
       "id": "osm_infrastructure",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": null,
       "message": null
     },
@@ -123,8 +126,8 @@
       "id": "global_assets",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": null,
       "message": null
     },
@@ -132,8 +135,8 @@
       "id": "source_registry",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": null,
       "message": null
     },
@@ -141,8 +144,8 @@
       "id": "geoboundaries_adm1",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": null,
       "message": null
     },
@@ -150,8 +153,8 @@
       "id": "curated_evidence",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": null,
       "message": null
     },
@@ -159,7 +162,7 @@
       "id": "entsoe",
       "state": "not_configured",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
       "lastSuccessAt": null,
       "observationDate": null,
       "message": "ENTSO-E security token is not configured."
@@ -168,7 +171,7 @@
       "id": "official_power",
       "state": "not_configured",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
       "lastSuccessAt": null,
       "observationDate": null,
       "message": "Optional official_power public release is not configured."
@@ -177,7 +180,7 @@
       "id": "brazil-aneel-siga",
       "state": "failed",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
       "lastSuccessAt": null,
       "observationDate": null,
       "message": "Optional source failed without a cached capture: [Errno 60] Operation timed out"
@@ -186,8 +189,8 @@
       "id": "gem_power",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": null,
       "message": null
     },
@@ -195,7 +198,7 @@
       "id": "wri_power",
       "state": "not_configured",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
       "lastSuccessAt": null,
       "observationDate": null,
       "message": "Set WRI_POWER_URL to a reusable public WRI resource."
@@ -204,8 +207,8 @@
       "id": "osm_power",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": null,
       "message": null
     },
@@ -213,8 +216,8 @@
       "id": "country_electricity_controls",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": "2025-12-31",
       "message": null
     },
@@ -222,7 +225,7 @@
       "id": "official_adm1_electricity",
       "state": "not_configured",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
       "lastSuccessAt": null,
       "observationDate": null,
       "message": "Optional official_adm1_electricity source is not configured."
@@ -231,7 +234,7 @@
       "id": "eia_state_observations",
       "state": "not_configured",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
       "lastSuccessAt": null,
       "observationDate": null,
       "message": "Optional eia_state_observations source is not configured."
@@ -240,8 +243,8 @@
       "id": "brazil-epe-consumption",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": "2025-12-31",
       "message": null
     },
@@ -249,8 +252,8 @@
       "id": "world-bank-africa-electricity-grid",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": null,
       "message": null
     },
@@ -258,45 +261,105 @@
       "id": "official_adm1_electricity_merged",
       "state": "current",
       "publicationState": "publishable",
-      "checkedAt": "2026-07-18T01:20:10Z",
-      "lastSuccessAt": "2026-07-18T01:20:10Z",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
       "observationDate": "2025-12-31",
+      "message": null
+    },
+    {
+      "id": "iea-hydrogen-production-2026",
+      "state": "current",
+      "publicationState": "publishable",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
+      "observationDate": null,
+      "message": null
+    },
+    {
+      "id": "iea-hydrogen-infrastructure-2026",
+      "state": "current",
+      "publicationState": "publishable",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
+      "observationDate": null,
+      "message": null
+    },
+    {
+      "id": "gem-global-cement-concrete-2025",
+      "state": "current",
+      "publicationState": "publishable",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
+      "observationDate": null,
+      "message": null
+    },
+    {
+      "id": "gem-global-steel-plants-2026",
+      "state": "current",
+      "publicationState": "publishable",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
+      "observationDate": null,
+      "message": null
+    },
+    {
+      "id": "gem-global-steel-units-2026",
+      "state": "current",
+      "publicationState": "publishable",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
+      "observationDate": null,
+      "message": null
+    },
+    {
+      "id": "gem-global-iron-units-2026",
+      "state": "current",
+      "publicationState": "publishable",
+      "checkedAt": "2026-07-21T04:01:18Z",
+      "lastSuccessAt": "2026-07-21T04:01:18Z",
+      "observationDate": null,
       "message": null
     }
   ],
   "sourceCoverage": {
-    "sourceCount": 25,
+    "sourceCount": 31,
     "sourcesByPublicationState": {
-      "publishable": 6,
+      "publishable": 12,
       "quarantined": 19
     },
     "sourcesByAccessMode": {
       "automatic": 10,
       "credentialled": 2,
-      "manual_snapshot": 11,
+      "manual_snapshot": 17,
       "metadata_only": 2
     },
     "connectorStates": {
-      "current": 14,
+      "current": 20,
       "failed": 1,
       "not_configured": 5
     },
-    "publishedRecords": 238395,
+    "publishedRecords": 247670,
     "publishedRecordsBySource": {
       "brazil-aneel-siga": 0,
+      "gem-global-cement-concrete-2025": 3469,
+      "gem-global-iron-units-2026": 414,
+      "gem-global-steel-plants-2026": 1825,
+      "gem-global-steel-units-2026": 1140,
       "gem_power": 182428,
+      "iea-hydrogen-infrastructure-2026": 27,
+      "iea-hydrogen-production-2026": 2400,
       "official_power": 0,
       "osm_power": 55967,
       "wri_power": 0
     }
   },
   "checksums": {
-    "countries.geojson": "0d50143f2a122f5c2799ddf6ca3a5fafc25889bb1425c136cdf79d38cf5175a1",
-    "admin1.geojson": "20e418337dd6b0b8ec146c450ac88a2ebcc3550a420f30056a48167e1c6bd6b6",
-    "regions.geojson": "b031c003b0f53c888270315ddef35940e2294f20201d6431113dda05f11872a7",
-    "assets.geojson": "48b483976b71843db881fde39d17f60ac72ce9a3a22b07c2643a0a59b9189727",
-    "regional-energy.json": "247360803e5b475bd3661857c40350c3ed7dccc5780ac1aa67a1f4243c02dce1",
-    "evidence.json": "185ec7adebf1713b131df4ddb3d2b2f004a6984fef206f56de995a7e164d7201",
+    "countries.geojson": "16d7d05a737fed02dd6d32ea7a1fdc0c429b7c56800d61cbf12a961471dc90fa",
+    "admin1.geojson": "5584d42b5b35db0b1740d20885b9a63555a767436b1423001d34c531db5b2c7e",
+    "regions.geojson": "48790afa892746cfbaa2828cbee00e1c67bd32d7ebd1131c490d32fce8d59f0b",
+    "assets.geojson": "68cf1e3fc431807fd885e220617675429126b0b0129c73cedd22207f2f37d0cc",
+    "regional-energy.json": "552a5e490fde3b0c1f09133d79c640108e1555241fd5c2155214a3f363a8bdf4",
+    "evidence.json": "dbd553d07e509c94ac45fc9cfe8919191cff835f77c7be469bc4098b24fb0f35",
     "cities.geojson": "f2b06c22db673f8c94f098f956caa764b08e57b281fdf5e9cab279b91e60e1d9",
     "grid.geojson": "6638ebeb9fd97daaef87bf7eb2f45b0d4ace73188f76252527db234d41694734",
     "cooling.json": "d99caf5794809ca98ece20d0e499d030c6ff6434a5326a3fa6295d7fbf2c102e",
@@ -490,6 +553,6 @@
     "generators/ZW.geojson": "efb78c558b00da4dbf2bafcaadfdff2b11ccb5b8db6c95e8858b911da86b19cd",
     "generator-overview.geojson": "c688e555ba45c0edc19b6037dadbec5a4433ce60c02dfa69be6a3200c8ac4564",
     "generators/index.json": "77b8bc4f67f5d2b6fe148c6223e67372d5fa062fcea15ea700d34eb815e08698",
-    "source-catalog.json": "2f2de19be2a98465f5da55ecb6e6eabf1506d310c4375f59d4f1a948ceb8b23d"
+    "source-catalog.json": "9aff2312a0fdab4ab1c42dcb5b1293e44050e21ec4d23513e3955a1cc3d33444"
   }
 }

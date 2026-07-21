@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 
 import { searchEntities, type SearchIndex, type SearchResult } from "@/lib/search";
 
@@ -21,9 +21,6 @@ export function SearchBox({ index, onSelect }: Props) {
     .map((group) => ({ group, results: results.filter((result) => result.group === group) }))
     .filter((entry) => entry.results.length > 0);
   const showPanel = open && query.trim().length > 0;
-
-  // Keep the active option in range as results change under the cursor.
-  useEffect(() => { setActive(0); }, [query]);
 
   const optionId = (result: SearchResult) => `${id}-opt-${result.entityType}-${result.id}`;
   const choose = (result: SearchResult) => {
@@ -46,7 +43,7 @@ export function SearchBox({ index, onSelect }: Props) {
           aria-activedescendant={showPanel && results[active] ? optionId(results[active]) : undefined}
           value={query}
           placeholder="Search places, projects, generators…"
-          onChange={(event) => { setQuery(event.target.value); setOpen(true); }}
+          onChange={(event) => { setQuery(event.target.value); setActive(0); setOpen(true); }}
           onFocus={() => setOpen(true)}
           onKeyDown={(event) => {
             if (event.key === "Escape") { setOpen(false); return; }

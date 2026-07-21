@@ -15,7 +15,9 @@ export type WattlasAction =
   | "filters_shown"
   | "year_changed"
   | "inspector_resized"
-  | "data_status_opened";
+  | "data_status_opened"
+  | "workspace_changed"
+  | "country_intelligence_opened";
 
 type AnalyticsValue = string | number | boolean | undefined;
 export type WattlasActionParameters = Record<string, AnalyticsValue>;

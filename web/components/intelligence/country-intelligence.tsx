@@ -1,8 +1,8 @@
-import type { GeneratorOverviewCollection, GeographyFeature, RegionalEnergyData } from "@/lib/snapshot/types";
+import type { GeneratorOverviewCollection, GeographyCollection, GeographyFeature, RegionalEnergyData } from "@/lib/snapshot/types";
 
 type Props = {
   country: GeographyFeature;
-  regions: GeographyFeature[];
+  regions: GeographyCollection["features"];
   regionalEnergy: RegionalEnergyData;
   generatorOverview?: GeneratorOverviewCollection | null;
   year: number;

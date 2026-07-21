@@ -45,7 +45,7 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [infrastructure, setInfrastructure] = useState<InfrastructureVisibility>({ dataCentres: true, water: true, industrial: true, hydrogen: true, generators: false });
   const [cities, setCities] = useState<CityCollection>({ type: "FeatureCollection", features: [] });
   const [technologies, setTechnologies] = useState<Set<GenerationTechnology>>(() => new Set());
-  const [lifecycles, setLifecycles] = useState<Set<string>>(() => new Set(["operational", "under_construction", "announced", "planning_filed", "permitted", "paused", "cancelled", "retired", "decommissioned", "shelved", "unknown"]));
+  const [lifecycles, setLifecycles] = useState<Set<string>>(() => new Set(["operational", "under_construction", "pre_construction", "planning_filed", "permitted", "announced", "retired", "decommissioned"]));
   const [generatorOverview, setGeneratorOverview] = useState<GeneratorOverviewCollection | null>(null);
   const [generatorIndex, setGeneratorIndex] = useState<GeneratorIndex | null>(null);
   const [searchGenerators, setSearchGenerators] = useState<GeneratorFeature[]>([]);
@@ -75,8 +75,15 @@ export function OpportunityRadar({ snapshot }: Props) {
     if (inspectorWidthLoaded.current) window.localStorage.setItem(INSPECTOR_WIDTH_KEY, String(inspectorWidth));
   }, [inspectorWidth]);
   useEffect(() => {
-    // On phones the stacked filter rail pushes the map below the fold, so start it collapsed.
-    if (typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(max-width: 680px)").matches) setFiltersVisible(false);
+    if (typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia("(max-width: 680px)");
+    const syncMobileRail = () => setFiltersVisible(!media.matches);
+    media.addEventListener("change", syncMobileRail);
+    const frame = window.requestAnimationFrame(syncMobileRail);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      media.removeEventListener("change", syncMobileRail);
+    };
   }, []);
   useEffect(() => {
     if (snapshot.admin1.features.length) return;

@@ -271,7 +271,9 @@ describe("OpportunityRadar", () => {
     expect(screen.getByRole("switch", { name: "Power generators" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("switch", { name: "Wind" })).toHaveAttribute("aria-checked", "false");
     fireEvent.click(screen.getByRole("button", { name: /Project status/i }));
-    for (const lifecycle of ["Operating", "Under construction", "Pre-construction", "Announced", "Retired"]) expect(screen.getByRole("switch", { name: lifecycle })).toBeInTheDocument();
+    for (const lifecycle of ["Operating", "Under construction", "Pre-construction", "Announced", "Retired"]) {
+      expect(screen.getByRole("switch", { name: lifecycle })).toHaveAttribute("aria-checked", "true");
+    }
   });
 
   it("switches between Opportunity Radar and Asset Explorer without losing the selected year", () => {

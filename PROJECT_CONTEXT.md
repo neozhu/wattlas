@@ -198,5 +198,6 @@ The working version now includes:
 - Immutable published GeoJSON/JSON snapshots and a last-known-good connector fallback.
 - A monthly refresh at 04:00 Europe/Berlin on the first day of each month.
 - A GitHub Actions refresh at the same Berlin-local time, with manual dispatch available at any time.
+- Local candidate snapshot `2026-07-21T04-01-18Z`, which retains the preceding 4,247 data centres, 101 water assets, 238,395 power-source records, 3,229 ADM1 boundaries, 575 cities, and 60,600 grid features while adding 7,694 mappable industrial-load assets, 27 mappable hydrogen-network context assets, and 236 forecast-eligible industrial projects.
 
 Production is Git-connected at `https://wattlas.vercel.app`. The monthly pipeline keeps the version-pinned boundary artifact separate from frequently changing facility data, rejects partial OSM responses below the coverage threshold, retains the last known good capture on failure, and commits validated snapshot changes. Expansion sources use four governed access modes: automatically published reusable public endpoints, credential-backed connectors, checksum-verified manual snapshots, and a physically separate quarantine for unclear redistribution rights. Quarantined records cannot affect public scores or appear on the map.
