@@ -646,6 +646,7 @@ export const generatorPropertiesSchema = z.object({
   name: generatorTextSchema.optional(), primaryFuel: generatorTextSchema.optional(), secondaryFuel: generatorTextSchema.optional(),
   annualGenerationGwh: nonnegativeMetricRangeSchema.nullable().optional(), operator: generatorTextSchema.optional(), owner: generatorTextSchema.optional(),
   confidence: z.number().finite().min(0).max(100).nullable().optional(), sourceUrl: generatorSourceUrlSchema.optional(),
+  gemWikiUrl: generatorSourceUrlSchema.optional(),
   locationName: generatorTextSchema.optional(), plantId: generatorTextSchema.optional(), unitId: generatorTextSchema.optional(),
 }).passthrough().refine((value) => capacitiesMatch(value.capacityMw, value.operatingCapacityMw + value.plannedCapacityMw), {
   message: "Generator capacity must reconcile",

@@ -45,7 +45,7 @@ type Props = {
   onVisibleGeneratorsChange?: (ids: ReadonlySet<string>) => void;
 };
 
-export const GLOBAL_VIEW = { center: [12, 22] as [number, number], zoom: 2.25 };
+export const GLOBAL_VIEW = { center: [78.9629, 20.5937] as [number, number], zoom: 2.25 };
 const INFRASTRUCTURE_OUTLINE = "#59635F";
 
 function visibleAssets(assets: AssetCollection, infrastructure: InfrastructureVisibility, lifecycles: ReadonlySet<string>): AssetCollection {

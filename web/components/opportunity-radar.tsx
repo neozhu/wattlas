@@ -32,7 +32,10 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [lens, setLens] = useState<LensKey>("infrastructureDemand");
   const [mode, setMode] = useState<"radar" | "explorer">("radar");
   const [year, setYear] = useState(snapshot.manifest.activeYears[0] ?? 2026);
-  const initialId = snapshot.countries.features.find((feature) => feature.properties.scores.infrastructureDemand != null)?.properties.id ?? snapshot.countries.features[0]?.properties.id ?? null;
+  const initialId = snapshot.countries.features.find((feature) => feature.properties.id === "IN")?.properties.id
+    ?? snapshot.countries.features.find((feature) => feature.properties.scores.infrastructureDemand != null)?.properties.id
+    ?? snapshot.countries.features[0]?.properties.id
+    ?? null;
   const [selectedId, setSelectedId] = useState<string | null>(initialId);
   const [selectedGenerator, setSelectedGenerator] = useState<GeneratorFeature | null>(null);
   const [mapFocusTarget, setMapFocusTarget] = useState<{ nonce: number; coordinates?: [number, number]; bbox?: [number, number, number, number] } | null>(null);

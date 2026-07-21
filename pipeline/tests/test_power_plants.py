@@ -205,6 +205,24 @@ def test_units_stay_addressable_and_roll_up_without_double_counting_plant_record
     assert plant["operatingCapacityMwByTechnology"] == {"gas": 100.0}
 
 
+def test_plant_summary_preserves_gem_wiki_and_preferred_public_source_urls() -> None:
+    gem = power_record(
+        sourceUrl="https://www.gem.wiki/Alpha_Power_Station",
+    )
+    official = power_record(
+        id="official-alpha",
+        sourceIds=["official-registry"],
+        sourceType="official_verified",
+        externalIds={"gemPlant": "GEM-ALPHA", "official": "OFF-ALPHA"},
+        sourceUrl="https://energy.example/plants/alpha",
+    )
+
+    plant = canonicalize_power_plants([gem, official])["plants"][0]
+
+    assert plant["gemWikiUrl"] == "https://www.gem.wiki/Alpha_Power_Station"
+    assert plant["sourceUrl"] == "https://energy.example/plants/alpha"
+
+
 def test_shared_plant_wikidata_does_not_collapse_distinct_units() -> None:
     first = power_record(
         id="gem-unit-1",

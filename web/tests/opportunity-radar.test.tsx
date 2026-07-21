@@ -21,7 +21,7 @@ vi.mock("@/components/map/global-map", () => ({
   GlobalMap: ({ lens, year, onSelect, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; year: number; onSelect: (id: string) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens} · year {year}<button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM")}>Select Assam</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
 }));
 
-const generator = { type: "Feature", id: "generator-1", geometry: { type: "Point", coordinates: [8, 50] }, properties: { id: "generator-1", name: "Rhine Solar", category: "power_generation", country: "DE", geographyId: "DE-X", lifecycle: "operational", technologies: ["solar"], capacityMw: 80, operatingCapacityMw: 80, plannedCapacityMw: 0, technologyMixMw: { solar: 80 }, sourceIds: ["registry"] } } as import("@/lib/snapshot/types").GeneratorFeature;
+const generator = { type: "Feature", id: "generator-1", geometry: { type: "Point", coordinates: [8, 50] }, properties: { id: "generator-1", name: "Rhine Solar", category: "power_generation", country: "DE", geographyId: "DE-X", lifecycle: "operational", technologies: ["solar"], capacityMw: 80, operatingCapacityMw: 80, plannedCapacityMw: 0, technologyMixMw: { solar: 80 }, sourceIds: ["registry"], gemWikiUrl: "https://www.gem.wiki/Rhine_Solar" } } as import("@/lib/snapshot/types").GeneratorFeature;
 
 const connectors: SnapshotData["manifest"]["connectors"] = [
   { id: "gisco", state: "current", checkedAt: "2026-06-27T04:12:00Z", lastSuccessAt: "2026-06-27T04:12:00Z", message: null },
@@ -85,6 +85,17 @@ const snapshot: SnapshotData = {
 } as unknown as SnapshotData;
 
 describe("OpportunityRadar", () => {
+  it("selects India on first load when the country is available", () => {
+    const indiaSnapshot = structuredClone(snapshot);
+    indiaSnapshot.countries.features.push({
+      ...indiaSnapshot.countries.features[0],
+      id: "IN",
+      properties: { ...indiaSnapshot.countries.features[0].properties, id: "IN", name: "India", country: "IN" },
+    });
+    render(<OpportunityRadar snapshot={indiaSnapshot} />);
+    expect(screen.getByRole("heading", { name: "India" })).toBeInTheDocument();
+  });
+
   it("preserves production controls without redundant active-view or grid sections", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     expect(screen.getByRole("combobox", { name: "Search Wattlas" })).toBeInTheDocument();
@@ -219,7 +230,8 @@ describe("OpportunityRadar", () => {
     expect(screen.getByRole("heading", { name: "Alpha DC" })).toBeInTheDocument();
     expect(screen.getByText("Community mapped")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Selected project summary" })).toHaveTextContent("Alpha DC");
-    expect(screen.getByRole("link", { name: "Open full dossier" })).toHaveAttribute("href", "#wattlas-dossier");
+    expect(screen.getByRole("link", { name: "Open full dossier" })).toHaveAttribute("href", "https://www.openstreetmap.org/node/101");
+    expect(screen.getByRole("link", { name: "Open full dossier" })).toHaveAttribute("target", "_blank");
   });
 
   it("selects and inspects a global first-level region", () => {
@@ -237,7 +249,8 @@ describe("OpportunityRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select generator" }));
     expect(screen.getByRole("heading", { name: "Rhine Solar" })).toBeInTheDocument();
     expect(screen.getAllByText("80 MW").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Source record unavailable" })).toBeVisible();
+    expect(screen.getByRole("link", { name: "Open full dossier" })).toHaveAttribute("href", "https://www.gem.wiki/Rhine_Solar");
+    expect(screen.getByRole("link", { name: "Open full dossier" })).toHaveAttribute("target", "_blank");
   });
 
   it("clears a stale generator inspector when its layer, filter, or visible shard excludes it", () => {

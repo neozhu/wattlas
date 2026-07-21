@@ -7,6 +7,7 @@ import json
 import math
 import re
 from typing import Any, Iterable
+from urllib.parse import urlparse
 
 from grid_scope.canonicalize import (
     GeographyIndex,
@@ -877,6 +878,19 @@ def _selected_record(records: list[dict[str, Any]], field: str) -> dict[str, Any
     return max(candidates, key=lambda record: _field_preference(record, field)) if candidates else None
 
 
+def _gem_wiki_url(records: list[dict[str, Any]]) -> str | None:
+    candidates: list[tuple[dict[str, Any], str]] = []
+    for record in records:
+        for field in ("gemWikiUrl", "sourceUrl"):
+            source_url = record.get(field)
+            if not isinstance(source_url, str):
+                continue
+            hostname = (urlparse(source_url).hostname or "").lower()
+            if hostname == "gem.wiki" or hostname.endswith(".gem.wiki"):
+                candidates.append((record, source_url))
+    return max(candidates, key=lambda item: _field_preference(item[0], "sourceUrl"))[1] if candidates else None
+
+
 def _combine_external_ids(records: list[dict[str, Any]]) -> tuple[dict[str, str], dict[str, list[str]]]:
     values: dict[str, set[str]] = {}
     for record in records:
@@ -1026,6 +1040,10 @@ def _merge_record_cluster(records: list[dict[str, Any]]) -> dict[str, Any]:
         if selected is not None:
             merged[field] = deepcopy(selected[field])
             provenance[field] = _provenance(selected, field)
+
+    gem_wiki_url = _gem_wiki_url(records)
+    if gem_wiki_url:
+        merged["gemWikiUrl"] = gem_wiki_url
 
     for metric_field, kind_field in _FIELD_KIND_NAMES.items():
         selected = _selected_record(records, metric_field)
@@ -1464,6 +1482,12 @@ def _summarize_plant(records: list[dict[str, Any]]) -> dict[str, Any]:
         summary["idAliases"] = id_aliases
     if external_id_aliases:
         summary["externalIdAliases"] = external_id_aliases
+    source_record = _selected_record(records, "sourceUrl")
+    if source_record:
+        summary["sourceUrl"] = source_record["sourceUrl"]
+    gem_wiki_url = _gem_wiki_url(records)
+    if gem_wiki_url:
+        summary["gemWikiUrl"] = gem_wiki_url
     return summary
 
 
