@@ -1,0 +1,146 @@
+"use client";
+
+import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
+
+import {
+  ALL_GENERATOR_CAPACITIES,
+  GENERATOR_CAPACITY_PRESETS_MW,
+  GENERATOR_CAPACITY_SLIDER_STEPS,
+  capacityRangeLabel,
+  capacityToSliderPosition,
+  formatGeneratorCapacity,
+  isAllGeneratorCapacities,
+  sliderPositionToCapacity,
+  type GeneratorCapacityRange,
+} from "@/lib/map/generator-capacity";
+
+type Props = {
+  value: GeneratorCapacityRange;
+  scaleMaximumMw: number;
+  disabled?: boolean;
+  catalogueReady: boolean;
+  onChange: (value: GeneratorCapacityRange) => void;
+};
+
+const presetLabel = (capacityMw: number): string => capacityMw === 0 ? "All" : formatGeneratorCapacity(capacityMw);
+const inputValue = (value: number): string => Number.isFinite(value) ? String(value) : "0";
+
+export function GeneratorCapacityFilter({ value, scaleMaximumMw, disabled = false, catalogueReady, onChange }: Props) {
+  const [draftMin, setDraftMin] = useState(inputValue(value.minMw));
+  const [draftMax, setDraftMax] = useState(value.maxMw == null ? "" : inputValue(value.maxMw));
+  const [error, setError] = useState<string | null>(null);
+  const scaleMaximum = Math.max(1000, scaleMaximumMw);
+
+  useEffect(() => {
+    setDraftMin(inputValue(value.minMw));
+    setDraftMax(value.maxMw == null ? "" : inputValue(value.maxMw));
+    setError(null);
+  }, [value.maxMw, value.minMw]);
+
+  const parsedDraft = () => {
+    const minMw = draftMin.trim() === "" ? 0 : Number(draftMin);
+    const maxMw = draftMax.trim() === "" ? null : Number(draftMax);
+    if (!Number.isFinite(minMw) || minMw < 0 || (maxMw != null && (!Number.isFinite(maxMw) || maxMw < 0))) {
+      return { error: "Capacity values must be non-negative numbers" } as const;
+    }
+    if (maxMw != null && maxMw < minMw) return { error: "Maximum must be greater than or equal to minimum" } as const;
+    return { value: { minMw, maxMw } } as const;
+  };
+
+  const commitDraft = () => {
+    const parsed = parsedDraft();
+    if ("error" in parsed) {
+      setError(parsed.error);
+      return;
+    }
+    setError(null);
+    onChange(parsed.value);
+  };
+
+  const commitOnEnter = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    commitDraft();
+  };
+
+  const draftMinimum = Number.isFinite(Number(draftMin)) ? Math.max(0, Number(draftMin)) : value.minMw;
+  const draftMaximum = draftMax.trim() === "" ? null : Number.isFinite(Number(draftMax)) ? Math.max(0, Number(draftMax)) : value.maxMw;
+  const minimumPosition = capacityToSliderPosition(draftMinimum, scaleMaximum);
+  const maximumPosition = draftMaximum == null ? GENERATOR_CAPACITY_SLIDER_STEPS : capacityToSliderPosition(draftMaximum, scaleMaximum);
+  const trackStyle = useMemo(() => ({
+    "--capacity-min": `${minimumPosition / GENERATOR_CAPACITY_SLIDER_STEPS * 100}%`,
+    "--capacity-max": `${maximumPosition / GENERATOR_CAPACITY_SLIDER_STEPS * 100}%`,
+  }) as CSSProperties, [maximumPosition, minimumPosition]);
+
+  const setMinimumFromSlider = (position: number) => {
+    setDraftMin(inputValue(sliderPositionToCapacity(position, scaleMaximum)));
+    setError(null);
+  };
+  const setMaximumFromSlider = (position: number) => {
+    setDraftMax(position >= GENERATOR_CAPACITY_SLIDER_STEPS ? "" : inputValue(sliderPositionToCapacity(position, scaleMaximum)));
+    setError(null);
+  };
+
+  return (
+    <section className={disabled ? "capacity-filter disabled" : "capacity-filter"} aria-label="Generator capacity filter">
+      <div className="capacity-filter-heading">
+        <span>Plant capacity</span>
+        <output aria-label="Active generator capacity range">{capacityRangeLabel(value)}</output>
+      </div>
+      <div className="capacity-presets" aria-label="Minimum capacity presets">
+        {GENERATOR_CAPACITY_PRESETS_MW.map((capacityMw) => (
+          <button
+            key={capacityMw}
+            type="button"
+            aria-label={`Minimum capacity ${presetLabel(capacityMw)}`}
+            aria-pressed={value.minMw === capacityMw}
+            disabled={disabled}
+            onClick={() => onChange({ minMw: capacityMw, maxMw: value.maxMw != null && value.maxMw < capacityMw ? null : value.maxMw })}
+          >
+            {capacityMw === 0 ? "All" : capacityMw === 1000 ? "1G" : capacityMw}
+          </button>
+        ))}
+      </div>
+      <div className="capacity-range-track" style={trackStyle}>
+        <span aria-hidden="true" />
+        <input
+          type="range"
+          min={0}
+          max={GENERATOR_CAPACITY_SLIDER_STEPS}
+          step="0.01"
+          value={Math.min(minimumPosition, maximumPosition)}
+          aria-label="Minimum generator capacity"
+          aria-valuetext={formatGeneratorCapacity(draftMinimum)}
+          disabled={disabled}
+          onChange={(event) => setMinimumFromSlider(Number(event.currentTarget.value))}
+          onPointerUp={commitDraft}
+          onKeyUp={commitDraft}
+          onBlur={commitDraft}
+        />
+        <input
+          type="range"
+          min={0}
+          max={GENERATOR_CAPACITY_SLIDER_STEPS}
+          step="0.01"
+          value={Math.max(minimumPosition, maximumPosition)}
+          aria-label="Maximum generator capacity"
+          aria-valuetext={draftMaximum == null ? "No limit" : formatGeneratorCapacity(draftMaximum)}
+          disabled={disabled}
+          onChange={(event) => setMaximumFromSlider(Number(event.currentTarget.value))}
+          onPointerUp={commitDraft}
+          onKeyUp={commitDraft}
+          onBlur={commitDraft}
+        />
+      </div>
+      <div className="capacity-number-fields">
+        <label>Min MW<input type="number" min="0" step="any" aria-label="Minimum capacity (MW)" value={draftMin} disabled={disabled} onChange={(event) => { setDraftMin(event.currentTarget.value); setError(null); }} onBlur={commitDraft} onKeyDown={commitOnEnter} /></label>
+        <span aria-hidden="true">—</span>
+        <label>Max MW<input type="number" min="0" step="any" aria-label="Maximum capacity (MW)" placeholder="No limit" value={draftMax} disabled={disabled} onChange={(event) => { setDraftMax(event.currentTarget.value); setError(null); }} onBlur={commitDraft} onKeyDown={commitOnEnter} /></label>
+        <button type="button" aria-label="Reset capacity range" disabled={disabled || isAllGeneratorCapacities(value)} onClick={() => onChange(ALL_GENERATOR_CAPACITIES)}>Reset</button>
+      </div>
+      {error && <p className="capacity-filter-error" role="alert">{error}</p>}
+      {value.minMw > 0 && <p className="capacity-filter-note">Unknown capacity excluded</p>}
+      {!isAllGeneratorCapacities(value) && !catalogueReady && <p className="capacity-filter-note loading">Preparing matching global plants…</p>}
+    </section>
+  );
+}
