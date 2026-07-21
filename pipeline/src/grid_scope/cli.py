@@ -61,6 +61,17 @@ from grid_scope.connectors.un_geodata import UnGeodataConnector
 from grid_scope.connectors.wri_power import WriPowerConnector
 from grid_scope.models import ConnectorState, SourceRef
 from grid_scope.manual_import import GovernedCaptureStores, import_source_snapshot
+from grid_scope.industrial_demand import (
+    GEM_CEMENT_SOURCE_ID,
+    GEM_IRON_UNIT_SOURCE_ID,
+    GEM_STEEL_PLANT_SOURCE_ID,
+    GEM_STEEL_UNIT_SOURCE_ID,
+    HYDROGEN_INFRASTRUCTURE_SOURCE_ID,
+    HYDROGEN_PRODUCTION_SOURCE_ID,
+    load_industrial_assets_from_paths,
+    load_industrial_demand_assumptions,
+    merge_industrial_assets,
+)
 from grid_scope.population import load_population_artifact
 from grid_scope.power_balance import (
     build_regional_energy_forecasts,
@@ -88,6 +99,14 @@ POWER_SOURCE_PRECEDENCE = (
     "gem_power",
     "wri_power",
     "osm_power",
+)
+INDUSTRIAL_SOURCE_IDS = (
+    HYDROGEN_PRODUCTION_SOURCE_ID,
+    HYDROGEN_INFRASTRUCTURE_SOURCE_ID,
+    GEM_CEMENT_SOURCE_ID,
+    GEM_STEEL_PLANT_SOURCE_ID,
+    GEM_STEEL_UNIT_SOURCE_ID,
+    GEM_IRON_UNIT_SOURCE_ID,
 )
 REFRESH_STEPS = (
     "boundaries",
@@ -374,14 +393,22 @@ def build_forward_demand_increments(
         region_id = str(asset.get("geographyId") or "").strip()
         year = asset.get("targetYear")
         demand = asset.get("demandMw")
+        annual_demand = asset.get("annualDemandGwh")
+        category = asset.get("category")
+        is_industrial = category == "industrial_load"
         if (
             region_id not in active_admin1
-            or asset.get("category") not in {"data_centre", "water_infrastructure"}
+            or category not in {"data_centre", "water_infrastructure", "industrial_load"}
             or asset.get("lifecycle") not in {
-                "announced", "planning_filed", "permitted", "under_construction"
+                "announced", "planning_filed", "permitted", "pre_construction", "under_construction"
             }
             or not isinstance(year, int) or not 2026 <= year <= 2031
-            or not isinstance(demand, Mapping)
+            or (
+                not isinstance(annual_demand, Mapping)
+                if is_industrial
+                else not isinstance(demand, Mapping)
+            )
+            or (is_industrial and not asset.get("gridDemandContribution"))
         ):
             continue
         source_ids = sorted({str(value).strip() for value in asset.get("sourceIds", []) if str(value).strip()})
@@ -390,16 +417,28 @@ def build_forward_demand_increments(
         increment_id = str(asset.get("id") or "").strip()
         if not increment_id:
             raise ValueError("forward demand asset requires an ID")
-        increments.append({
+        increment = {
             "incrementId": f"{increment_id}:{year}",
             "geographyId": region_id,
             "targetYear": year,
             "demandGwh": {
-                part: round(float(demand[part]) * 8.76, 6)
+                part: round(
+                    float(annual_demand[part])
+                    if is_industrial
+                    else float(demand[part]) * 8.76,
+                    6,
+                )
                 for part in ("low", "central", "high")
             },
             "sourceIds": source_ids,
-        })
+        }
+        if is_industrial:
+            method_id = str(asset.get("demandMethodId") or "").strip()
+            if not method_id:
+                continue
+            increment["methodId"] = method_id
+            increment["sector"] = str(asset.get("subtype") or "industrial_load")
+        increments.append(increment)
     return sorted(increments, key=lambda row: row["incrementId"])
 
 
@@ -1579,7 +1618,6 @@ def refresh() -> Path:
         observed_at=generated_at,
     )
     registry["modelNote"] = json.loads(GLOBAL_ASSETS_PATH.read_text()).get("modelNote")
-    store.save_canonical_assets(registry["assets"])
 
     active_admin1 = {
         str((feature.get("properties") or {}).get("id") or feature.get("id") or "").strip()
@@ -1595,6 +1633,45 @@ def refresh() -> Path:
         str((feature.get("properties") or {}).get("country") or "").strip().upper()
         for feature in admin1_payload.get("features", [])
     }
+    industrial_captures = {
+        source_id: capture
+        for source_id in INDUSTRIAL_SOURCE_IDS
+        if (capture := store.latest_capture(source_id)) is not None
+    }
+    industrial_assets, industrial_counts = load_industrial_assets_from_paths(
+        {
+            source_id: capture.path
+            for source_id, capture in industrial_captures.items()
+        },
+        countries=countries,
+        admin1=admin1_payload,
+        cities=_read_json(CITIES_PATH),
+        assumptions=load_industrial_demand_assumptions(
+            CURATED_PATH.parent / "industrial-demand-assumptions.json"
+        ),
+    )
+    registry = merge_industrial_assets(registry, industrial_assets)
+    store.save_canonical_assets(registry["assets"])
+    industrial_source_counts = {
+        source_id: sum(
+            source_id in asset.get("sourceIds", [])
+            for asset in industrial_assets
+        )
+        for source_id in INDUSTRIAL_SOURCE_IDS
+    }
+    industrial_statuses = [
+        _records_result(
+            [{
+                "normalizedRecords": industrial_counts["normalized"],
+                "publishedRecords": industrial_source_counts[source_id],
+                "forecastEligibleRecords": industrial_counts["forecastEligible"],
+            }],
+            source_id=source_id,
+            now=now,
+            configured=source_id in industrial_captures,
+        )
+        for source_id in INDUSTRIAL_SOURCE_IDS
+    ]
     publishable_plants = [
         plant for plant in canonical_power["plants"]
         if plant.get("geographyId") in active_admin1
@@ -1747,6 +1824,7 @@ def refresh() -> Path:
         epe_status,
         africa_grid_status,
         official_regional_status,
+        *industrial_statuses,
     ]
     country_count = len(json.loads(artifacts["countries.geojson"])["features"])
     asset_features = json.loads(artifacts["assets.geojson"])["features"]
@@ -1780,6 +1858,9 @@ def refresh() -> Path:
             "assets": len(asset_features),
             "dataCentres": sum(feature["properties"]["category"] == "data_centre" for feature in asset_features),
             "waterInfrastructure": sum(feature["properties"]["category"] == "water_infrastructure" for feature in asset_features),
+            "industrialLoads": sum(feature["properties"]["category"] == "industrial_load" for feature in asset_features),
+            "hydrogenInfrastructure": sum(feature["properties"]["category"] == "hydrogen_infrastructure" for feature in asset_features),
+            "forecastIndustrialLoads": industrial_counts["forecastEligible"],
             "powerSourceRecords": len(power_source_records),
             "powerSourceRecordsBySource": power_source_counts,
             "canonicalPowerPlants": len(canonical_power["plants"]),
@@ -1844,6 +1925,12 @@ def refresh() -> Path:
             official_regional_status.payload.body
             if official_regional_status.payload is not None else b""
         ),
+        **{
+            result.source_id: (
+                result.payload.body if result.payload is not None else b""
+            )
+            for result in industrial_statuses
+        },
     }
     for result in statuses:
         previous_capture = store.latest_capture(result.source_id)
@@ -1865,7 +1952,10 @@ def refresh() -> Path:
             connector["id"]: connector["state"]
             for connector in manifest["connectors"]
         },
-        published_records_by_source=power_source_counts,
+        published_records_by_source={
+            **power_source_counts,
+            **industrial_source_counts,
+        },
     )
     latest_path = PUBLISH_DIR / "latest.json"
     previous_manifest = _read_json(latest_path) if latest_path.exists() else None

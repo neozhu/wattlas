@@ -7,6 +7,8 @@ from grid_scope.industrial_demand import (
     cement_annual_demand_gwh,
     hydrogen_annual_demand_gwh,
     load_industrial_demand_assumptions,
+    load_industrial_assets_from_paths,
+    merge_industrial_assets,
     parse_gem_cement,
     parse_gem_steel,
     parse_hydrogen_infrastructure,
@@ -327,4 +329,67 @@ def test_demand_model_attaches_method_and_estimated_range() -> None:
     assert modelled["annualDemandGwh"] == {"low": 360.0, "central": 523.2, "high": 924.0}
     assert modelled["demandMethodId"] == "steel-eaf-electricity-v1"
     assert modelled["gridDemandContribution"] is True
+    assert modelled["demandMw"] == {"low": 41.09589, "central": 59.726027, "high": 105.479452}
     assert modelled["valueKind"] == "estimated"
+
+
+def test_loader_assigns_admin1_and_resolves_named_city_without_removing_existing(tmp_path: Path) -> None:
+    production_path = tmp_path / "production.xlsx"
+    infrastructure_path = tmp_path / "infrastructure.xlsx"
+    cement_path = tmp_path / "cement.xlsx"
+    plant_path = tmp_path / "plants.xlsx"
+    steel_path = tmp_path / "steel.xlsx"
+    iron_path = tmp_path / "iron.xlsx"
+    _production_workbook(production_path)
+    _infrastructure_workbook(infrastructure_path)
+    _cement_workbook(cement_path)
+    _steel_workbooks(plant_path, steel_path, iron_path)
+    countries = {
+        "type": "FeatureCollection",
+        "features": [
+            {"type": "Feature", "id": "DE", "geometry": {"type": "Polygon", "coordinates": [[[5, 47], [16, 47], [16, 56], [5, 56], [5, 47]]]}, "properties": {"id": "DE", "country": "DE", "name": "Germany", "iso3": "DEU"}},
+            {"type": "Feature", "id": "NL", "geometry": {"type": "Polygon", "coordinates": [[[3, 50], [8, 50], [8, 54], [3, 54], [3, 50]]]}, "properties": {"id": "NL", "country": "NL", "name": "Netherlands", "iso3": "NLD"}},
+            {"type": "Feature", "id": "AU", "geometry": {"type": "Polygon", "coordinates": [[[110, -45], [155, -45], [155, -10], [110, -10], [110, -45]]]}, "properties": {"id": "AU", "country": "AU", "name": "Australia", "iso3": "AUS"}},
+        ],
+    }
+    admin1 = {
+        "type": "FeatureCollection",
+        "features": [
+            {"type": "Feature", "id": "DE-BY", "geometry": {"type": "Polygon", "coordinates": [[[9, 47], [14, 47], [14, 50.7], [9, 50.7], [9, 47]]]}, "properties": {"id": "DE-BY", "country": "DE", "level": "admin_1"}},
+            {"type": "Feature", "id": "DE-HB", "geometry": {"type": "Polygon", "coordinates": [[[8, 52], [9.5, 52], [9.5, 54], [8, 54], [8, 52]]]}, "properties": {"id": "DE-HB", "country": "DE", "level": "admin_1"}},
+                {"type": "Feature", "id": "AU-SA", "geometry": {"type": "Polygon", "coordinates": [[[130, -40], [141, -40], [141, -25], [130, -25], [130, -40]]]}, "properties": {"id": "AU-SA", "country": "AU", "level": "admin_1"}},
+                {"type": "Feature", "id": "AU-QLD", "geometry": {"type": "Polygon", "coordinates": [[[145, -30], [154, -30], [154, -10], [145, -10], [145, -30]]]}, "properties": {"id": "AU-QLD", "country": "AU", "level": "admin_1"}},
+            ],
+        }
+    cities = {
+        "type": "FeatureCollection",
+        "features": [{"type": "Feature", "id": "city-tonsley", "geometry": {"type": "Point", "coordinates": [138.57, -35.0]}, "properties": {"name": "Tonsley", "country": "AU"}}],
+    }
+
+    assets, counts = load_industrial_assets_from_paths(
+        {
+            "iea-hydrogen-production-2026": production_path,
+            "iea-hydrogen-infrastructure-2026": infrastructure_path,
+            "gem-global-cement-concrete-2025": cement_path,
+            "gem-global-steel-plants-2026": plant_path,
+            "gem-global-steel-units-2026": steel_path,
+            "gem-global-iron-units-2026": iron_path,
+        },
+        countries=countries,
+        admin1=admin1,
+        cities=cities,
+        assumptions=load_industrial_demand_assumptions(ASSUMPTIONS_PATH),
+    )
+    by_id = {asset["id"]: asset for asset in assets}
+
+    assert counts == {"normalized": 7, "mappable": 6, "forecastEligible": 3}
+    assert by_id["iea-h2-production-h2-1"]["geographyId"] == "DE-BY"
+    assert by_id["gem-steel-p-steel-1-construction-2029"]["geographyId"] == "DE-HB"
+    assert by_id["iea-h2-network-ble-1"]["coordinates"] == [138.57, -35.0]
+    assert by_id["iea-h2-network-ble-1"]["locationPrecision"] == "city_centroid"
+    assert by_id["iea-h2-network-ble-1"]["geographyId"] == "AU-SA"
+
+    registry = {"sources": [], "assets": [{"id": "existing", "name": "Existing asset"}]}
+    merged = merge_industrial_assets(registry, assets)
+    assert len(merged["assets"]) == 1 + len(assets)
+    assert next(asset for asset in merged["assets"] if asset["id"] == "existing")["name"] == "Existing asset"

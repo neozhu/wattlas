@@ -194,7 +194,7 @@ def _score_assets(assets: list[dict[str, Any]], year: int) -> dict[str, Any]:
     active = [
         asset
         for asset in assets
-        if asset.get("lifecycle") in {"announced", "planning_filed", "permitted", "under_construction"}
+        if asset.get("lifecycle") in {"announced", "planning_filed", "permitted", "pre_construction", "under_construction"}
         and asset.get("demandMw") is not None
         and (asset.get("targetYear") is None or asset.get("targetYear") <= year)
     ]
@@ -255,9 +255,11 @@ def _asset_summary(assets: list[dict[str, Any]]) -> dict[str, int]:
     return {
         "total": len(assets),
         "operational": sum(asset.get("lifecycle") == "operational" for asset in assets),
-        "planned": sum(asset.get("lifecycle") in {"announced", "planning_filed", "permitted", "under_construction"} for asset in assets),
+        "planned": sum(asset.get("lifecycle") in {"announced", "planning_filed", "permitted", "pre_construction", "under_construction"} for asset in assets),
         "dataCentres": sum(asset.get("category") == "data_centre" for asset in assets),
         "waterInfrastructure": sum(asset.get("category") == "water_infrastructure" for asset in assets),
+        "industrialLoads": sum(asset.get("category") == "industrial_load" for asset in assets),
+        "hydrogenInfrastructure": sum(asset.get("category") == "hydrogen_infrastructure" for asset in assets),
         "officialVerified": sum(asset.get("sourceType", "official_verified") == "official_verified" for asset in assets),
         "communityMapped": sum(asset.get("sourceType") == "community_mapped" for asset in assets),
     }

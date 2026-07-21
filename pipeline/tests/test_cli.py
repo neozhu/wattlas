@@ -913,8 +913,26 @@ def test_asset_forward_increments_include_only_sourced_adm1_future_loads() -> No
         "lifecycle": "announced", "targetYear": 2028,
         "demandMw": {"low": 100, "central": 100, "high": 100},
         "sourceIds": ["dc-source"],
+    }, {
+        "id": "steel-1", "geographyId": "AA-1", "category": "industrial_load",
+        "subtype": "steel_plant", "lifecycle": "pre_construction", "targetYear": 2029,
+        "annualDemandGwh": {"low": 360, "central": 523.2, "high": 924},
+        "demandMw": {"low": 41.1, "central": 59.7, "high": 105.5},
+        "gridDemandContribution": True, "demandMethodId": "steel-eaf-electricity-v1",
+        "sourceIds": ["gem-global-steel-plants-2026"],
+    }, {
+        "id": "pipeline-1", "geographyId": "AA-1", "category": "hydrogen_infrastructure",
+        "subtype": "hydrogen_pipeline", "lifecycle": "announced", "targetYear": 2029,
+        "annualDemandGwh": None, "gridDemandContribution": False,
+        "sourceIds": ["iea-hydrogen-infrastructure-2026"],
     }]}, active_admin1={"AA-1"})
     assert increments == [{
+        "incrementId": "steel-1:2029", "geographyId": "AA-1", "targetYear": 2029,
+        "demandGwh": {"low": 360.0, "central": 523.2, "high": 924.0},
+        "sourceIds": ["gem-global-steel-plants-2026"],
+        "methodId": "steel-eaf-electricity-v1",
+        "sector": "steel_plant",
+    }, {
         "incrementId": "water-1:2028", "geographyId": "AA-1", "targetYear": 2028,
         "demandGwh": {"low": 87.6, "central": 175.2, "high": 262.8},
         "sourceIds": ["water-source"],

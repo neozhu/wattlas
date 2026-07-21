@@ -11,6 +11,8 @@ from typing import Any
 
 from openpyxl import load_workbook
 
+from grid_scope.canonicalize import assign_asset_geography, build_geography_index
+
 
 HYDROGEN_PRODUCTION_SOURCE_ID = "iea-hydrogen-production-2026"
 HYDROGEN_INFRASTRUCTURE_SOURCE_ID = "iea-hydrogen-infrastructure-2026"
@@ -649,9 +651,173 @@ def apply_industrial_demand_model(
     modelled.update(
         {
             "annualDemandGwh": demand,
+            "demandMw": {
+                key: round(float(demand[key]) / 8.76, 6)
+                for key in ("low", "central", "high")
+            },
             "demandMethodId": method_id,
             "gridDemandContribution": True,
             "valueKind": "estimated",
         }
     )
     return modelled
+
+
+def _country_mappings(
+    countries: Mapping[str, Any],
+) -> tuple[dict[str, str], dict[str, str]]:
+    iso3_to_iso2: dict[str, str] = {}
+    name_to_iso2: dict[str, str] = {}
+    for feature in countries.get("features", []):
+        properties = feature.get("properties") or {}
+        iso2 = str(properties.get("id") or properties.get("country") or feature.get("id") or "").strip().upper()
+        iso3 = str(properties.get("iso3") or "").strip().upper()
+        name = _key(properties.get("name"))
+        if len(iso2) != 2:
+            continue
+        if len(iso3) == 3:
+            iso3_to_iso2[iso3] = iso2
+        if name:
+            name_to_iso2[name] = iso2
+    aliases = {
+        "united_states_of_america": "US", "united_states": "US",
+        "russia": "RU", "turkiye": "TR", "taiwan": "TW",
+        "south_korea": "KR", "north_korea": "KP", "czechia": "CZ",
+        "ivory_coast": "CI", "bolivia": "BO", "venezuela": "VE",
+        "iran": "IR", "syria": "SY", "tanzania": "TZ", "vietnam": "VN",
+        "laos": "LA", "moldova": "MD", "brunei": "BN",
+    }
+    name_to_iso2.update({name: code for name, code in aliases.items() if code in set(iso3_to_iso2.values())})
+    return iso3_to_iso2, name_to_iso2
+
+
+def _resolve_city_coordinates(
+    assets: Iterable[Mapping[str, Any]], cities: Mapping[str, Any]
+) -> list[dict[str, Any]]:
+    city_index: dict[tuple[str, str], list[float]] = {}
+    for feature in cities.get("features", []):
+        properties = feature.get("properties") or {}
+        geometry = feature.get("geometry") or {}
+        coordinates = geometry.get("coordinates")
+        key = (str(properties.get("country") or "").upper(), _key(properties.get("name")))
+        if len(key[0]) == 2 and key[1] and isinstance(coordinates, list) and len(coordinates) == 2:
+            city_index.setdefault(key, [float(coordinates[0]), float(coordinates[1])])
+    resolved: list[dict[str, Any]] = []
+    for raw in assets:
+        asset = dict(raw)
+        if asset.get("coordinates") is None:
+            coordinates = city_index.get(
+                (str(asset.get("country") or "").upper(), _key(asset.get("locationName")))
+            )
+            if coordinates is not None:
+                asset["coordinates"] = coordinates
+                asset["locationPrecision"] = "city_centroid"
+        resolved.append(asset)
+    return resolved
+
+
+def load_industrial_assets_from_paths(
+    source_paths: Mapping[str, Path],
+    *,
+    countries: Mapping[str, Any],
+    admin1: Mapping[str, Any],
+    cities: Mapping[str, Any],
+    assumptions: Mapping[str, Any],
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    iso3_to_iso2, country_name_to_iso2 = _country_mappings(countries)
+    normalized: list[dict[str, Any]] = []
+    production_path = source_paths.get(HYDROGEN_PRODUCTION_SOURCE_ID)
+    if production_path is not None:
+        normalized.extend(
+            parse_hydrogen_production(production_path, iso3_to_iso2=iso3_to_iso2)
+        )
+    infrastructure_path = source_paths.get(HYDROGEN_INFRASTRUCTURE_SOURCE_ID)
+    if infrastructure_path is not None:
+        normalized.extend(
+            parse_hydrogen_infrastructure(
+                infrastructure_path, iso3_to_iso2=iso3_to_iso2
+            )
+        )
+    cement_path = source_paths.get(GEM_CEMENT_SOURCE_ID)
+    if cement_path is not None:
+        normalized.extend(
+            parse_gem_cement(
+                cement_path, country_name_to_iso2=country_name_to_iso2
+            )
+        )
+    steel_paths = (
+        source_paths.get(GEM_STEEL_PLANT_SOURCE_ID),
+        source_paths.get(GEM_STEEL_UNIT_SOURCE_ID),
+        source_paths.get(GEM_IRON_UNIT_SOURCE_ID),
+    )
+    if all(path is not None for path in steel_paths):
+        normalized.extend(
+            parse_gem_steel(
+                steel_paths[0],
+                steel_units_path=steel_paths[1],
+                iron_units_path=steel_paths[2],
+                country_name_to_iso2=country_name_to_iso2,
+            )
+        )
+    modelled = [
+        apply_industrial_demand_model(asset, assumptions=assumptions)
+        for asset in _resolve_city_coordinates(normalized, cities)
+    ]
+    by_country: dict[str, list[dict[str, Any]]] = {}
+    for feature in admin1.get("features", []):
+        country = str((feature.get("properties") or {}).get("country") or "").upper()
+        if country:
+            by_country.setdefault(country, []).append(feature)
+    indexes = {
+        country: build_geography_index(features)
+        for country, features in by_country.items()
+    }
+    mappable: list[dict[str, Any]] = []
+    for asset in modelled:
+        if asset.get("coordinates") is None:
+            continue
+        country = str(asset.get("country") or "").upper()
+        asset["geographyId"] = country
+        assignment_asset = asset
+        if asset.get("locationPrecision") != "exact":
+            assignment_asset = {**asset, "locationPrecision": "exact"}
+        geography_id = assign_asset_geography(
+            assignment_asset, indexes.get(country, [])
+        )
+        asset["geographyId"] = geography_id
+        if geography_id != country:
+            asset["admin1Id"] = geography_id
+        mappable.append(asset)
+    forecast_eligible = sum(
+        bool(asset.get("gridDemandContribution"))
+        and asset.get("lifecycle") in {
+            "announced", "planning_filed", "permitted", "pre_construction", "under_construction"
+        }
+        and isinstance(asset.get("targetYear"), int)
+        and 2026 <= asset["targetYear"] <= 2031
+        and asset.get("geographyId") != asset.get("country")
+        for asset in mappable
+    )
+    return sorted(mappable, key=lambda asset: asset["id"]), {
+        "normalized": len(normalized),
+        "mappable": len(mappable),
+        "forecastEligible": forecast_eligible,
+    }
+
+
+def merge_industrial_assets(
+    registry: Mapping[str, Any], assets: Iterable[Mapping[str, Any]]
+) -> dict[str, Any]:
+    merged = dict(registry)
+    by_id = {
+        str(asset.get("id")): dict(asset)
+        for asset in registry.get("assets", [])
+        if asset.get("id")
+    }
+    for asset in assets:
+        identifier = str(asset.get("id") or "").strip()
+        if not identifier:
+            raise ValueError("industrial assets require stable IDs")
+        by_id[identifier] = dict(asset)
+    merged["assets"] = [by_id[identifier] for identifier in sorted(by_id)]
+    return merged

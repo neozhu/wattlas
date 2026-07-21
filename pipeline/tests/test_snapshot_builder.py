@@ -154,12 +154,52 @@ def test_operational_assets_are_context_only_and_country_counts_explain_coverage
         "planned": 0,
         "dataCentres": 1,
         "waterInfrastructure": 0,
+        "industrialLoads": 0,
+        "hydrogenInfrastructure": 0,
         "officialVerified": 0,
         "communityMapped": 1,
     }
     asset = json.loads(artifacts["assets.geojson"])["features"][0]
     assert asset["properties"]["sourceType"] == "community_mapped"
     assert asset["properties"]["sourceUrl"].endswith("/node/101")
+
+
+def test_pre_construction_industrial_load_is_scored_and_explained() -> None:
+    countries = {
+        "type": "FeatureCollection",
+        "features": [{
+            "type": "Feature", "id": "DE",
+            "geometry": {"type": "Polygon", "coordinates": []},
+            "properties": {"id": "DE", "name": "Germany", "country": "DE", "level": "country"},
+        }],
+    }
+    registry = {
+        "sources": [],
+        "assets": [{
+            "id": "industrial-1", "name": "Future EAF", "geographyId": "DE",
+            "country": "DE", "category": "industrial_load", "subtype": "steel_plant",
+            "lifecycle": "pre_construction", "targetYear": 2028,
+            "coordinates": [10, 51], "locationPrecision": "exact",
+            "valueKind": "estimated", "sourceIds": ["gem-global-steel-plants-2026"],
+            "demandMw": {"low": 30, "central": 44, "high": 77},
+            "annualDemandGwh": {"low": 262.8, "central": 385.44, "high": 674.52},
+            "gridDemandContribution": True,
+            "demandMethodId": "steel-eaf-electricity-v1",
+        }],
+    }
+
+    artifacts = build_global_snapshot_artifacts(
+        countries=countries,
+        regions={"type": "FeatureCollection", "features": []},
+        registry=registry,
+        generated_at="2026-07-21T00:00:00Z",
+    )
+    properties = json.loads(artifacts["countries.geojson"])["features"][0]["properties"]
+
+    assert properties["scoresByYear"]["2027"]["infrastructureDemand"] is None
+    assert properties["scoresByYear"]["2028"]["infrastructureDemand"] is not None
+    assert properties["assetSummary"]["planned"] == 1
+    assert properties["assetSummary"]["industrialLoads"] == 1
 
 
 def test_global_builder_assigns_assets_to_adm1_and_overrides_india_outline() -> None:
