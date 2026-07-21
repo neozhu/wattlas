@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
 
 import {
   ALL_GENERATOR_CAPACITIES,
@@ -21,35 +21,34 @@ type Props = {
   catalogueReady: boolean;
   onChange: (value: GeneratorCapacityRange) => void;
 };
+type ParsedCapacityDraft = { ok: true; value: GeneratorCapacityRange } | { ok: false; error: string };
 
 const presetLabel = (capacityMw: number): string => capacityMw === 0 ? "All" : formatGeneratorCapacity(capacityMw);
 const inputValue = (value: number): string => Number.isFinite(value) ? String(value) : "0";
 
-export function GeneratorCapacityFilter({ value, scaleMaximumMw, disabled = false, catalogueReady, onChange }: Props) {
+export function GeneratorCapacityFilter(props: Props) {
+  return <GeneratorCapacityFilterEditor key={`${props.value.minMw}:${props.value.maxMw ?? "unlimited"}`} {...props} />;
+}
+
+function GeneratorCapacityFilterEditor({ value, scaleMaximumMw, disabled = false, catalogueReady, onChange }: Props) {
   const [draftMin, setDraftMin] = useState(inputValue(value.minMw));
   const [draftMax, setDraftMax] = useState(value.maxMw == null ? "" : inputValue(value.maxMw));
   const [error, setError] = useState<string | null>(null);
   const scaleMaximum = Math.max(1000, scaleMaximumMw);
 
-  useEffect(() => {
-    setDraftMin(inputValue(value.minMw));
-    setDraftMax(value.maxMw == null ? "" : inputValue(value.maxMw));
-    setError(null);
-  }, [value.maxMw, value.minMw]);
-
-  const parsedDraft = () => {
+  const parsedDraft = (): ParsedCapacityDraft => {
     const minMw = draftMin.trim() === "" ? 0 : Number(draftMin);
     const maxMw = draftMax.trim() === "" ? null : Number(draftMax);
     if (!Number.isFinite(minMw) || minMw < 0 || (maxMw != null && (!Number.isFinite(maxMw) || maxMw < 0))) {
-      return { error: "Capacity values must be non-negative numbers" } as const;
+      return { ok: false, error: "Capacity values must be non-negative numbers" };
     }
-    if (maxMw != null && maxMw < minMw) return { error: "Maximum must be greater than or equal to minimum" } as const;
-    return { value: { minMw, maxMw } } as const;
+    if (maxMw != null && maxMw < minMw) return { ok: false, error: "Maximum must be greater than or equal to minimum" };
+    return { ok: true, value: { minMw, maxMw } };
   };
 
   const commitDraft = () => {
     const parsed = parsedDraft();
-    if ("error" in parsed) {
+    if (!parsed.ok) {
       setError(parsed.error);
       return;
     }

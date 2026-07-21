@@ -27,9 +27,9 @@ describe("GeneratorCapacityFilter", () => {
   it("commits exact numeric minimum and maximum values on blur", () => {
     render(<ControlledFilter />);
     const minimum = screen.getByRole("spinbutton", { name: "Minimum capacity (MW)" });
-    const maximum = screen.getByRole("spinbutton", { name: "Maximum capacity (MW)" });
     fireEvent.change(minimum, { target: { value: "12" } });
     fireEvent.blur(minimum);
+    const maximum = screen.getByRole("spinbutton", { name: "Maximum capacity (MW)" });
     fireEvent.change(maximum, { target: { value: "275" } });
     fireEvent.blur(maximum);
     expect(screen.getByTestId("committed-range")).toHaveTextContent('{"minMw":12,"maxMw":275}');
