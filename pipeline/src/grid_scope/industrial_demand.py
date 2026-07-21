@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from datetime import date, datetime
+from io import BytesIO
 import json
 from pathlib import Path
 import math
@@ -164,7 +165,7 @@ def _is_electrolysis(technology: object) -> bool:
 
 
 def _records(path: Path, sheet_name: str, *, header_row: int) -> Iterable[dict[str, Any]]:
-    workbook = load_workbook(path, read_only=True, data_only=True)
+    workbook = _load_xlsx(path)
     try:
         sheet = workbook[sheet_name]
         header_values = next(
@@ -181,6 +182,11 @@ def _records(path: Path, sheet_name: str, *, header_row: int) -> Iterable[dict[s
                 yield record
     finally:
         workbook.close()
+
+
+def _load_xlsx(path: Path):
+    """Open checksum-addressed Excel bytes without relying on their file suffix."""
+    return load_workbook(BytesIO(path.read_bytes()), read_only=True, data_only=True)
 
 
 def _pick(record: Mapping[str, Any], *keys: str) -> Any:
@@ -267,7 +273,7 @@ def _network_subtype(sheet_name: str, row: Mapping[str, Any]) -> str:
 def parse_hydrogen_infrastructure(
     path: Path, *, iso3_to_iso2: Mapping[str, str]
 ) -> list[dict[str, Any]]:
-    workbook = load_workbook(path, read_only=True, data_only=True)
+    workbook = _load_xlsx(path)
     sheet_names = set(workbook.sheetnames)
     workbook.close()
     supported = (

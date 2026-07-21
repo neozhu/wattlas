@@ -115,6 +115,21 @@ def test_hydrogen_production_normalizes_status_location_and_grid_evidence(tmp_pa
     assert missing["coordinates"] == [151.25, -23.8]
 
 
+def test_governed_checksum_bin_file_is_read_as_xlsx_content(tmp_path: Path) -> None:
+    xlsx_path = tmp_path / "production.xlsx"
+    governed_path = tmp_path / "checksum.bin"
+    _production_workbook(xlsx_path)
+    xlsx_path.rename(governed_path)
+
+    assets = parse_hydrogen_production(governed_path, iso3_to_iso2=ISO3_TO_ISO2)
+
+    assert [asset["id"] for asset in assets] == [
+        "iea-h2-production-h2-1",
+        "iea-h2-production-h2-2",
+        "iea-h2-production-h2-3",
+    ]
+
+
 def test_hydrogen_infrastructure_is_context_only_even_with_mwel(tmp_path: Path) -> None:
     path = tmp_path / "infrastructure.xlsx"
     _infrastructure_workbook(path)
