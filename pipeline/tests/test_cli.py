@@ -32,6 +32,7 @@ from grid_scope.cli import (
     _brazil_state_mapping,
     normalize_entsoe_publication,
     _entsoe_network_result,
+    _osm_infrastructure_result,
 )
 from grid_scope.connectors.base import ConnectorResult, FetchPayload
 from grid_scope.models import ConnectorState
@@ -137,6 +138,57 @@ def test_entsoe_partial_capture_is_visible_before_first_complete_capture(tmp_pat
     assert body == partial
     assert selected.state == ConnectorState.STALE
     assert store.latest_capture("entsoe") is None
+
+
+def test_osm_infrastructure_uses_published_snapshot_when_network_and_raw_cache_fail(
+    tmp_path,
+) -> None:
+    publish_dir = tmp_path / "public" / "data"
+    snapshot_dir = publish_dir / "snapshots" / "baseline"
+    snapshot_dir.mkdir(parents=True)
+    (publish_dir / "latest.json").write_text(json.dumps({
+        "snapshotId": "baseline",
+        "artifacts": {"assets": "snapshots/baseline/assets.geojson"},
+    }))
+    (snapshot_dir / "assets.geojson").write_text(json.dumps({
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature", "id": "osm-node-1",
+                "geometry": {"type": "Point", "coordinates": [7.1, 51.2]},
+                "properties": {
+                    "id": "osm-node-1", "name": "Existing facility",
+                    "category": "data_centre", "country": "DE", "geographyId": "DE",
+                    "lifecycle": "operational", "locationPrecision": "exact",
+                    "valueKind": "observed", "sourceType": "community_mapped",
+                    "sourceIds": ["openstreetmap-infrastructure"],
+                    "externalIds": {"osm": "node/1"}, "confidence": 78,
+                    "lastObservedAt": "2026-07-01T00:00:00Z",
+                },
+            },
+            {
+                "type": "Feature", "id": "official-1",
+                "geometry": {"type": "Point", "coordinates": [8.1, 52.2]},
+                "properties": {
+                    "id": "official-1", "sourceType": "official_verified",
+                    "sourceIds": ["official-source"],
+                },
+            },
+        ],
+    }))
+    store = RawCaptureStore(tmp_path / "raw", tmp_path / "warehouse.duckdb")
+
+    body, result = _osm_infrastructure_result(
+        lambda: (_ for _ in ()).throw(RuntimeError("QLever 403")),
+        store,
+        publish_dir=publish_dir,
+    )
+
+    payload = json.loads(body)
+    assert result.state == ConnectorState.CACHED
+    assert [asset["id"] for asset in payload["assets"]] == ["osm-node-1"]
+    assert payload["assets"][0]["coordinates"] == [7.1, 51.2]
+    assert payload["assets"][0]["lastObservedAt"] == "2026-07-01T00:00:00Z"
 
 
 def test_brazil_state_mapping_handles_publisher_and_boundary_spellings() -> None:

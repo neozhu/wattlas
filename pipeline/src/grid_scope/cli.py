@@ -689,6 +689,68 @@ def _network_result(
         raise
 
 
+def _osm_infrastructure_result(
+    fetch: Callable[[], ConnectorResult],
+    store: RawCaptureStore,
+    *,
+    publish_dir: Path,
+) -> tuple[bytes, ConnectorResult]:
+    """Fall back to the governed published OSM assets when QLever blocks CI."""
+
+    try:
+        return _network_result(fetch, "osm_infrastructure", store)
+    except Exception as network_error:
+        try:
+            latest = _read_json(publish_dir / "latest.json")
+            snapshot_id = str(latest.get("snapshotId") or "")
+            if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", snapshot_id):
+                raise ValueError("published snapshot has an unsafe ID")
+            artifact_path = ((latest.get("artifacts") or {}).get("assets"))
+            expected = f"snapshots/{snapshot_id}/assets.geojson"
+            if artifact_path != expected:
+                raise ValueError("published snapshot has an unexpected assets path")
+            collection = _read_json(publish_dir / expected)
+            assets: list[dict[str, Any]] = []
+            for feature in collection.get("features", []):
+                properties = feature.get("properties") or {}
+                source_ids = properties.get("sourceIds") or []
+                if (
+                    properties.get("sourceType") != "community_mapped"
+                    or OSM_SOURCE_ID not in source_ids
+                ):
+                    continue
+                geometry = feature.get("geometry") or {}
+                coordinates = geometry.get("coordinates")
+                if geometry.get("type") != "Point" or not isinstance(coordinates, list):
+                    continue
+                assets.append({**properties, "coordinates": coordinates})
+            if not assets:
+                raise ValueError("published snapshot contains no governed OSM assets")
+            body = json.dumps(
+                {
+                    "source": OSM_SOURCE_ID,
+                    "fallbackSnapshotId": snapshot_id,
+                    "assets": sorted(assets, key=lambda asset: str(asset.get("id"))),
+                },
+                ensure_ascii=False,
+                separators=(",", ":"),
+            ).encode()
+            return body, ConnectorResult(
+                source_id="osm_infrastructure",
+                state=ConnectorState.CACHED,
+                payload=None,
+                message=(
+                    "QLever was unavailable; reused governed OpenStreetMap "
+                    f"facilities from snapshot {snapshot_id}."
+                ),
+            )
+        except Exception as fallback_error:
+            raise RuntimeError(
+                "QLever failed and no governed published OSM fallback was available: "
+                f"{fallback_error}"
+            ) from network_error
+
+
 def _optional_network_result(
     fetch: Callable[[], ConnectorResult],
     source_id: str,
@@ -1636,10 +1698,10 @@ def refresh() -> Path:
         eurostat_body, eurostat_status = _network_result(
             lambda: EurostatConnector().fetch(client, now=now), "eurostat", store
         )
-        osm_body, osm_status = _network_result(
+        osm_body, osm_status = _osm_infrastructure_result(
             lambda: OsmInfrastructureConnector(QLEVER_OSM_URL).fetch(client, now=now),
-            "osm_infrastructure",
             store,
+            publish_dir=PUBLISH_DIR,
         )
         gem_body, gem_status = _optional_network_result(
             lambda: GemPowerConnector().fetch(client, now=now), "gem_power", store
