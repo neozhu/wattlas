@@ -95,7 +95,7 @@ The fast 2D Europe canvas remains the historical foundation, but the current app
 - **Network exclusion:** hydrogen pipelines, storage, blending, and terminals are context-only and never generate a demand increment by themselves.
 - **Forecast gates:** an industrial project affects 2026–2031 only with a publishable source, valid ADM1 assignment, supported commissioning year, eligible lifecycle, non-negative demand range, and versioned method ID.
 - **Additive data rule:** retain all existing data-centre, water, generator, geography, and baseline-demand data. New industrial assets and increments are additions, not replacements.
-- **ENTSO-E:** read the future Transparency Platform token from `ENTSOE_SECURITY_TOKEN`; until configured, expose `not_configured` and use the existing governed fallback. Never embed or commit the token.
+- **ENTSO-E:** query actual total load and generation by production type for the previous complete UTC calendar month. Convert interval MW to compact monthly GWh, peak/mean demand, generation mix, and coverage. Publish direct, composite, overlapping, and evidence-only bidding-zone mappings explicitly. A single month is evidence-only and cannot rewrite annual controls or scores; only a separately reviewed complete annual series may become an annual baseline. Retain the last successful aggregate on failure. Read `ENTSOE_SECURITY_TOKEN` only in the refresh runtime and never embed, log, publish, or commit it or the raw interval response.
 - **Publication gate:** build and host this redesign locally for the owner to test. Do not push to GitHub or deploy to Vercel until explicit approval after review.
 
 The approved design and execution plan are recorded in:

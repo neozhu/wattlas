@@ -726,6 +726,24 @@
       "requiredEnv": [],
       "manualPathEnv": "GEM_IRON_UNITS_PATH",
       "notes": "Blast-furnace and DRI unit evidence joined to plant records; thermal output is not mislabeled as electricity demand."
+    },
+    {
+      "id": "entsoe",
+      "name": "ENTSO-E Transparency Platform",
+      "publisher": "ENTSO-E",
+      "url": "https://transparency.entsoe.eu/",
+      "categories": ["demand", "generation", "national_control"],
+      "continents": ["Europe"],
+      "countries": [],
+      "accessMode": "credentialled",
+      "publicationState": "publishable",
+      "refreshCadence": "monthly",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://transparency.entsoe.eu/content/static_content/download?path=%2FStatic+content%2Fterms+and+conditions%2F231018_List_of_Data_available_for_reuse.pdf",
+      "licenceDecidedAt": "2026-07-21",
+      "requiredEnv": ["ENTSOE_SECURITY_TOKEN"],
+      "manualPathEnv": null,
+      "notes": "The ENTSO-E reusable-data list applies CC BY 4.0 to the listed Transparency Platform data, subject to its stated geographic and data-item exceptions. Wattlas publishes previous-complete-month load and generation aggregates with bidding-zone mapping and coverage. Raw intervals and credentials remain private; monthly observations are evidence-only until annual completeness is established."
     }
   ]
 }

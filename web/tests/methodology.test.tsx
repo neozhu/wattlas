@@ -67,7 +67,7 @@ describe("methodology and sources", () => {
     expect(screen.getByText("SAPP data")).toBeInTheDocument();
   });
 
-  it("discloses industrial demand releases, formulas, lifecycle mapping, and credential limits", () => {
+  it("discloses industrial releases and governed ENTSO-E monthly evidence", () => {
     render(<MethodologyPage catalog={catalog} generatedAt="2026-07-17T00:00:00Z" assetCoverage={{ industrialLoads: 4220, hydrogenInfrastructure: 808, forecastIndustrialLoads: 118 }} />);
     for (const text of [
       /IEA Hydrogen Production Projects Database · June 2026/i,
@@ -81,6 +81,11 @@ describe("methodology and sources", () => {
       /Pipelines, storage, blending, and terminals never create an electricity-demand increment/i,
       /Operating, Under construction, Pre-construction, Announced, and Retired/i,
       /ENTSOE_SECURITY_TOKEN/i,
+      /previous complete UTC calendar month/i,
+      /MW intervals into GWh/i,
+      /bidding-zone boundaries do not always match countries/i,
+      /does not alter annual forecasts or Opportunity Radar scores/i,
+      /last successful aggregate/i,
     ]) expect(screen.getByText(text)).toBeInTheDocument();
     expect(screen.getByText("4,220")).toBeInTheDocument();
     expect(screen.getByText("808")).toBeInTheDocument();

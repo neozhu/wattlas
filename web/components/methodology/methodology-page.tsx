@@ -88,6 +88,7 @@ export function MethodologyPage({
         <div><p>REGIONAL DATA ADDITIONS</p><h2>More detail without weakening the method</h2></div>
         <article><b>Global generation</b><p>Global Energy Monitor’s March 2026 integrated tracker adds reported power units and projects across 226 countries and areas. Wattlas reconciles units into canonical facilities and preserves technology, lifecycle, capacity, and source lineage.</p></article>
         <article><b>Brazil demand</b><p>Official EPE monthly state consumption is summed across consumer classes and market types and published only for complete calendar years. The latest complete state shares are scaled to the Ember national control for each horizon year, keeping ADM1 detail and national reconciliation together.</p></article>
+        <article><b>Europe monthly observations</b><p>ENTSO-E actual total load and generation by production type are retrieved for the previous complete UTC calendar month. Wattlas converts resolution-aware MW intervals into GWh, publishes peak and mean demand with coverage, and preserves the bidding-zone identity.</p></article>
         <article><b>Africa grid context</b><p>The World Bank grid release adds 62,001 existing and planned line features as dated topology context. Lines never count as generation capacity, dependable supply, or proof of connection headroom.</p></article>
       </section>
 
@@ -127,7 +128,7 @@ export function MethodologyPage({
           <p>Pipelines, storage, blending, and terminals never create an electricity-demand increment by themselves.</p>
           <p>Public lifecycle groups are Operating, Under construction, Pre-construction, Announced, and Retired. Cancelled, shelved, mothballed, and unknown records remain available to governance checks but do not enter public forecasts.</p>
           <p>Projects are assigned to ADM1 regions from their reported coordinates, deduplicated using stable source identities, and applied once from the supported commissioning year. Project eligibility does not imply regional application when the supporting ADM1 demand baseline is unavailable; those projects remain visible and explicitly unapplied.</p>
-          <p>The ENTSO-E connector reads ENTSOE_SECURITY_TOKEN at runtime. Until a token is configured, it reports “not configured” and Wattlas retains the existing governed European fallback instead of fabricating bidding-zone observations.</p>
+          <p>The ENTSO-E connector reads ENTSOE_SECURITY_TOKEN only inside the refresh runtime; the credential and raw interval payloads are never published. Bidding-zone boundaries do not always match countries, so direct mappings are distinguished from composite, overlapping, and evidence-only areas. A first monthly observation improves evidence but does not alter annual forecasts or Opportunity Radar scores. If the refresh fails, Wattlas serves the last successful aggregate; without any authenticated capture it reports “not configured” rather than fabricating data.</p>
         </div>
       </section>
 
