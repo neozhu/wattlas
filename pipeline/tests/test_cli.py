@@ -33,6 +33,7 @@ from grid_scope.cli import (
     normalize_entsoe_publication,
     _entsoe_network_result,
     _osm_infrastructure_result,
+    _osm_power_result,
 )
 from grid_scope.connectors.base import ConnectorResult, FetchPayload
 from grid_scope.models import ConnectorState
@@ -189,6 +190,66 @@ def test_osm_infrastructure_uses_published_snapshot_when_network_and_raw_cache_f
     assert [asset["id"] for asset in payload["assets"]] == ["osm-node-1"]
     assert payload["assets"][0]["coordinates"] == [7.1, 51.2]
     assert payload["assets"][0]["lastObservedAt"] == "2026-07-01T00:00:00Z"
+
+
+def test_osm_power_uses_published_generator_shards_when_network_cache_is_empty(
+    tmp_path,
+) -> None:
+    publish_dir = tmp_path / "public" / "data"
+    snapshot_dir = publish_dir / "snapshots" / "baseline"
+    generator_dir = snapshot_dir / "generators"
+    generator_dir.mkdir(parents=True)
+    (publish_dir / "latest.json").write_text(json.dumps({
+        "snapshotId": "baseline",
+        "artifacts": {
+            "generatorIndex": "snapshots/baseline/generators/index.json"
+        },
+    }))
+    (generator_dir / "index.json").write_text(json.dumps({
+        "countries": {"DE": {"path": "generators/DE.geojson"}},
+        "totals": {"featureCount": 2, "capacityMw": 90},
+    }))
+    (generator_dir / "DE.geojson").write_text(json.dumps({
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature", "id": "wattlas-osm-1",
+                "geometry": {"type": "Point", "coordinates": [12.3, 51.3]},
+                "properties": {
+                    "id": "wattlas-osm-1", "name": "Mapped wind plant",
+                    "country": "DE", "geographyId": "DE-SN",
+                    "technologies": ["wind"], "technologyMixMw": {"wind": 90},
+                    "capacityMw": 90, "lifecycleCounts": {"operational": 1},
+                    "locationPrecision": "exact", "sourceIds": ["openstreetmap-power"],
+                    "sourceUrl": "https://www.openstreetmap.org/way/1",
+                    "externalIds": {"osm": "way/1"}, "aliases": ["Mapped wind plant"],
+                    "recordIds": ["wattlas-record-osm-way-1"],
+                },
+            },
+            {
+                "type": "Feature", "id": "official-1",
+                "geometry": {"type": "Point", "coordinates": [12.4, 51.4]},
+                "properties": {"id": "official-1", "sourceIds": ["official_power"]},
+            },
+        ],
+    }))
+    store = RawCaptureStore(tmp_path / "raw", tmp_path / "warehouse.duckdb")
+
+    body, result = _osm_power_result(
+        lambda: ConnectorResult(
+            source_id="osm_power", state=ConnectorState.FAILED,
+            payload=None, message="QLever 403",
+        ),
+        store,
+        publish_dir=publish_dir,
+    )
+
+    payload = json.loads(body)
+    assert result.state == ConnectorState.CACHED
+    assert [record["id"] for record in payload["records"]] == ["osm-power-fallback-wattlas-osm-1"]
+    assert payload["records"][0]["technology"] == "wind"
+    assert payload["records"][0]["capacityMw"] == {"low": 90, "central": 90, "high": 90}
+    assert payload["records"][0]["externalIds"] == {"osm": "way/1"}
 
 
 def test_brazil_state_mapping_handles_publisher_and_boundary_spellings() -> None:

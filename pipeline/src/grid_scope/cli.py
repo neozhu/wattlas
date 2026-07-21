@@ -53,7 +53,11 @@ from grid_scope.connectors.gisco import GiscoConnector
 from grid_scope.connectors.global_assets import load_asset_registry
 from grid_scope.connectors.gem_power import GemPowerConnector
 from grid_scope.connectors.osm_infrastructure import OSM_SOURCE_ID, OsmInfrastructureConnector
-from grid_scope.connectors.osm_power import OsmPowerConnector
+from grid_scope.connectors.osm_power import (
+    OSM_POWER_LICENCE,
+    OSM_POWER_SOURCE_ID,
+    OsmPowerConnector,
+)
 from grid_scope.connectors.regional_electricity import (
     load_curated_regional_observations,
     merge_regional_observations,
@@ -749,6 +753,132 @@ def _osm_infrastructure_result(
                 "QLever failed and no governed published OSM fallback was available: "
                 f"{fallback_error}"
             ) from network_error
+
+
+def _osm_power_result(
+    fetch: Callable[[], ConnectorResult],
+    store: RawCaptureStore,
+    *,
+    publish_dir: Path,
+) -> tuple[bytes, ConnectorResult]:
+    """Rehydrate prior governed OSM plants when QLever is unavailable in CI."""
+
+    failure: Exception | None = None
+    try:
+        body, result = _optional_network_result(fetch, "osm_power", store)
+        payload = json.loads(body)
+        if (
+            result.state in {ConnectorState.CURRENT, ConnectorState.CACHED}
+            and isinstance(payload.get("records"), list)
+            and payload["records"]
+        ):
+            return body, result
+    except Exception as error:
+        failure = error
+
+    try:
+        latest = _read_json(publish_dir / "latest.json")
+        snapshot_id = str(latest.get("snapshotId") or "")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", snapshot_id):
+            raise ValueError("published snapshot has an unsafe ID")
+        index_path = ((latest.get("artifacts") or {}).get("generatorIndex"))
+        expected_index = f"snapshots/{snapshot_id}/generators/index.json"
+        if index_path != expected_index:
+            raise ValueError("published snapshot has an unexpected generator index path")
+        snapshot_dir = publish_dir / "snapshots" / snapshot_id
+        index = _read_json(publish_dir / expected_index)
+        records: list[dict[str, Any]] = []
+        lifecycle_precedence = (
+            "under_construction", "announced", "operational", "paused", "cancelled"
+        )
+        for country, entry in sorted((index.get("countries") or {}).items()):
+            expected_shard = f"generators/{country}.geojson"
+            if not isinstance(entry, dict) or entry.get("path") != expected_shard:
+                raise ValueError("published generator index has an unexpected shard path")
+            shard = _read_json(snapshot_dir / expected_shard)
+            for feature in shard.get("features", []):
+                properties = feature.get("properties") or {}
+                if OSM_POWER_SOURCE_ID not in (properties.get("sourceIds") or []):
+                    continue
+                geometry = feature.get("geometry") or {}
+                coordinates = geometry.get("coordinates")
+                if geometry.get("type") != "Point" or not isinstance(coordinates, list):
+                    continue
+                mix = properties.get("technologyMixMw") or {}
+                technologies = properties.get("technologies") or list(mix)
+                technology = (
+                    max(
+                        (str(value) for value in technologies),
+                        key=lambda value: (float(mix.get(value, 0)), value),
+                    )
+                    if technologies else "other"
+                )
+                lifecycle_counts = properties.get("lifecycleCounts") or {}
+                lifecycle = next(
+                    (
+                        value for value in lifecycle_precedence
+                        if float(lifecycle_counts.get(value, 0) or 0) > 0
+                    ),
+                    "operational",
+                )
+                capacity = float(properties.get("capacityMw", 0) or 0)
+                capacity_range = (
+                    {"low": capacity, "central": capacity, "high": capacity}
+                    if capacity > 0 else None
+                )
+                identifier = f"osm-power-fallback-{feature.get('id')}"
+                records.append({
+                    "id": identifier,
+                    "name": properties.get("name") or "Mapped power plant",
+                    "category": "power_generation",
+                    "technology": technology,
+                    "primaryFuel": technology,
+                    "secondaryFuel": None,
+                    "lifecycle": lifecycle,
+                    "capacityMw": capacity_range,
+                    "capacityValueKind": "reported" if capacity_range else "unavailable",
+                    "plantId": identifier,
+                    "unitId": None,
+                    "externalIds": properties.get("externalIds") or {},
+                    "coordinates": coordinates,
+                    "country": properties.get("country") or country,
+                    "geographyId": properties.get("geographyId") or country,
+                    "locationPrecision": properties.get("locationPrecision") or "exact",
+                    "aliases": properties.get("aliases") or [],
+                    "sourceRecordIds": properties.get("recordIds") or [],
+                    "sourceIds": [OSM_POWER_SOURCE_ID],
+                    "sourceType": "community_mapped",
+                    "sourceUrl": properties.get("sourceUrl"),
+                    "licence": OSM_POWER_LICENCE,
+                    "valueKind": "reported" if capacity_range else "observed",
+                })
+        if not records:
+            raise ValueError("published snapshot contains no governed OSM power plants")
+        body = json.dumps(
+            {
+                "source": OSM_POWER_SOURCE_ID,
+                "licence": OSM_POWER_LICENCE,
+                "attribution": "© OpenStreetMap contributors",
+                "fallbackSnapshotId": snapshot_id,
+                "records": sorted(records, key=lambda record: record["id"]),
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode()
+        return body, ConnectorResult(
+            source_id="osm_power",
+            state=ConnectorState.CACHED,
+            payload=None,
+            message=(
+                "QLever was unavailable; rehydrated governed OpenStreetMap "
+                f"power plants from snapshot {snapshot_id}."
+            ),
+        )
+    except Exception as fallback_error:
+        raise RuntimeError(
+            "OSM power failed and no governed published fallback was available: "
+            f"{fallback_error}"
+        ) from failure
 
 
 def _optional_network_result(
@@ -1714,10 +1844,10 @@ def refresh() -> Path:
         wri_body, wri_status = _optional_network_result(
             lambda: WriPowerConnector().fetch(client, now=now), "wri_power", store
         )
-        osm_power_body, osm_power_status = _optional_network_result(
+        osm_power_body, osm_power_status = _osm_power_result(
             lambda: OsmPowerConnector(QLEVER_OSM_URL).fetch(client, now=now),
-            "osm_power",
             store,
+            publish_dir=PUBLISH_DIR,
         )
         entsoe_body, entsoe_status = _entsoe_network_result(
             lambda: EntsoeConnector(os.getenv("ENTSOE_SECURITY_TOKEN")).fetch(
