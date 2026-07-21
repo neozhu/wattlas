@@ -181,6 +181,57 @@ def test_asset_supports_water_infrastructure_subtypes() -> None:
     assert asset.subtype == "desalination"
 
 
+def test_industrial_asset_preserves_auditable_annual_demand() -> None:
+    asset = AssetProperties(
+        id="iea-h2-alpha",
+        name="Alpha Hydrogen",
+        geography_id="DE-BY",
+        category="industrial_load",
+        subtype="hydrogen_production",
+        lifecycle="pre_construction",
+        annual_demand_gwh={"low": 350, "central": 490, "high": 630},
+        reported_capacity=80,
+        reported_capacity_unit="MWel",
+        grid_connection_type="grid_plus_renewables",
+        grid_demand_contribution=True,
+        technology_detail="PEM electrolysis",
+        raw_status="Feasibility study",
+        source_record_ids=["IEA-H2-101"],
+        project_url="https://example.org/projects/alpha",
+        demand_method_id="hydrogen-electrolysis-grid-v1",
+        target_year=2029,
+        location_precision="exact",
+        value_kind="estimated",
+        source_ids=["iea-hydrogen-production-2026"],
+    )
+
+    dumped = asset.model_dump(by_alias=True, mode="json")
+    assert dumped["category"] == "industrial_load"
+    assert dumped["subtype"] == "hydrogen_production"
+    assert dumped["annualDemandGwh"]["central"] == 490
+    assert dumped["reportedCapacityUnit"] == "MWel"
+    assert dumped["gridConnectionType"] == "grid_plus_renewables"
+    assert dumped["sourceRecordIds"] == ["IEA-H2-101"]
+
+
+def test_hydrogen_network_asset_cannot_contribute_demand() -> None:
+    with pytest.raises(ValidationError, match="hydrogen infrastructure"):
+        AssetProperties(
+            id="iea-h2-pipeline-alpha",
+            name="Alpha Hydrogen Pipeline",
+            geography_id="DE-BY",
+            category="hydrogen_infrastructure",
+            subtype="hydrogen_pipeline",
+            lifecycle="announced",
+            annual_demand_gwh={"low": 10, "central": 20, "high": 30},
+            grid_demand_contribution=True,
+            demand_method_id="invalid-network-demand-v1",
+            location_precision="exact",
+            value_kind="estimated",
+            source_ids=["iea-hydrogen-infrastructure-2026"],
+        )
+
+
 @pytest.mark.parametrize(
     ("category", "subtype"),
     [

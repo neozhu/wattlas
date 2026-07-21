@@ -69,9 +69,14 @@ class LifecycleState(StrEnum):
     PLANNING_FILED = "planning_filed"
     PERMITTED = "permitted"
     UNDER_CONSTRUCTION = "under_construction"
+    PRE_CONSTRUCTION = "pre_construction"
     OPERATIONAL = "operational"
     PAUSED = "paused"
     CANCELLED = "cancelled"
+    RETIRED = "retired"
+    DECOMMISSIONED = "decommissioned"
+    SHELVED = "shelved"
+    UNKNOWN = "unknown"
 
 
 class GeographyLevel(StrEnum):
@@ -84,6 +89,8 @@ class AssetCategory(StrEnum):
     DATA_CENTRE = "data_centre"
     WATER_INFRASTRUCTURE = "water_infrastructure"
     POWER_GENERATION = "power_generation"
+    INDUSTRIAL_LOAD = "industrial_load"
+    HYDROGEN_INFRASTRUCTURE = "hydrogen_infrastructure"
 
 
 class GenerationTechnology(StrEnum):
@@ -110,6 +117,14 @@ class AssetSubtype(StrEnum):
     WATER_REUSE = "water_reuse"
     PIPELINE_PUMPING = "pipeline_pumping"
     RESERVOIR = "reservoir"
+    HYDROGEN_PRODUCTION = "hydrogen_production"
+    STEEL_PLANT = "steel_plant"
+    CEMENT_PLANT = "cement_plant"
+    HYDROGEN_PIPELINE = "hydrogen_pipeline"
+    HYDROGEN_BLENDING = "hydrogen_blending"
+    HYDROGEN_STORAGE = "hydrogen_storage"
+    HYDROGEN_IMPORT_TERMINAL = "hydrogen_import_terminal"
+    HYDROGEN_EXPORT_TERMINAL = "hydrogen_export_terminal"
 
 
 DATA_CENTRE_SUBTYPES = frozenset(
@@ -131,6 +146,32 @@ WATER_INFRASTRUCTURE_SUBTYPES = frozenset(
         AssetSubtype.RESERVOIR,
     }
 )
+
+INDUSTRIAL_LOAD_SUBTYPES = frozenset(
+    {
+        AssetSubtype.HYDROGEN_PRODUCTION,
+        AssetSubtype.STEEL_PLANT,
+        AssetSubtype.CEMENT_PLANT,
+    }
+)
+
+HYDROGEN_INFRASTRUCTURE_SUBTYPES = frozenset(
+    {
+        AssetSubtype.HYDROGEN_PIPELINE,
+        AssetSubtype.HYDROGEN_BLENDING,
+        AssetSubtype.HYDROGEN_STORAGE,
+        AssetSubtype.HYDROGEN_IMPORT_TERMINAL,
+        AssetSubtype.HYDROGEN_EXPORT_TERMINAL,
+    }
+)
+
+
+class GridConnectionType(StrEnum):
+    GRID = "grid"
+    GRID_PLUS_RENEWABLES = "grid_plus_renewables"
+    DEDICATED_RENEWABLE = "dedicated_renewable"
+    NUCLEAR = "nuclear"
+    OTHER_OR_UNKNOWN = "other_or_unknown"
 
 
 class LocationPrecision(StrEnum):
@@ -416,6 +457,16 @@ class AssetProperties(ContractModel):
     subtype: AssetSubtype | None = None
     lifecycle: LifecycleState
     demand_mw: DemandRange | None = None
+    annual_demand_gwh: DemandRange | None = None
+    reported_capacity: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    reported_capacity_unit: str | None = None
+    grid_connection_type: GridConnectionType | None = None
+    grid_demand_contribution: bool = False
+    technology_detail: str | None = None
+    raw_status: str | None = None
+    source_record_ids: list[str] = Field(default_factory=list)
+    project_url: HttpUrl | None = None
+    demand_method_id: str | None = None
     technology: GenerationTechnology | None = None
     secondary_fuel: str | None = None
     capacity_mw: MetricRange | None = None
@@ -437,8 +488,16 @@ class AssetProperties(ContractModel):
 
     @model_validator(mode="after")
     def generation_and_demand_are_valid(self) -> "AssetProperties":
-        if self.demand_mw is not None and not self.source_ids:
+        if (self.demand_mw is not None or self.annual_demand_gwh is not None) and not self.source_ids:
             raise ValueError("demand-contributing assets require at least one source")
+        if any(not value.strip() for value in self.source_record_ids):
+            raise ValueError("source record IDs must be nonblank")
+        if len(self.source_record_ids) != len(set(self.source_record_ids)):
+            raise ValueError("source record IDs must be unique")
+        if self.reported_capacity is not None and not (self.reported_capacity_unit or "").strip():
+            raise ValueError("reported capacity requires a unit")
+        if self.demand_method_id is not None and not self.demand_method_id.strip():
+            raise ValueError("demand method ID must be nonblank")
         generation_ranges = (
             self.capacity_mw,
             self.dependable_capacity_mw,
@@ -463,8 +522,29 @@ class AssetProperties(ContractModel):
                 and self.subtype not in WATER_INFRASTRUCTURE_SUBTYPES
             ):
                 raise ValueError("water-infrastructure assets require a water-infrastructure subtype")
+            if (
+                self.category == AssetCategory.INDUSTRIAL_LOAD
+                and self.subtype not in INDUSTRIAL_LOAD_SUBTYPES
+            ):
+                raise ValueError("industrial-load assets require an industrial subtype")
+            if (
+                self.category == AssetCategory.HYDROGEN_INFRASTRUCTURE
+                and self.subtype not in HYDROGEN_INFRASTRUCTURE_SUBTYPES
+            ):
+                raise ValueError("hydrogen-infrastructure assets require a network subtype")
             if any(value is not None for value in generation_fields):
                 raise ValueError("non-generation assets cannot contain generation-only fields")
+            if self.category == AssetCategory.HYDROGEN_INFRASTRUCTURE and (
+                self.demand_mw is not None
+                or self.annual_demand_gwh is not None
+                or self.grid_demand_contribution
+            ):
+                raise ValueError("hydrogen infrastructure cannot contribute electricity demand")
+            if self.annual_demand_gwh is not None:
+                if self.category != AssetCategory.INDUSTRIAL_LOAD:
+                    raise ValueError("annual industrial demand is only valid for industrial loads")
+                if not self.grid_demand_contribution or not self.demand_method_id:
+                    raise ValueError("annual industrial demand requires a grid contribution and demand method")
             return self
         if self.subtype is not None:
             raise ValueError("power-generation assets cannot contain an infrastructure subtype")

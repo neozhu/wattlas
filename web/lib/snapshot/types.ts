@@ -12,6 +12,7 @@ export type LensScores = {
 };
 
 export type InfrastructureCategory = "combined" | "data_centre" | "water_infrastructure";
+export type AssetCategory = Exclude<InfrastructureCategory, "combined"> | "power_generation" | "industrial_load" | "hydrogen_infrastructure";
 export type GenerationTechnology = "solar" | "wind" | "hydro" | "nuclear" | "gas" | "coal" | "oil" | "biomass" | "geothermal" | "other";
 export type GeographyLevel = "country" | "admin_1" | "admin_2";
 export type DemandRange = { low: number; central: number; high: number };
@@ -85,10 +86,20 @@ export type AssetProperties = {
   id: string;
   name: string;
   geographyId: string;
-  category: Exclude<InfrastructureCategory, "combined"> | "power_generation";
-  subtype?: "hyperscale" | "colocation" | "cloud" | "ai_hpc" | "other_data_centre" | "desalination" | "wastewater" | "water_reuse" | "pipeline_pumping" | "reservoir" | null;
-  lifecycle: "announced" | "planning_filed" | "permitted" | "under_construction" | "operational" | "paused" | "cancelled";
+  category: AssetCategory;
+  subtype?: "hyperscale" | "colocation" | "cloud" | "ai_hpc" | "other_data_centre" | "desalination" | "wastewater" | "water_reuse" | "pipeline_pumping" | "reservoir" | "hydrogen_production" | "steel_plant" | "cement_plant" | "hydrogen_pipeline" | "hydrogen_blending" | "hydrogen_storage" | "hydrogen_import_terminal" | "hydrogen_export_terminal" | null;
+  lifecycle: "announced" | "planning_filed" | "permitted" | "under_construction" | "pre_construction" | "operational" | "paused" | "cancelled" | "retired" | "decommissioned" | "shelved" | "unknown";
   demandMw: DemandRange | null;
+  annualDemandGwh?: DemandRange | null;
+  reportedCapacity?: number | null;
+  reportedCapacityUnit?: string | null;
+  gridConnectionType?: "grid" | "grid_plus_renewables" | "dedicated_renewable" | "nuclear" | "other_or_unknown" | null;
+  gridDemandContribution?: boolean;
+  technologyDetail?: string | null;
+  rawStatus?: string | null;
+  sourceRecordIds?: string[];
+  projectUrl?: string | null;
+  demandMethodId?: string | null;
   technology?: GenerationTechnology | null;
   secondaryFuel?: string | null;
   capacityMw?: DemandRange | null;

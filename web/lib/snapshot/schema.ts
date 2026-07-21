@@ -47,13 +47,18 @@ export const lifecycleStateSchema = z.enum([
   "planning_filed",
   "permitted",
   "under_construction",
+  "pre_construction",
   "operational",
   "paused",
   "cancelled",
+  "retired",
+  "decommissioned",
+  "shelved",
+  "unknown",
 ]);
 
 export const geographyLevelSchema = z.enum(["country", "admin_1", "admin_2"]);
-export const assetCategorySchema = z.enum(["data_centre", "water_infrastructure", "power_generation"]);
+export const assetCategorySchema = z.enum(["data_centre", "water_infrastructure", "power_generation", "industrial_load", "hydrogen_infrastructure"]);
 export const generationTechnologySchema = z.enum([
   "solar", "wind", "hydro", "nuclear", "gas", "coal", "oil",
   "biomass", "geothermal", "other",
@@ -61,6 +66,8 @@ export const generationTechnologySchema = z.enum([
 export const assetSubtypeSchema = z.enum([
   "hyperscale", "colocation", "cloud", "ai_hpc", "other_data_centre",
   "desalination", "wastewater", "water_reuse", "pipeline_pumping", "reservoir",
+  "hydrogen_production", "steel_plant", "cement_plant",
+  "hydrogen_pipeline", "hydrogen_blending", "hydrogen_storage", "hydrogen_import_terminal", "hydrogen_export_terminal",
 ]);
 export const locationPrecisionSchema = z.enum(["exact", "city_centroid", "region_centroid"]);
 export const demandRangeSchema = z.object({
@@ -261,6 +268,16 @@ export const assetPropertiesSchema = z.object({
   subtype: assetSubtypeSchema.nullable().optional(),
   lifecycle: lifecycleStateSchema,
   demandMw: demandRangeSchema.nullable().default(null),
+  annualDemandGwh: demandRangeSchema.nullable().optional(),
+  reportedCapacity: z.number().nonnegative().nullable().optional(),
+  reportedCapacityUnit: z.string().trim().min(1).nullable().optional(),
+  gridConnectionType: z.enum(["grid", "grid_plus_renewables", "dedicated_renewable", "nuclear", "other_or_unknown"]).nullable().optional(),
+  gridDemandContribution: z.boolean().default(false),
+  technologyDetail: z.string().trim().min(1).nullable().optional(),
+  rawStatus: z.string().trim().min(1).nullable().optional(),
+  sourceRecordIds: z.array(z.string().trim().min(1)).default([]),
+  projectUrl: z.string().url().nullable().optional(),
+  demandMethodId: z.string().trim().min(1).nullable().optional(),
   technology: generationTechnologySchema.nullable().optional(),
   secondaryFuel: z.string().nullable().optional(),
   capacityMw: demandRangeSchema.nullable().optional(),
@@ -299,7 +316,7 @@ export const assetPropertiesSchema = z.object({
   admin1Id: z.string().nullable().optional(),
 }).superRefine((asset, context) => {
   const sourceIdsAreValid = asset.sourceIds.length > 0 && asset.sourceIds.every((sourceId) => sourceId.trim().length > 0);
-  if (asset.demandMw !== null && !sourceIdsAreValid) {
+  if ((asset.demandMw !== null || asset.annualDemandGwh != null) && !sourceIdsAreValid) {
     context.addIssue({ code: "custom", message: "Demand-contributing assets require nonblank sources", path: ["sourceIds"] });
   }
   const generationFields = [
@@ -329,9 +346,25 @@ export const assetPropertiesSchema = z.object({
     context.addIssue({ code: "custom", message: "Data centres require a data-centre subtype", path: ["subtype"] });
   } else if (asset.category === "water_infrastructure" && !["desalination", "wastewater", "water_reuse", "pipeline_pumping", "reservoir"].includes(asset.subtype)) {
     context.addIssue({ code: "custom", message: "Water infrastructure requires a water subtype", path: ["subtype"] });
+  } else if (asset.category === "industrial_load" && !["hydrogen_production", "steel_plant", "cement_plant"].includes(asset.subtype)) {
+    context.addIssue({ code: "custom", message: "Industrial loads require an industrial subtype", path: ["subtype"] });
+  } else if (asset.category === "hydrogen_infrastructure" && !["hydrogen_pipeline", "hydrogen_blending", "hydrogen_storage", "hydrogen_import_terminal", "hydrogen_export_terminal"].includes(asset.subtype)) {
+    context.addIssue({ code: "custom", message: "Hydrogen infrastructure requires a network subtype", path: ["subtype"] });
   }
   if (generationFields.some((value) => value != null)) {
     context.addIssue({ code: "custom", message: "Infrastructure assets cannot contain generation-only fields", path: ["technology"] });
+  }
+  if (asset.reportedCapacity != null && !asset.reportedCapacityUnit) {
+    context.addIssue({ code: "custom", message: "Reported capacity requires a unit", path: ["reportedCapacityUnit"] });
+  }
+  if (new Set(asset.sourceRecordIds).size !== asset.sourceRecordIds.length) {
+    context.addIssue({ code: "custom", message: "Source record IDs must be unique", path: ["sourceRecordIds"] });
+  }
+  if (asset.category === "hydrogen_infrastructure" && (asset.demandMw !== null || asset.annualDemandGwh != null || asset.gridDemandContribution)) {
+    context.addIssue({ code: "custom", message: "Hydrogen infrastructure cannot contribute electricity demand", path: ["annualDemandGwh"] });
+  }
+  if (asset.annualDemandGwh != null && (asset.category !== "industrial_load" || !asset.gridDemandContribution || !asset.demandMethodId)) {
+    context.addIssue({ code: "custom", message: "Annual industrial demand requires an industrial load, grid contribution, and demand method", path: ["annualDemandGwh"] });
   }
 });
 

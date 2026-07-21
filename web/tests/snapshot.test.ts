@@ -557,6 +557,33 @@ describe("global snapshot entities", () => {
     expect(asset.category).toBe("water_infrastructure");
   });
 
+  it("accepts an auditable industrial-load asset", () => {
+    const asset = assetPropertiesSchema.parse({
+      id: "iea-h2-alpha", name: "Alpha Hydrogen", geographyId: "DE-BY", country: "DE",
+      category: "industrial_load", subtype: "hydrogen_production", lifecycle: "pre_construction",
+      demandMw: null, annualDemandGwh: { low: 350, central: 490, high: 630 },
+      reportedCapacity: 80, reportedCapacityUnit: "MWel", gridConnectionType: "grid_plus_renewables",
+      gridDemandContribution: true, technologyDetail: "PEM electrolysis", rawStatus: "Feasibility study",
+      sourceRecordIds: ["IEA-H2-101"], projectUrl: "https://example.org/projects/alpha",
+      demandMethodId: "hydrogen-electrolysis-grid-v1", targetYear: 2029,
+      locationPrecision: "exact", valueKind: "estimated", sourceIds: ["iea-hydrogen-production-2026"], confidence: 82,
+    });
+
+    expect(asset.category).toBe("industrial_load");
+    expect(asset.annualDemandGwh?.central).toBe(490);
+    expect(asset.gridConnectionType).toBe("grid_plus_renewables");
+  });
+
+  it("rejects demand contributions from hydrogen-network context", () => {
+    expect(() => assetPropertiesSchema.parse({
+      id: "iea-h2-pipeline-alpha", name: "Alpha Hydrogen Pipeline", geographyId: "DE-BY", country: "DE",
+      category: "hydrogen_infrastructure", subtype: "hydrogen_pipeline", lifecycle: "announced",
+      demandMw: null, annualDemandGwh: { low: 10, central: 20, high: 30 }, gridDemandContribution: true,
+      demandMethodId: "invalid-network-demand-v1", locationPrecision: "exact", valueKind: "estimated",
+      sourceIds: ["iea-hydrogen-infrastructure-2026"], confidence: 70,
+    })).toThrow(/hydrogen infrastructure/i);
+  });
+
   it("preserves community facility provenance", () => {
     const asset = assetPropertiesSchema.parse({
       id: "osm-node-101",
