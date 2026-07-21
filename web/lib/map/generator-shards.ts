@@ -1,5 +1,6 @@
 import { loadGeneratorCountry } from "@/lib/snapshot/generators";
 import type { GenerationTechnology, GeneratorCollection, GeneratorFeature, GeneratorIndex, GeneratorOverviewCollection, LayerResult } from "@/lib/snapshot/types";
+import { ALL_GENERATOR_CAPACITIES, generatorMatchesCapacity, isAllGeneratorCapacities, type GeneratorCapacityRange } from "@/lib/map/generator-capacity";
 
 export type MapBounds = [west: number, south: number, east: number, north: number];
 type CountryLoader = (root: string, index: GeneratorIndex, country: string, options?: { signal?: AbortSignal }) => Promise<LayerResult<GeneratorCollection>>;
@@ -31,12 +32,75 @@ export function countriesInBounds(index: GeneratorIndex, bounds: MapBounds): str
   }).map(([country]) => country).sort();
 }
 
-export function filterGenerators(data: GeneratorCollection, technologies: ReadonlySet<GenerationTechnology>, lifecycles: ReadonlySet<string>): GeneratorCollection {
+export function filterGenerators(data: GeneratorCollection, technologies: ReadonlySet<GenerationTechnology>, lifecycles: ReadonlySet<string>, capacityRange: GeneratorCapacityRange = ALL_GENERATOR_CAPACITIES): GeneratorCollection {
   if (technologies.size === 0 || lifecycles.size === 0) return emptyCollection();
   return {
     type: "FeatureCollection",
-    features: data.features.filter(({ properties }) => properties.technologies.some((technology) => technologies.has(technology)) && generatorMatchesLifecycles(properties, lifecycles)),
+    features: data.features.filter(({ properties }) => properties.technologies.some((technology) => technologies.has(technology)) && generatorMatchesLifecycles(properties, lifecycles) && generatorMatchesCapacity(properties.capacityMw, capacityRange)),
   };
+}
+
+export function buildCapacityFilteredGeneratorOverview(data: GeneratorCollection, publishedOverview: GeneratorOverviewCollection, capacityRange: GeneratorCapacityRange): GeneratorOverviewCollection {
+  if (isAllGeneratorCapacities(capacityRange)) return publishedOverview;
+  type OverviewFeature = GeneratorOverviewCollection["features"][number];
+  type Aggregate = {
+    feature: OverviewFeature;
+    technologyCounts: Partial<Record<GenerationTechnology, number>>;
+  };
+  const publishedByGeography = new Map(publishedOverview.features.map((feature) => [feature.properties.geographyId, feature]));
+  const aggregates = new Map<string, Aggregate>();
+
+  for (const generator of data.features) {
+    if (!generatorMatchesCapacity(generator.properties.capacityMw, capacityRange)) continue;
+    const geographyId = generator.properties.geographyId;
+    const published = publishedByGeography.get(geographyId);
+    if (!published) continue;
+    let aggregate = aggregates.get(geographyId);
+    if (!aggregate) {
+      aggregate = {
+        feature: {
+          ...published,
+          properties: {
+            geographyId,
+            country: generator.properties.country || published.properties.country,
+            count: 0,
+            capacityMw: 0,
+            operatingCapacityMw: 0,
+            plannedCapacityMw: 0,
+            technologyMixMw: {},
+            dominantTechnology: generator.properties.technologies[0] ?? published.properties.dominantTechnology,
+          },
+        } as OverviewFeature,
+        technologyCounts: {},
+      };
+      aggregates.set(geographyId, aggregate);
+    }
+    const properties = aggregate.feature.properties;
+    properties.count += 1;
+    properties.capacityMw += generator.properties.capacityMw;
+    properties.operatingCapacityMw += generator.properties.operatingCapacityMw;
+    properties.plannedCapacityMw += generator.properties.plannedCapacityMw;
+    for (const technology of generator.properties.technologies) {
+      aggregate.technologyCounts[technology] = (aggregate.technologyCounts[technology] ?? 0) + 1;
+    }
+    for (const [technology, capacity] of Object.entries(generator.properties.technologyMixMw)) {
+      if (typeof capacity !== "number") continue;
+      const key = technology as GenerationTechnology;
+      properties.technologyMixMw[key] = (properties.technologyMixMw[key] ?? 0) + capacity;
+    }
+  }
+
+  const features = publishedOverview.features.flatMap((published) => {
+    const aggregate = aggregates.get(published.properties.geographyId);
+    if (!aggregate) return [];
+    const capacityEntries = Object.entries(aggregate.feature.properties.technologyMixMw) as Array<[GenerationTechnology, number]>;
+    const countEntries = Object.entries(aggregate.technologyCounts) as Array<[GenerationTechnology, number]>;
+    aggregate.feature.properties.dominantTechnology = (capacityEntries.sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0]?.[0]
+      ?? countEntries.sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))[0]?.[0]
+      ?? aggregate.feature.properties.dominantTechnology);
+    return [aggregate.feature];
+  });
+  return { type: "FeatureCollection", features };
 }
 
 export function generatorMatchesLifecycles(properties: GeneratorFeature["properties"], lifecycles: ReadonlySet<string>): boolean {

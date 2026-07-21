@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { GENERATOR_COLORS, generatorColor, generatorColorExpression } from "@/lib/map/generator-colors";
-import { countriesInBounds, createGeneratorShardController, filterGeneratorOverview, filterGenerators, generatorSelection } from "@/lib/map/generator-shards";
+import { buildCapacityFilteredGeneratorOverview, countriesInBounds, createGeneratorShardController, filterGeneratorOverview, filterGenerators, generatorSelection } from "@/lib/map/generator-shards";
 import type { GeneratorCollection, GeneratorIndex, GeneratorOverviewCollection } from "@/lib/snapshot/types";
 
 describe("generator semantics", () => {
@@ -38,6 +38,50 @@ describe("generator semantics", () => {
     expect(filterGenerators(collection([feature("missing", undefined, "solar")]), new Set(["solar"]), new Set()).features).toHaveLength(0);
     expect(filterGenerators(data, new Set(["solar", "wind"]), new Set()).features).toHaveLength(0);
     expect(filterGenerators(collection([feature("missing", undefined, "solar")]), new Set(["solar"]), new Set(["unknown"])).features.map((item) => item.id)).toEqual(["missing"]);
+  });
+
+  it("composes inclusive capacity bounds with technology and lifecycle filters", () => {
+    const atMinimum = withCapacity(feature("minimum", "operational", "solar"), 10);
+    const atMaximum = withCapacity(feature("maximum", "operational", "solar"), 250);
+    const aboveMaximum = withCapacity(feature("above", "operational", "solar"), 250.1);
+    const unknown = withCapacity(feature("unknown-capacity", "operational", "solar"), 0);
+    const wrongLifecycle = withCapacity(feature("retired", "retired", "solar"), 100);
+    const wrongTechnology = withCapacity(feature("wind", "operational", "wind"), 100);
+    const filtered = filterGenerators(
+      collection([atMinimum, atMaximum, aboveMaximum, unknown, wrongLifecycle, wrongTechnology]),
+      new Set(["solar"]),
+      new Set(["operational"]),
+      { minMw: 10, maxMw: 250 },
+    );
+    expect(filtered.features.map((item) => item.id)).toEqual(["minimum", "maximum"]);
+  });
+
+  it("regroups only matching plants into honest world overview markers", () => {
+    const published = {
+      type: "FeatureCollection",
+      features: [
+        { ...overviewCollection({ solar: 100 }).features[0], id: "US-X", properties: { ...overviewCollection({ solar: 100 }).features[0].properties, geographyId: "US-X", country: "US" } },
+        { ...overviewCollection({ hydro: 500 }).features[0], id: "DE-X", geometry: { type: "Point", coordinates: [10, 50] }, properties: { ...overviewCollection({ hydro: 500 }).features[0].properties, geographyId: "DE-X", country: "DE", dominantTechnology: "hydro" } },
+      ],
+    } as GeneratorOverviewCollection;
+    const usSolar = withCapacity(feature("us-solar", "operational", "solar"), 100, 80, 20);
+    const usWind = { ...withCapacity(feature("us-wind", "operational", "wind"), 50), properties: { ...withCapacity(feature("us-wind", "operational", "wind"), 50).properties, geographyId: "US-X" } };
+    const deHydro = { ...withCapacity(feature("de-hydro", "operational", "wind"), 500), properties: { ...withCapacity(feature("de-hydro", "operational", "wind"), 500).properties, country: "DE", geographyId: "DE-X", technologies: ["hydro" as const], technologyMixMw: { hydro: 500 } } };
+
+    const filtered = buildCapacityFilteredGeneratorOverview(collection([usSolar, usWind, deHydro]), published, { minMw: 60, maxMw: 250 });
+
+    expect(filtered.features).toHaveLength(1);
+    expect(filtered.features[0]).toMatchObject({ id: "US-X", geometry: published.features[0].geometry });
+    expect(filtered.features[0].properties).toMatchObject({
+      geographyId: "US-X", country: "US", count: 1,
+      capacityMw: 100, operatingCapacityMw: 80, plannedCapacityMw: 20,
+      technologyMixMw: { solar: 100 }, dominantTechnology: "solar",
+    });
+  });
+
+  it("reuses the immutable published overview for the default capacity range", () => {
+    const published = overviewCollection({ solar: 100 });
+    expect(buildCapacityFilteredGeneratorOverview(collection([]), published, { minMw: 0, maxMw: null })).toBe(published);
   });
 
   it("filters canonical plants by lifecycle counts instead of hiding records without a singular lifecycle", () => {
@@ -133,6 +177,10 @@ describe("generator semantics", () => {
 function collection(features: GeneratorCollection["features"]): GeneratorCollection { return { type: "FeatureCollection", features }; }
 function feature(id: string, lifecycle: string | undefined, technology: "solar" | "wind", lifecycleCounts?: Record<string, number>, recordCount?: number): GeneratorCollection["features"][number] {
   return { type: "Feature", id, geometry: { type: "Point", coordinates: [0, 0] }, properties: { id, category: "power_generation", country: "US", geographyId: "US-X", lifecycle, lifecycleCounts, recordCount, technologies: [technology], capacityMw: 1, operatingCapacityMw: 1, plannedCapacityMw: 0, technologyMixMw: { [technology]: 1 }, sourceIds: ["source"] } };
+}
+function withCapacity(featureValue: GeneratorCollection["features"][number], capacityMw: number, operatingCapacityMw = capacityMw, plannedCapacityMw = 0): GeneratorCollection["features"][number] {
+  const technology = featureValue.properties.technologies[0];
+  return { ...featureValue, properties: { ...featureValue.properties, capacityMw, operatingCapacityMw, plannedCapacityMw, technologyMixMw: { [technology]: capacityMw } } };
 }
 function overviewCollection(technologyMixMw: Record<string, number>, lifecycleCounts?: Record<string, number>): GeneratorOverviewCollection {
   return { type: "FeatureCollection", features: [{ type: "Feature", id: "US-X", geometry: { type: "Point", coordinates: [0, 0] }, properties: { geographyId: "US-X", country: "US", count: 2, capacityMw: 100, operatingCapacityMw: 100, plannedCapacityMw: 0, technologyMixMw, dominantTechnology: "solar", lifecycleCounts } }] } as GeneratorOverviewCollection;
