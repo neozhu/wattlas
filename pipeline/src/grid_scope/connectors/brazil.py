@@ -30,6 +30,15 @@ ANEEL_SIGA_CSV_URL = (
 )
 
 
+def _decode_aneel_csv(body: bytes) -> str:
+    try:
+        return body.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        # The official download currently serves accented Portuguese rows as
+        # Windows-1252 on some responses despite previously serving UTF-8.
+        return body.decode("cp1252")
+
+
 def _text(value: Any) -> str:
     return str(value or "").strip()
 
@@ -294,7 +303,7 @@ class AneelSigaConnector:
     ) -> ConnectorResult:
         response = client.get(self.url)
         response.raise_for_status()
-        text = response.content.decode("utf-8-sig")
+        text = _decode_aneel_csv(response.content)
         sample = text[:8192]
         delimiter = csv.Sniffer().sniff(sample, delimiters=";,\t").delimiter
         rows = list(csv.DictReader(StringIO(text), delimiter=delimiter))

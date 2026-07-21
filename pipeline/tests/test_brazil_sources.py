@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+import json
 from zipfile import ZipFile
 
 import httpx
@@ -127,3 +128,24 @@ def test_aneel_connector_publishes_normalized_json_capture() -> None:
     assert result.payload is not None
     assert b'brazil-aneel-siga' in result.payload.body
     assert b'"central":150.0' in result.payload.body
+
+
+def test_aneel_connector_accepts_official_windows_1252_csv() -> None:
+    csv_body = (
+        "NomEmpreendimento;CodCEG;SigUFPrincipal;SigTipoGeracao;"
+        "DscFaseUsina;MdaPotenciaFiscalizadaKw;"
+        "NumCoordNEmpreendimento;NumCoordEEmpreendimento\n"
+        "Geração São João;CEG-125;BA;UFV;Operação;150000,0;-12,5;-41,2\n"
+    ).encode("cp1252")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=csv_body, request=request)
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = AneelSigaConnector(minimum_records=1).fetch(
+            client, now=datetime(2026, 7, 21, tzinfo=UTC)
+        )
+
+    assert result.payload is not None
+    payload = json.loads(result.payload.body)
+    assert payload["records"][0]["name"] == "Geração São João"
