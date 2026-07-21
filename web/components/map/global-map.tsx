@@ -8,6 +8,7 @@ import maplibregl, { type ExpressionSpecification, type GeoJSONSource, type MapG
 import { baseMapStyle } from "@/components/map/map-style";
 import type { InfrastructureVisibility } from "@/components/controls/layer-rail";
 import { generatorColorExpression, generatorTechnologyExpression } from "@/lib/map/generator-colors";
+import { ALL_GENERATOR_CAPACITIES, type GeneratorCapacityRange } from "@/lib/map/generator-capacity";
 import { countriesInBounds, createGeneratorShardController, DEFAULT_GENERATOR_LIFECYCLES, filterGeneratorOverview, filterGenerators, generatorSelection, type MapBounds } from "@/lib/map/generator-shards";
 import { admin1LineOpacityExpression, admin1LineWidthExpression, assetColor, countryBorderWidthExpression, mapColorExpression } from "@/lib/map/expressions";
 import type {
@@ -38,6 +39,7 @@ type Props = {
   infrastructure?: InfrastructureVisibility;
   technologies?: ReadonlySet<GenerationTechnology>;
   lifecycles?: ReadonlySet<string>;
+  capacityRange?: GeneratorCapacityRange;
   generatorOverview?: GeneratorOverviewCollection | null;
   generatorIndex?: GeneratorIndex | null;
   snapshotRoot?: string | null;
@@ -97,7 +99,7 @@ const EMPTY_OVERVIEW: GeneratorOverviewCollection = { type: "FeatureCollection",
 const EMPTY_CITIES: CityCollection = { type: "FeatureCollection", features: [] };
 const cityClass = (cities: CityCollection, value: "million_plus" | "german_large_city"): CityCollection => ({ ...cities, features: cities.features.filter((feature) => feature.properties.classes.includes(value)) });
 
-export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_CITIES, lens, year, selectedId, focusTarget = null, onSelect, coverage, infrastructure = { dataCentres: true, water: true, industrial: true, hydrogen: true, generators: false }, technologies = new Set<GenerationTechnology>(), lifecycles = new Set(DEFAULT_GENERATOR_LIFECYCLES), generatorOverview = null, generatorIndex = null, snapshotRoot = null, onSelectGenerator, onVisibleGeneratorsChange }: Props) {
+export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_CITIES, lens, year, selectedId, focusTarget = null, onSelect, coverage, infrastructure = { dataCentres: true, water: true, industrial: true, hydrogen: true, generators: false }, technologies = new Set<GenerationTechnology>(), lifecycles = new Set(DEFAULT_GENERATOR_LIFECYCLES), capacityRange = ALL_GENERATOR_CAPACITIES, generatorOverview = null, generatorIndex = null, snapshotRoot = null, onSelectGenerator, onVisibleGeneratorsChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -106,7 +108,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
   const infrastructureRef = useRef(infrastructure);
   const generatorControllerRef = useRef<ReturnType<typeof createGeneratorShardController> | null>(null);
   const activeGeneratorsRef = useRef<GeneratorCollection>(EMPTY_GENERATORS);
-  const generatorFiltersRef = useRef({ technologies, lifecycles });
+  const generatorFiltersRef = useRef({ technologies, lifecycles, capacityRange });
   const preparedCountries = useMemo(() => activeCountries(countries, lens, year), [countries, lens, year]);
   const preparedAdmin1 = useMemo(() => activeCountries(admin1, lens, year), [admin1, lens, year]);
   const preparedRegions = useMemo(() => activeRegions(regions, lens, year), [regions, lens, year]);
@@ -129,11 +131,11 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
     regionsRef.current = preparedRegions;
     selectedIdRef.current = selectedId;
     lensRef.current = lens;
-    generatorFiltersRef.current = { technologies, lifecycles };
+    generatorFiltersRef.current = { technologies, lifecycles, capacityRange };
     infrastructureRef.current = infrastructure;
     generatorOverviewRef.current = preparedGeneratorOverview;
     citiesRef.current = cities;
-  }, [cities, infrastructure, lens, lifecycles, onSelect, onSelectGenerator, onVisibleGeneratorsChange, preparedAdmin1, preparedCountries, preparedGeneratorOverview, preparedRegions, selectedId, technologies]);
+  }, [capacityRange, cities, infrastructure, lens, lifecycles, onSelect, onSelectGenerator, onVisibleGeneratorsChange, preparedAdmin1, preparedCountries, preparedGeneratorOverview, preparedRegions, selectedId, technologies]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -437,7 +439,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
       if (generatorControllerRef.current !== controller) return;
       activeGeneratorsRef.current = combined;
       const filters = generatorFiltersRef.current;
-      const filtered = filterGenerators(combined, filters.technologies, filters.lifecycles);
+      const filtered = filterGenerators(combined, filters.technologies, filters.lifecycles, filters.capacityRange);
       (map.getSource("generators") as GeoJSONSource | undefined)?.setData(filtered);
       onVisibleGeneratorsChangeRef.current?.(new Set(filtered.features.map((feature) => feature.properties.id)));
     };
@@ -453,7 +455,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const filtered = filterGenerators(activeGeneratorsRef.current, technologies, lifecycles);
+    const filtered = filterGenerators(activeGeneratorsRef.current, technologies, lifecycles, capacityRange);
     (map.getSource("generators") as GeoJSONSource | undefined)?.setData(filtered);
     onVisibleGeneratorsChangeRef.current?.(new Set(filtered.features.map((feature) => feature.properties.id)));
     (map.getSource("assets") as GeoJSONSource | undefined)?.setData(visibleAssets(assets, infrastructure, lifecycles));
@@ -462,7 +464,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
     for (const id of ["industrial-assets"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", infrastructure.industrial ? "visible" : "none");
     for (const id of ["hydrogen-assets"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", infrastructure.hydrogen ? "visible" : "none");
     for (const id of ["generator-overview-markers", "generator-overview-composition", "generator-clusters", "generator-cluster-count", "generator-assets"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", infrastructure.generators ? "visible" : "none");
-  }, [assets, infrastructure, lifecycles, technologies]);
+  }, [assets, capacityRange, infrastructure, lifecycles, technologies]);
 
   useEffect(() => {
     const map = mapRef.current;

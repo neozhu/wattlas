@@ -18,7 +18,7 @@ vi.mock("@/lib/analytics", () => ({
 afterEach(() => { cleanup(); localStorage.clear(); mockTrackWattlasAction.mockClear(); });
 
 vi.mock("@/components/map/global-map", () => ({
-  GlobalMap: ({ lens, year, onSelect, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; year: number; onSelect: (id: string) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens} · year {year}<button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM")}>Select Assam</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
+  GlobalMap: ({ lens, year, capacityRange, onSelect, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; year: number; capacityRange?: { minMw: number; maxMw: number | null }; onSelect: (id: string) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens} · year {year} · capacity {capacityRange?.minMw ?? 0}–{capacityRange?.maxMw ?? "unlimited"}<button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM")}>Select Assam</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
 }));
 
 const generator = { type: "Feature", id: "generator-1", geometry: { type: "Point", coordinates: [8, 50] }, properties: { id: "generator-1", name: "Rhine Solar", category: "power_generation", country: "DE", geographyId: "DE-X", lifecycle: "operational", technologies: ["solar"], capacityMw: 80, operatingCapacityMw: 80, plannedCapacityMw: 0, technologyMixMw: { solar: 80 }, sourceIds: ["registry"], gemWikiUrl: "https://www.gem.wiki/Rhine_Solar" } } as import("@/lib/snapshot/types").GeneratorFeature;
@@ -265,6 +265,24 @@ describe("OpportunityRadar", () => {
     fireEvent.click(screen.getByRole("switch", { name: "Solar" }));
     select(); fireEvent.click(screen.getByRole("button", { name: "Move away" }));
     expect(screen.queryByRole("heading", { name: "Rhine Solar" })).not.toBeInTheDocument();
+  });
+
+  it("commits generator capacity presets, clears excluded selections, and preserves the range across layer toggles", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select generator" }));
+    expect(screen.getByRole("heading", { name: "Rhine Solar" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Minimum capacity 100 MW" }));
+
+    expect(screen.queryByRole("heading", { name: "Rhine Solar" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("global-map")).toHaveTextContent("capacity 100–unlimited");
+    expect(screen.getByLabelText("Active generator capacity range")).toHaveTextContent("100 MW+");
+    expect(mockTrackWattlasAction).toHaveBeenCalledWith("filter_changed", { filter_name: "generator_capacity", filter_value: "100:unlimited" });
+
+    fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
+    expect(screen.getByLabelText("Active generator capacity range")).toHaveTextContent("100 MW+");
   });
 
   it("offers independent infrastructure layers and accessible generator filters", () => {

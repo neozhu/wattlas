@@ -1,6 +1,8 @@
 import { GENERATOR_COLORS } from "@/lib/map/generator-colors";
+import type { GeneratorCapacityRange } from "@/lib/map/generator-capacity";
 import type { GenerationTechnology, LensKey } from "@/lib/snapshot/types";
 import { useState, type ReactNode } from "react";
+import { GeneratorCapacityFilter } from "@/components/controls/generator-capacity-filter";
 
 const lenses: Array<{ id: LensKey; label: string; description: string }> = [
   { id: "infrastructureDemand", label: "Infrastructure Demand", description: "Primary opportunity signal" },
@@ -25,6 +27,8 @@ type Props = {
   infrastructure?: InfrastructureVisibility; onInfrastructureChange?: (value: InfrastructureVisibility) => void;
   technologies?: ReadonlySet<GenerationTechnology>; onTechnologiesChange?: (value: Set<GenerationTechnology>) => void;
   lifecycles?: ReadonlySet<string>; onLifecyclesChange?: (value: Set<string>) => void;
+  capacityRange?: GeneratorCapacityRange; onCapacityRangeChange?: (value: GeneratorCapacityRange) => void;
+  capacityScaleMaximumMw?: number; generatorCatalogueReady?: boolean;
   counts?: LayerCounts;
 };
 
@@ -86,7 +90,7 @@ function LayerRow({ id, label, checked, count, onToggle }: { id: keyof Infrastru
   );
 }
 
-export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvancedOpen, infrastructure, onInfrastructureChange, technologies, onTechnologiesChange, lifecycles, onLifecyclesChange, counts = {} }: Props) {
+export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvancedOpen, infrastructure, onInfrastructureChange, technologies, onTechnologiesChange, lifecycles, onLifecyclesChange, capacityRange, onCapacityRangeChange, capacityScaleMaximumMw = 25_000, generatorCatalogueReady = false, counts = {} }: Props) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   return (
     <aside className="layer-rail" aria-label="Map controls">
@@ -109,6 +113,7 @@ export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvanced
               </button>
             ))}
           </div>}
+          {capacityRange && onCapacityRangeChange && <GeneratorCapacityFilter value={capacityRange} scaleMaximumMw={capacityScaleMaximumMw} catalogueReady={generatorCatalogueReady} disabled={!infrastructure.generators} onChange={onCapacityRangeChange} />}
           <button className="advanced-filter-toggle" type="button" aria-label="Project status · Advanced power filters" aria-expanded={advancedOpen} onClick={() => { const next = !advancedOpen; setAdvancedOpen(next); if (next) onAdvancedOpen?.(); }}>Project status <span aria-hidden="true">{advancedOpen ? "−" : "+"}</span></button>
           {advancedOpen && lifecycles && onLifecyclesChange && <div className="tech-tree lifecycle-tree" aria-label="Generator lifecycle filters">
             <div className="filter-section-actions"><span>Lifecycle</span><button type="button" onClick={() => onLifecyclesChange(new Set())}>Clear</button></div>

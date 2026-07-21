@@ -16,7 +16,8 @@ import { DataStatusDrawer } from "@/components/status/data-status-drawer";
 import { CountryIntelligence } from "@/components/intelligence/country-intelligence";
 import { AssetExplorerSummary } from "@/components/intelligence/asset-explorer-summary";
 import { geographyEntityType, trackWattlasAction } from "@/lib/analytics";
-import { DEFAULT_GENERATOR_LIFECYCLES, generatorMatchesLifecycles } from "@/lib/map/generator-shards";
+import { ALL_GENERATOR_CAPACITIES, generatorMatchesCapacity, isAllGeneratorCapacities, type GeneratorCapacityRange } from "@/lib/map/generator-capacity";
+import { buildCapacityFilteredGeneratorOverview, DEFAULT_GENERATOR_LIFECYCLES, generatorMatchesLifecycles } from "@/lib/map/generator-shards";
 import { buildSearchIndex, type SearchResult } from "@/lib/search";
 import { cityFeatureCollectionSchema, geographyFeatureCollectionSchema } from "@/lib/snapshot/schema";
 import { loadGeneratorCountry, loadGeneratorIndex, loadGeneratorOverview, loadRegionalEnergy } from "@/lib/snapshot/generators";
@@ -27,6 +28,8 @@ const INSPECTOR_WIDTH_KEY = "wattlas:inspector-width";
 const DEFAULT_INSPECTOR_WIDTH = 368;
 const MIN_INSPECTOR_WIDTH = 300;
 const MAX_INSPECTOR_WIDTH = 600;
+const EMPTY_GENERATOR_OVERVIEW: GeneratorOverviewCollection = { type: "FeatureCollection", features: [] };
+const EMPTY_GENERATOR_CATALOGUE: GeneratorFeature[] = [];
 
 export function OpportunityRadar({ snapshot }: Props) {
   const [lens, setLens] = useState<LensKey>("infrastructureDemand");
@@ -50,9 +53,10 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [cities, setCities] = useState<CityCollection>({ type: "FeatureCollection", features: [] });
   const [technologies, setTechnologies] = useState<Set<GenerationTechnology>>(() => new Set());
   const [lifecycles, setLifecycles] = useState<Set<string>>(() => new Set(DEFAULT_GENERATOR_LIFECYCLES));
+  const [capacityRange, setCapacityRange] = useState<GeneratorCapacityRange>(ALL_GENERATOR_CAPACITIES);
   const [generatorOverview, setGeneratorOverview] = useState<GeneratorOverviewCollection | null>(null);
   const [generatorIndex, setGeneratorIndex] = useState<GeneratorIndex | null>(null);
-  const [searchGenerators, setSearchGenerators] = useState<GeneratorFeature[]>([]);
+  const [generatorCatalogueLoad, setGeneratorCatalogueLoad] = useState<{ snapshotId: string | null; features: GeneratorFeature[] }>({ snapshotId: null, features: [] });
   const [regionalEnergyLoad, setRegionalEnergyLoad] = useState<{ path: string | null; state: "loading" | "ready" | "error"; data: RegionalEnergyData; error: string | null }>({ path: null, state: "loading", data: {}, error: null });
   const [regionalEnergyRetry, setRegionalEnergyRetry] = useState(0);
   const regionalEnergyRevision = useRef(0);
@@ -116,7 +120,8 @@ export function OpportunityRadar({ snapshot }: Props) {
   }, [snapshot.manifest.artifacts.generatorIndex, snapshot.manifest.artifacts.generatorOverview]);
   useEffect(() => {
     if (!generatorIndex || !snapshot.manifest.snapshotId) return;
-    const root = `snapshots/${snapshot.manifest.snapshotId}`;
+    const snapshotId = snapshot.manifest.snapshotId;
+    const root = `snapshots/${snapshotId}`;
     const countries = Object.keys(generatorIndex.countries).sort();
     const controller = new AbortController();
     let cursor = 0;
@@ -130,7 +135,9 @@ export function OpportunityRadar({ snapshot }: Props) {
           if (result.ok) collected.push(...result.data.features as GeneratorFeature[]);
         }
       }));
-      if (!controller.signal.aborted) setSearchGenerators(collected.filter((feature) => feature.properties.name));
+      if (!controller.signal.aborted) {
+        setGeneratorCatalogueLoad({ snapshotId, features: collected });
+      }
     };
     void run();
     return () => controller.abort();
@@ -157,6 +164,22 @@ export function OpportunityRadar({ snapshot }: Props) {
   const selectedGeography = useMemo(() => selectableGeographies.find((feature) => feature.properties.id === selectedId) ?? null, [selectableGeographies, selectedId]);
   const selectedAsset = useMemo(() => snapshot.assets.features.find((feature) => feature.properties.id === selectedId) as AssetFeature | undefined ?? null, [snapshot.assets.features, selectedId]);
   const comparisonRegions = useMemo(() => comparisonIds.map((id) => selectableGeographies.find((feature) => feature.properties.id === id)).filter(Boolean) as RegionFeature[], [comparisonIds, selectableGeographies]);
+  const generatorCatalogueReady = generatorIndex != null && generatorCatalogueLoad.snapshotId === snapshot.manifest.snapshotId;
+  const generatorCatalogue = generatorCatalogueReady ? generatorCatalogueLoad.features : EMPTY_GENERATOR_CATALOGUE;
+  const searchGenerators = useMemo(() => generatorCatalogue.filter((feature) => feature.properties.name && generatorMatchesCapacity(feature.properties.capacityMw, capacityRange)), [capacityRange, generatorCatalogue]);
+  const capacityScaleMaximumMw = useMemo(() => {
+    const largest = generatorCatalogue.reduce((maximum, feature) => Math.max(maximum, feature.properties.capacityMw), 0);
+    return Math.max(1000, Math.ceil(largest / 1000) * 1000 || 25_000);
+  }, [generatorCatalogue]);
+  const capacityFilteredGeneratorCount = useMemo(() => generatorCatalogueReady
+    ? generatorCatalogue.filter((feature) => generatorMatchesCapacity(feature.properties.capacityMw, capacityRange)).length
+    : (generatorIndex?.totals.featureCount ?? snapshot.manifest.coverage.publishedPowerPlants),
+  [capacityRange, generatorCatalogue, generatorCatalogueReady, generatorIndex?.totals.featureCount, snapshot.manifest.coverage.publishedPowerPlants]);
+  const mapGeneratorOverview = useMemo(() => {
+    if (isAllGeneratorCapacities(capacityRange)) return generatorOverview;
+    if (!generatorOverview || !generatorCatalogueReady) return EMPTY_GENERATOR_OVERVIEW;
+    return buildCapacityFilteredGeneratorOverview({ type: "FeatureCollection", features: generatorCatalogue }, generatorOverview, capacityRange);
+  }, [capacityRange, generatorCatalogue, generatorCatalogueReady, generatorOverview]);
   const searchIndex = useMemo(
     () => buildSearchIndex({ geographies: selectableGeographies, assets: snapshot.assets.features as AssetFeature[], generators: searchGenerators, cities: cities.features }),
     [cities.features, searchGenerators, selectableGeographies, snapshot.assets.features],
@@ -166,8 +189,8 @@ export function OpportunityRadar({ snapshot }: Props) {
     water: snapshot.manifest.coverage.waterInfrastructure,
     industrial: snapshot.manifest.coverage.industrialLoads ?? snapshot.assets.features.filter((feature) => feature.properties.category === "industrial_load").length,
     hydrogen: snapshot.manifest.coverage.hydrogenInfrastructure ?? snapshot.assets.features.filter((feature) => feature.properties.category === "hydrogen_infrastructure").length,
-    generators: generatorIndex?.totals.featureCount ?? snapshot.manifest.coverage.publishedPowerPlants,
-  }), [generatorIndex?.totals.featureCount, snapshot.assets.features, snapshot.manifest.coverage]);
+    generators: capacityFilteredGeneratorCount,
+  }), [capacityFilteredGeneratorCount, snapshot.assets.features, snapshot.manifest.coverage]);
   const explorerStatuses = useMemo(() => {
     const assets = snapshot.assets.features;
     const generatorStatus = (states: string[]) => (generatorOverview?.features ?? []).reduce((sum, feature) => sum + states.reduce((subtotal, state) => subtotal + (feature.properties.lifecycleCounts?.[state] ?? 0), 0), 0);
@@ -254,8 +277,17 @@ export function OpportunityRadar({ snapshot }: Props) {
           setSelectedGenerator((current) => current && !generatorMatchesLifecycles(current.properties, next) ? null : current);
           if (changed.length) trackWattlasAction("filter_changed", { filter_name: "generator_lifecycle", filter_value: changed.map((lifecycle) => `${lifecycle}:${next.has(lifecycle) ? "enabled" : "disabled"}`).join(",") });
         }}
+        capacityRange={capacityRange}
+        capacityScaleMaximumMw={capacityScaleMaximumMw}
+        generatorCatalogueReady={generatorCatalogueReady}
+        onCapacityRangeChange={(next) => {
+          if (next.minMw === capacityRange.minMw && next.maxMw === capacityRange.maxMw) return;
+          setCapacityRange(next);
+          setSelectedGenerator((current) => current && !generatorMatchesCapacity(current.properties.capacityMw, next) ? null : current);
+          trackWattlasAction("filter_changed", { filter_name: "generator_capacity", filter_value: `${next.minMw}:${next.maxMw ?? "unlimited"}` });
+        }}
       /> : <button className="show-filters" type="button" onClick={() => { setFiltersVisible(true); trackWattlasAction("filters_shown"); }} aria-label="Show filters" aria-expanded="false">Filters <span aria-hidden="true">→</span></button>}
-      <GlobalMap countries={snapshot.countries} admin1={admin1} regions={snapshot.regions} assets={snapshot.assets} cities={cities} coverage={snapshot.manifest.coverage} lens={lens} year={year} selectedId={selectedId} focusTarget={mapFocusTarget} onSelect={selectEntity} onSelectGenerator={(generator) => { setSelectedGenerator(generator); setSelectedId(null); trackWattlasAction("entity_selected", { entity_type: "generator", entity_name: generator.properties.name ?? generator.properties.id, country: generator.properties.country, technology: generator.properties.technologies.join(",") }); }} onVisibleGeneratorsChange={(ids) => setSelectedGenerator((current) => current && !ids.has(current.properties.id) ? null : current)} infrastructure={infrastructure} technologies={technologies} lifecycles={lifecycles} generatorOverview={generatorOverview} generatorIndex={generatorIndex} snapshotRoot={snapshot.manifest.snapshotId ? `snapshots/${snapshot.manifest.snapshotId}` : null} />
+      <GlobalMap countries={snapshot.countries} admin1={admin1} regions={snapshot.regions} assets={snapshot.assets} cities={cities} coverage={snapshot.manifest.coverage} lens={lens} year={year} selectedId={selectedId} focusTarget={mapFocusTarget} onSelect={selectEntity} onSelectGenerator={(generator) => { setSelectedGenerator(generator); setSelectedId(null); trackWattlasAction("entity_selected", { entity_type: "generator", entity_name: generator.properties.name ?? generator.properties.id, country: generator.properties.country, technology: generator.properties.technologies.join(",") }); }} onVisibleGeneratorsChange={(ids) => setSelectedGenerator((current) => current && !ids.has(current.properties.id) ? null : current)} infrastructure={infrastructure} technologies={technologies} lifecycles={lifecycles} capacityRange={capacityRange} generatorOverview={mapGeneratorOverview} generatorIndex={generatorIndex} snapshotRoot={snapshot.manifest.snapshotId ? `snapshots/${snapshot.manifest.snapshotId}` : null} />
       {mode === "explorer" && <AssetExplorerSummary coverage={{ countries: snapshot.manifest.coverage.countries, assets: snapshot.manifest.coverage.assets, dataCentres: snapshot.manifest.coverage.dataCentres, waterInfrastructure: snapshot.manifest.coverage.waterInfrastructure, industrialLoads: layerCounts.industrial ?? 0, hydrogenInfrastructure: layerCounts.hydrogen ?? 0, generators: layerCounts.generators ?? 0 }} statuses={explorerStatuses} />}
       <ProjectSummaryCard asset={selectedAsset} generator={selectedGenerator} />
       <InspectorResizer width={inspectorWidth} min={MIN_INSPECTOR_WIDTH} max={MAX_INSPECTOR_WIDTH} onChange={setInspectorWidth} onCommit={(width) => trackWattlasAction("inspector_resized", { panel_width: width })} />
