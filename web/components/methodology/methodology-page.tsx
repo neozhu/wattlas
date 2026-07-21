@@ -126,7 +126,7 @@ export function MethodologyPage({
         <div className={styles.methodNotes}>
           <p>Pipelines, storage, blending, and terminals never create an electricity-demand increment by themselves.</p>
           <p>Public lifecycle groups are Operating, Under construction, Pre-construction, Announced, and Retired. Cancelled, shelved, mothballed, and unknown records remain available to governance checks but do not enter public forecasts.</p>
-          <p>Projects are assigned to ADM1 regions from their reported coordinates, deduplicated using stable source identities, and applied once from the supported commissioning year. Existing demand-centre, water, and generator assets are retained rather than replaced.</p>
+          <p>Projects are assigned to ADM1 regions from their reported coordinates, deduplicated using stable source identities, and applied once from the supported commissioning year. Project eligibility does not imply regional application when the supporting ADM1 demand baseline is unavailable; those projects remain visible and explicitly unapplied.</p>
           <p>The ENTSO-E connector reads ENTSOE_SECURITY_TOKEN at runtime. Until a token is configured, it reports “not configured” and Wattlas retains the existing governed European fallback instead of fabricating bidding-zone observations.</p>
         </div>
       </section>
@@ -135,7 +135,7 @@ export function MethodologyPage({
         <section className={styles.assetCoverage} aria-label="Industrial asset publication status">
           <article><strong>{(assetCoverage.industrialLoads ?? 0).toLocaleString("en-US")}</strong><span>Industrial-demand projects published as facilities or context</span></article>
           <article><strong>{(assetCoverage.hydrogenInfrastructure ?? 0).toLocaleString("en-US")}</strong><span>Hydrogen infrastructure records kept as context-only assets</span></article>
-          <article><strong>{(assetCoverage.forecastIndustrialLoads ?? 0).toLocaleString("en-US")}</strong><span>Projects passing every gate for a 2026–2031 demand increment</span></article>
+          <article><strong>{(assetCoverage.forecastIndustrialLoads ?? 0).toLocaleString("en-US")}</strong><span>Unique projects eligible by evidence, lifecycle, year, location, and method for 2026–2031 modelling</span></article>
         </section>
       ) : null}
 

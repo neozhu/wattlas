@@ -53,7 +53,7 @@ The previous published baseline, snapshot `2026-07-01T15-55-32Z`, contains 3,229
 
 ## Industrial-demand candidate release
 
-Local candidate snapshot `2026-07-21T04-01-18Z` adds the downloaded IEA Hydrogen Production and Hydrogen Infrastructure releases, GEM Global Iron and Steel Tracker, and GEM Global Cement and Concrete Tracker. The source files enter through the same checksum-governed manual-snapshot path as other protected releases; their original rows and fields remain traceable. Existing coverage is retained: the candidate still contains all 4,247 data centres, 101 water assets, 238,395 power-source records, 3,229 ADM1 boundaries, 575 cities, and 60,600 grid features from its immediate baseline.
+Local candidate snapshot `2026-07-21T04-48-33Z` adds the downloaded IEA Hydrogen Production and Hydrogen Infrastructure releases, GEM Global Iron and Steel Tracker, and GEM Global Cement and Concrete Tracker. The source files enter through the same checksum-governed manual-snapshot path as other protected releases; their original rows and fields remain traceable. Existing coverage is retained: the candidate still contains all 4,247 data centres, 101 water assets, 238,395 power-source records, 3,229 ADM1 boundaries, 575 cities, and 60,600 grid features from its immediate baseline.
 
 - Hydrogen production: 2,928 normalized projects; an electricity range is calculated only when coordinates, lifecycle, commissioning year, capacity, and power-supply evidence pass the forecast gates.
 - Hydrogen infrastructure: 808 records normalize from the release; 27 have enough public location evidence to publish as context assets in this candidate. Pipelines, storage, blending, and terminals never create electricity demand by themselves.
@@ -66,7 +66,7 @@ The annual-energy calculations are versioned and exposed in every eligible proje
 - Steel: `capacity kt/year × electricity intensity MWh/tonne`.
 - Cement: `capacity Mt/year × 1,000 × electricity intensity MWh/tonne`.
 
-The candidate publishes 7,694 mappable industrial-load assets and 236 forecast-eligible 2026–2031 industrial projects. These estimates are published as low, central, and high ranges. They add to the existing baseline; they do not overwrite observed demand and they do not replace any existing data-centre, water, or generator records. The public lifecycle filters use Operating, Under construction, Pre-construction, Announced, and Retired.
+The candidate publishes 7,694 mappable industrial-load assets and 236 unique project-evidence-eligible 2026–2031 industrial projects. Of those, 233 are applied across 137 supported ADM1 forecasts. Three steel increments in Albania and Namibia remain visible but unapplied because their ADM1 demand baselines are explicitly unavailable. These estimates are published as low, central, and high ranges. They add to the existing baseline; they do not overwrite observed demand and they do not replace any existing data-centre, water, or generator records. The public lifecycle filters use Operating, Under construction, Pre-construction, Announced, and Retired.
 
 The ENTSO-E connector reads `ENTSOE_SECURITY_TOKEN` only from the runtime environment. If no token is configured, its state is `not_configured` and the last governed European evidence remains available. No credential is committed to the repository.
 
