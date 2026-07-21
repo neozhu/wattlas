@@ -1,68 +1,94 @@
 .page {
   min-height: 100vh;
-  color: #d8f2f4;
+  color: #19231f;
   background:
-    radial-gradient(circle at 70% -10%, rgba(0, 217, 224, .12), transparent 35rem),
-    #03090c;
+    radial-gradient(circle at 75% -12%, rgba(20, 137, 126, .1), transparent 34rem),
+    linear-gradient(180deg, #f9faf7 0%, #f1f4f0 100%);
   padding: 24px clamp(18px, 4vw, 64px) 80px;
   font-family: var(--font-geist-sans), sans-serif;
 }
-.page nav { display: flex; justify-content: space-between; color: #6e8f97; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
-.page nav a { color: #5fe8ed; text-decoration: none; }
-.hero { max-width: 900px; padding: 96px 0 64px; }
-.hero p, .catalogHeader p { color: #27dbe3; font-size: 11px; letter-spacing: .18em; }
-.hero h1 { margin: 14px 0; max-width: 760px; font-size: clamp(38px, 6vw, 74px); line-height: .98; letter-spacing: -.055em; }
-.hero > span { display: block; max-width: 690px; color: #8aa6ad; font-size: 16px; line-height: 1.6; }
-.hero small { display: block; margin-top: 24px; color: #58757c; }
-.methodGrid { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid #123039; }
-.methodGrid article { min-height: 190px; padding: 24px; border-right: 1px solid #123039; border-bottom: 1px solid #123039; background: rgba(4, 17, 22, .72); }
-.methodGrid b { color: #20d9e1; font-size: 11px; letter-spacing: .15em; }
+.page nav { display: flex; justify-content: space-between; color: #64716b; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.page nav a { color: #087e73; text-decoration: none; }
+.hero { max-width: 900px; padding: 88px 0 58px; }
+.hero p, .catalogHeader p, .industrialMethod > header p { color: #087e73; font-size: 11px; letter-spacing: .18em; }
+.hero h1 { margin: 14px 0; max-width: 760px; font-size: clamp(38px, 6vw, 72px); line-height: .98; letter-spacing: -.055em; }
+.hero > span { display: block; max-width: 690px; color: #58675f; font-size: 16px; line-height: 1.6; }
+.hero small { display: block; margin-top: 24px; color: #77827d; }
+.methodGrid { display: grid; grid-template-columns: repeat(3, 1fr); overflow: hidden; border: 1px solid #d7dfda; border-radius: 12px; background: rgba(255, 255, 255, .72); }
+.methodGrid article { min-height: 190px; padding: 24px; border-right: 1px solid #d7dfda; border-bottom: 1px solid #d7dfda; }
+.methodGrid b { color: #087e73; font-size: 11px; letter-spacing: .15em; }
 .methodGrid h2 { margin: 30px 0 10px; font-size: 17px; }
-.methodGrid p { margin: 0; color: #78969d; font-size: 13px; line-height: 1.6; }
-.regionalSources { display: grid; grid-template-columns: 1.15fr repeat(3, 1fr); margin-top: 24px; border: 1px solid #173943; background: rgba(4, 17, 22, .58); }
-.regionalSources > div, .regionalSources article { min-height: 170px; padding: 22px; border-right: 1px solid #173943; }
+.methodGrid p { margin: 0; color: #607068; font-size: 13px; line-height: 1.6; }
+.regionalSources { display: grid; grid-template-columns: 1.15fr repeat(3, 1fr); overflow: hidden; margin-top: 24px; border: 1px solid #d7dfda; border-radius: 12px; background: rgba(255, 255, 255, .72); }
+.regionalSources > div, .regionalSources article { min-height: 170px; padding: 22px; border-right: 1px solid #d7dfda; }
 .regionalSources article:last-child { border-right: 0; }
-.regionalSources > div p { margin: 0 0 18px; color: #27dbe3; font-size: 10px; letter-spacing: .16em; }
+.regionalSources > div p { margin: 0 0 18px; color: #087e73; font-size: 10px; letter-spacing: .16em; }
 .regionalSources h2 { margin: 0; font-size: 21px; line-height: 1.25; }
-.regionalSources b { color: #bfeff1; font-size: 12px; }
-.regionalSources article p { margin: 16px 0 0; color: #78969d; font-size: 12px; line-height: 1.6; }
-.publicationSummary { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 24px; border: 1px solid #173943; background: rgba(4, 17, 22, .72); }
-.publicationSummary article { display: flex; min-height: 116px; flex-direction: column; justify-content: space-between; gap: 18px; padding: 20px; border-right: 1px solid #173943; }
-.publicationSummary article:nth-child(3) { border-right: 0; }
-.publicationSummary strong { color: #5fe8ed; font-size: 26px; font-weight: 500; }
-.publicationSummary span { color: #8aa6ad; font-size: 12px; line-height: 1.5; }
-.publicationSummary > p { grid-column: 1 / -1; margin: 0; padding: 13px 20px; border-top: 1px solid #173943; color: #58757c; font-size: 11px; line-height: 1.55; }
+.regionalSources b { color: #263630; font-size: 12px; }
+.regionalSources article p { margin: 16px 0 0; color: #607068; font-size: 12px; line-height: 1.6; }
+.industrialMethod { margin-top: 24px; overflow: hidden; border: 1px solid #cdd9d3; border-radius: 12px; background: rgba(255, 255, 255, .82); }
+.industrialMethod > header { display: grid; grid-template-columns: .6fr 1fr 1.1fr; gap: 24px; align-items: start; padding: 24px; border-bottom: 1px solid #d7dfda; }
+.industrialMethod > header p, .industrialMethod > header h2, .industrialMethod > header span { margin: 0; }
+.industrialMethod > header h2 { font-size: 22px; line-height: 1.2; }
+.industrialMethod > header span { color: #607068; font-size: 12px; line-height: 1.65; }
+.releaseGrid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.releaseGrid article { min-height: 116px; padding: 20px; border-right: 1px solid #d7dfda; border-bottom: 1px solid #d7dfda; }
+.releaseGrid article:last-child { border-right: 0; }
+.releaseGrid strong { display: block; color: #263630; font-size: 12px; line-height: 1.5; }
+.releaseGrid small { display: block; margin-top: 20px; overflow-wrap: anywhere; color: #7c8882; font: 9px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.licenceNote { margin: 0; padding: 12px 20px; border-bottom: 1px solid #d7dfda; color: #087e73; background: #eef8f5; font-size: 11px; line-height: 1.55; }
+.formulaGrid { display: grid; grid-template-columns: repeat(3, 1fr); }
+.formulaGrid article { padding: 22px; border-right: 1px solid #d7dfda; border-bottom: 1px solid #d7dfda; }
+.formulaGrid article:last-child { border-right: 0; }
+.formulaGrid b { display: block; font-size: 12px; }
+.formulaGrid code { display: block; min-height: 42px; margin: 14px 0; color: #096f66; font-size: 11px; line-height: 1.55; white-space: normal; }
+.formulaGrid p, .methodNotes p { color: #607068; font-size: 11px; line-height: 1.65; }
+.formulaGrid p { margin: 0; }
+.methodNotes { display: grid; grid-template-columns: repeat(4, 1fr); }
+.methodNotes p { margin: 0; padding: 18px 20px; border-right: 1px solid #d7dfda; }
+.methodNotes p:last-child { border-right: 0; }
+.assetCoverage, .publicationSummary { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 24px; overflow: hidden; border: 1px solid #d7dfda; border-radius: 12px; background: rgba(255, 255, 255, .76); }
+.assetCoverage article, .publicationSummary article { display: flex; min-height: 116px; flex-direction: column; justify-content: space-between; gap: 18px; padding: 20px; border-right: 1px solid #d7dfda; }
+.assetCoverage article:last-child, .publicationSummary article:nth-child(3) { border-right: 0; }
+.assetCoverage strong, .publicationSummary strong { color: #087e73; font-size: 26px; font-weight: 500; }
+.assetCoverage span, .publicationSummary span { color: #607068; font-size: 12px; line-height: 1.5; }
+.publicationSummary > p { grid-column: 1 / -1; margin: 0; padding: 13px 20px; border-top: 1px solid #d7dfda; color: #77827d; font-size: 11px; line-height: 1.55; }
 .catalog { margin-top: 80px; }
 .catalogHeader { display: flex; justify-content: space-between; align-items: end; margin-bottom: 22px; }
 .catalogHeader h2 { margin: 6px 0 0; font-size: 28px; }
-.catalogHeader > span { color: #6f9299; font-size: 12px; }
+.catalogHeader > span { color: #68766f; font-size: 12px; }
 .filters { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
-.filters label { color: #68868d; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
-.filters select { display: block; width: 100%; margin-top: 7px; border: 1px solid #173943; border-radius: 6px; background: #071216; color: #c6e1e5; padding: 10px; }
+.filters label { color: #64716b; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.filters select { display: block; width: 100%; margin-top: 7px; border: 1px solid #cbd5d0; border-radius: 7px; background: #fff; color: #263630; padding: 10px; }
 .page :global(.source-catalog-list) { display: grid; gap: 10px; }
-.page :global(.source-catalog-card) { border: 1px solid #12343d; border-radius: 8px; background: rgba(5, 17, 22, .8); padding: 18px; }
+.page :global(.source-catalog-card) { border: 1px solid #d1dbd6; border-radius: 9px; background: rgba(255, 255, 255, .86); padding: 18px; }
 .page :global(.source-catalog-card header) { display: flex; justify-content: space-between; gap: 20px; }
 .page :global(.source-catalog-card h3) { margin: 9px 0 3px; font-size: 17px; }
-.page :global(.source-catalog-card header p) { margin: 0; color: #6e8b92; font-size: 12px; }
-.page :global(.source-catalog-card a) { color: #50dce2; font-size: 12px; }
-.page :global(.source-state) { display: inline-block; border: 1px solid #23626a; border-radius: 999px; padding: 3px 7px; color: #62edf0; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
-.page :global(.source-state.quarantined) { border-color: #6d5527; color: #e8b957; }
+.page :global(.source-catalog-card header p) { margin: 0; color: #68766f; font-size: 12px; }
+.page :global(.source-catalog-card a) { color: #087e73; font-size: 12px; }
+.page :global(.source-state) { display: inline-block; border: 1px solid #76b4aa; border-radius: 999px; padding: 3px 7px; color: #087e73; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.page :global(.source-state.quarantined) { border-color: #c5a35f; color: #826014; }
 .page :global(.source-catalog-card dl) { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 18px 0 0; }
-.page :global(.source-catalog-card dl div) { border-top: 1px solid #102a31; padding-top: 10px; }
-.page :global(.source-catalog-card dt) { color: #56757c; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
-.page :global(.source-catalog-card dd) { margin: 5px 0 0; color: #b2cbd0; font-size: 11px; }
-.page :global(.source-note) { margin: 14px 0 0; color: #77969c; font-size: 11px; }
+.page :global(.source-catalog-card dl div) { border-top: 1px solid #e0e6e3; padding-top: 10px; }
+.page :global(.source-catalog-card dt) { color: #74817a; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.page :global(.source-catalog-card dd) { margin: 5px 0 0; color: #425149; font-size: 11px; }
+.page :global(.source-note) { margin: 14px 0 0; color: #68766f; font-size: 11px; }
+@media (max-width: 1000px) {
+  .releaseGrid, .methodNotes { grid-template-columns: 1fr 1fr; }
+  .releaseGrid article:nth-child(2), .methodNotes p:nth-child(2) { border-right: 0; }
+  .industrialMethod > header { grid-template-columns: 1fr; }
+}
 @media (max-width: 900px) {
   .methodGrid { grid-template-columns: 1fr 1fr; }
   .regionalSources { grid-template-columns: 1fr 1fr; }
-  .regionalSources > div, .regionalSources article { border-bottom: 1px solid #173943; }
-  .publicationSummary { grid-template-columns: 1fr; }
-  .publicationSummary article { min-height: 92px; border-right: 0; border-bottom: 1px solid #173943; }
+  .regionalSources > div, .regionalSources article { border-bottom: 1px solid #d7dfda; }
+  .assetCoverage, .publicationSummary { grid-template-columns: 1fr; }
+  .assetCoverage article, .publicationSummary article { min-height: 92px; border-right: 0; border-bottom: 1px solid #d7dfda; }
   .filters { grid-template-columns: 1fr 1fr; }
   .page :global(.source-catalog-card dl) { grid-template-columns: 1fr 1fr; }
 }
-@media (max-width: 560px) {
+@media (max-width: 650px) {
   .hero { padding-top: 64px; }
-  .methodGrid, .regionalSources, .filters { grid-template-columns: 1fr; }
-  .regionalSources > div, .regionalSources article { min-height: auto; border-right: 0; }
+  .methodGrid, .regionalSources, .releaseGrid, .formulaGrid, .methodNotes, .filters { grid-template-columns: 1fr; }
+  .regionalSources > div, .regionalSources article, .releaseGrid article, .formulaGrid article, .methodNotes p { min-height: auto; border-right: 0; }
 }

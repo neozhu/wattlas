@@ -81,6 +81,28 @@ The approved design is recorded in `docs/plans/2026-06-28-global-state-power-bal
 - **Freshness language:** say **monthly refreshed**, not “live”; show global and per-source timestamps and connector states.
 - **Primary map experience:** a fast 2D Europe analytical canvas with progressive zoom, persistent regional inspection, and comparison. Preserve the 3D globe for later Cinematic Briefing mode.
 
+### Approved July 2026 map and demand-intelligence evolution
+
+The fast 2D Europe canvas remains the historical foundation, but the current approved global release supersedes its presentation at world scale with a restrained, light physical-geography globe. This is an analytical globe—not a cinematic effects mode—and it retains the same progressive subnational inspection.
+
+- **Map presentation:** use a white/light basemap with modest rivers, water, terrain, and forest context; render facilities as smaller points; make renewable technologies brighter and fossil technologies darker; preserve strong national and progressive ADM1 boundaries.
+- **Experience architecture:** Opportunity Radar remains the lead experience. Asset Explorer is a second top-level mode. Country Intelligence is a drill-down from a selected country, not a competing third homepage mode.
+- **Status filters:** publish the five planning-relevant groups Operating, Under construction, Pre-construction, Announced, and Retired. Preserve raw source status in each dossier and keep excluded statuses in pipeline governance.
+- **Project inspection:** selecting a point opens a compact, source-backed summary before the existing detailed right-side dossier. Reported facts and modelled values must remain visually distinct.
+- **Country Intelligence:** summarize current demand and generation, forecast additions, retirements, technology mix, 2026–2031 outlook, confidence, and source lineage from published ADM1 rows. Never synthesize missing country or regional values inside the UI.
+- **Industrial demand:** ingest the downloaded IEA June 2026 hydrogen-production and infrastructure releases, GEM June 2026 iron/steel release, and GEM July 2025 cement/concrete release through checksum-verified governed snapshots under CC BY 4.0.
+- **Demand formulas:** use versioned low/central/high annual-energy methods for eligible hydrogen production, electric steel, and cement projects. Keep raw input, source-record identity, formula, method version, and result together.
+- **Network exclusion:** hydrogen pipelines, storage, blending, and terminals are context-only and never generate a demand increment by themselves.
+- **Forecast gates:** an industrial project affects 2026–2031 only with a publishable source, valid ADM1 assignment, supported commissioning year, eligible lifecycle, non-negative demand range, and versioned method ID.
+- **Additive data rule:** retain all existing data-centre, water, generator, geography, and baseline-demand data. New industrial assets and increments are additions, not replacements.
+- **ENTSO-E:** read the future Transparency Platform token from `ENTSOE_SECURITY_TOKEN`; until configured, expose `not_configured` and use the existing governed fallback. Never embed or commit the token.
+- **Publication gate:** build and host this redesign locally for the owner to test. Do not push to GitHub or deploy to Vercel until explicit approval after review.
+
+The approved design and execution plan are recorded in:
+
+- `docs/plans/2026-07-21-demand-intelligence-redesign-design.md`
+- `docs/plans/2026-07-21-demand-intelligence-redesign-implementation.md`
+
 ## Product approaches considered
 
 ### A. Opportunity Radar — selected

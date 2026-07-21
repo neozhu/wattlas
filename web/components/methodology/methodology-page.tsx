@@ -8,6 +8,31 @@ import { filterSources } from "@/lib/methodology";
 import type { SourceCatalog, SourceCoverage } from "@/lib/snapshot/types";
 import styles from "@/app/methodology/methodology.module.css";
 
+type AssetCoverage = {
+  industrialLoads?: number;
+  hydrogenInfrastructure?: number;
+  forecastIndustrialLoads?: number;
+};
+
+const INDUSTRIAL_RELEASES = [
+  {
+    name: "IEA Hydrogen Production Projects Database · June 2026",
+    checksum: "89c71ee47267c74b8c051a161c6cbf0e2c8bc914f84a14169663cbe89aadbad6",
+  },
+  {
+    name: "IEA Hydrogen Infrastructure Projects Database · June 2026",
+    checksum: "6c21717ea441d488e676bc7e4631f002a4a1887cda8fd23cc29003da85880345",
+  },
+  {
+    name: "GEM Global Iron and Steel Tracker · June 2026",
+    checksum: "plants a5768b59…338eb · steel units d5355acd…4d425 · iron units a770dddb…73f6a",
+  },
+  {
+    name: "GEM Global Cement and Concrete Tracker · July 2025",
+    checksum: "80cbc6bcb5b9297b048868fb079447ebe1aab35519a34cdf23b20e71c214d066",
+  },
+] as const;
+
 const snapshotDateFormatter = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
   month: "short",
@@ -19,7 +44,17 @@ const snapshotDateFormatter = new Intl.DateTimeFormat("en-GB", {
   timeZoneName: "short",
 });
 
-export function MethodologyPage({ catalog, generatedAt, sourceCoverage = null }: { catalog: SourceCatalog; generatedAt: string | null; sourceCoverage?: SourceCoverage | null }) {
+export function MethodologyPage({
+  catalog,
+  generatedAt,
+  sourceCoverage = null,
+  assetCoverage = null,
+}: {
+  catalog: SourceCatalog;
+  generatedAt: string | null;
+  sourceCoverage?: SourceCoverage | null;
+  assetCoverage?: AssetCoverage | null;
+}) {
   const [continent, setContinent] = useState("");
   const [country, setCountry] = useState("");
   const [category, setCategory] = useState("");
@@ -56,9 +91,57 @@ export function MethodologyPage({ catalog, generatedAt, sourceCoverage = null }:
         <article><b>Africa grid context</b><p>The World Bank grid release adds 62,001 existing and planned line features as dated topology context. Lines never count as generation capacity, dependable supply, or proof of connection headroom.</p></article>
       </section>
 
+      <section className={styles.industrialMethod} aria-label="Industrial demand methodology">
+        <header>
+          <p>INDUSTRIAL DEMAND INTELLIGENCE</p>
+          <h2>Reported projects become auditable demand ranges</h2>
+          <span>Wattlas keeps the reported project fields, the conversion assumption, the lifecycle decision, and the resulting low–central–high range together.</span>
+        </header>
+        <div className={styles.releaseGrid}>
+          {INDUSTRIAL_RELEASES.map((release) => (
+            <article key={release.name}>
+              <strong>{release.name}</strong>
+              <small>SHA-256 · {release.checksum}</small>
+            </article>
+          ))}
+        </div>
+        <p className={styles.licenceNote}>All four release families are governed manual snapshots under CC BY 4.0. The release files are retained by checksum so every published result can be reproduced.</p>
+        <div className={styles.formulaGrid}>
+          <article>
+            <b>Hydrogen production</b>
+            <code>capacity MWel × 8.76 GWh/MW-year × capacity factor × grid share</code>
+            <p>Capacity factor and grid share vary by project status and power-supply evidence. The map shows a range, not a false point estimate.</p>
+          </article>
+          <article>
+            <b>Iron and steel</b>
+            <code>capacity kt/year × electricity intensity MWh/tonne</code>
+            <p>Only supported electric-arc-furnace and direct-reduced-iron evidence enters the forecast; generic plant records remain context.</p>
+          </article>
+          <article>
+            <b>Cement</b>
+            <code>capacity Mt/year × 1,000 × electricity intensity MWh/tonne</code>
+            <p>Commissioning evidence and reported production capacity are required before a project can affect a regional demand forecast.</p>
+          </article>
+        </div>
+        <div className={styles.methodNotes}>
+          <p>Pipelines, storage, blending, and terminals never create an electricity-demand increment by themselves.</p>
+          <p>Public lifecycle groups are Operating, Under construction, Pre-construction, Announced, and Retired. Cancelled, shelved, mothballed, and unknown records remain available to governance checks but do not enter public forecasts.</p>
+          <p>Projects are assigned to ADM1 regions from their reported coordinates, deduplicated using stable source identities, and applied once from the supported commissioning year. Existing demand-centre, water, and generator assets are retained rather than replaced.</p>
+          <p>The ENTSO-E connector reads ENTSOE_SECURITY_TOKEN at runtime. Until a token is configured, it reports “not configured” and Wattlas retains the existing governed European fallback instead of fabricating bidding-zone observations.</p>
+        </div>
+      </section>
+
+      {assetCoverage ? (
+        <section className={styles.assetCoverage} aria-label="Industrial asset publication status">
+          <article><strong>{(assetCoverage.industrialLoads ?? 0).toLocaleString("en-US")}</strong><span>Industrial-demand projects published as facilities or context</span></article>
+          <article><strong>{(assetCoverage.hydrogenInfrastructure ?? 0).toLocaleString("en-US")}</strong><span>Hydrogen infrastructure records kept as context-only assets</span></article>
+          <article><strong>{(assetCoverage.forecastIndustrialLoads ?? 0).toLocaleString("en-US")}</strong><span>Projects passing every gate for a 2026–2031 demand increment</span></article>
+        </section>
+      ) : null}
+
       {sourceCoverage ? (
         <section className={styles.publicationSummary} aria-label="Current publication status">
-          <article><strong>{sourceCoverage.publishedRecords.toLocaleString("en-US")}</strong><span>Power-source records currently published on the map</span></article>
+          <article><strong>{sourceCoverage.publishedRecords.toLocaleString("en-US")}</strong><span>Source records currently published on the map</span></article>
           <article><strong>{sourceCoverage.sourcesByPublicationState.publishable ?? 0}</strong><span>Sources eligible for publication when their connector returns usable records</span></article>
           <article><strong>{sourceCoverage.sourcesByPublicationState.quarantined ?? 0}</strong><span>Sources quarantined and excluded from maps, search, totals, and scores</span></article>
           <p>“Eligible for publication” describes licence and policy readiness; it does not mean that a source contributed records to this snapshot. The record total above is the authoritative live-map count.</p>

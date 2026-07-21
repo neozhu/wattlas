@@ -67,6 +67,26 @@ describe("methodology and sources", () => {
     expect(screen.getByText("SAPP data")).toBeInTheDocument();
   });
 
+  it("discloses industrial demand releases, formulas, lifecycle mapping, and credential limits", () => {
+    render(<MethodologyPage catalog={catalog} generatedAt="2026-07-17T00:00:00Z" assetCoverage={{ industrialLoads: 4220, hydrogenInfrastructure: 808, forecastIndustrialLoads: 118 }} />);
+    for (const text of [
+      /IEA Hydrogen Production Projects Database · June 2026/i,
+      /IEA Hydrogen Infrastructure Projects Database · June 2026/i,
+      /GEM Global Iron and Steel Tracker · June 2026/i,
+      /GEM Global Cement and Concrete Tracker · July 2025/i,
+      /CC BY 4.0/i,
+      /capacity MWel × 8.76 GWh\/MW-year × capacity factor × grid share/i,
+      /capacity kt\/year × electricity intensity MWh\/tonne/i,
+      /capacity Mt\/year × 1,000 × electricity intensity MWh\/tonne/i,
+      /Pipelines, storage, blending, and terminals never create an electricity-demand increment/i,
+      /Operating, Under construction, Pre-construction, Announced, and Retired/i,
+      /ENTSOE_SECURITY_TOKEN/i,
+    ]) expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText("4,220")).toBeInTheDocument();
+    expect(screen.getByText("808")).toBeInTheDocument();
+    expect(screen.getByText("118")).toBeInTheDocument();
+  });
+
   it("filters sources by continent and publication state", () => {
     render(<MethodologyPage catalog={catalog} generatedAt="2026-07-17T00:00:00Z" />);
     fireEvent.change(screen.getByLabelText("Continent"), { target: { value: "Africa" } });

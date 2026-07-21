@@ -1,8 +1,8 @@
 # Wattlas
 
-Wattlas is a global Opportunity Radar for examining where data-centre and water-infrastructure growth may create electricity demand, opportunity, or constraint from 2026–2031.
+Wattlas is a global Opportunity Radar for examining where data-centre, water, hydrogen, steel, and cement growth may create electricity demand, opportunity, or constraint from 2026–2031—and how operating, planned, and retiring generation may change the balance.
 
-The working version combines a clustered global MapLibre map, strong national boundaries, 3,229 global ADM1 states/provinces, 334 European NUTS-2 regions, an explainable Infrastructure Demand score, supporting Site Attractiveness and System Risk lenses, rich facility provenance, source status, evidence dossiers, and regional comparison.
+The working version combines a light physical-geography MapLibre globe, strong national boundaries, 3,229 global ADM1 states/provinces, 334 European NUTS-2 regions, an explainable Infrastructure Demand score, supporting Site Attractiveness and System Risk lenses, an Asset Explorer, a Country Intelligence drill-down, rich facility provenance, source status, evidence dossiers, and regional comparison.
 
 ## Run locally
 
@@ -49,7 +49,26 @@ The global release uses UN national boundaries, geoBoundaries `gbOpen` ADM1 regi
 
 Regional population uses the checksum-pinned WorldPop Global2 R2025A v1 2025 constrained 1 km raster, with official 100 m country rasters used only for otherwise unavailable tiny regions. The production build covers 3,204 of 3,229 ADM1 geographies. The remaining 25 gaps place 11 countries in an explicit country-level-only mode: all boundaries remain selectable, national electricity controls may be shown, but no ADM1 demand share or Power Balance rank is fabricated. Exact coverage and fingerprints are recorded in `docs/data-quality/2026-07-01-global-adm1-production.md`.
 
-Snapshot `2026-07-01T15-55-32Z` contains 3,229 global ADM1 regions across 197 countries, 4,325 demand facilities (4,224 data centres and 101 water-infrastructure assets), and 53,252 deduplicated power generators. Ember's 2026-06-23 public Yearly Electricity Data release supplies 5,388 annual country controls across 214 countries/economies; 3,030 ADM1 regions receive modelled 2026–2031 energy rows, of which 1,895 are currently Power Balance-rankable. Another 155 ADM1 regions are published explicitly as country-level-only, bringing the regional-energy artifact to 3,185 series without fabricating unavailable state values. OpenStreetMap-derived records are attributed under ODbL and visibly labelled `community_mapped`; curated announcements are labelled `official_verified`. Missing evidence is stored as `null`, never as zero.
+The previous published baseline, snapshot `2026-07-01T15-55-32Z`, contains 3,229 global ADM1 regions across 197 countries, 4,325 demand facilities (4,224 data centres and 101 water-infrastructure assets), and 53,252 deduplicated power generators. Ember's 2026-06-23 public Yearly Electricity Data release supplies 5,388 annual country controls across 214 countries/economies; 3,030 ADM1 regions receive modelled 2026–2031 energy rows, of which 1,895 are currently Power Balance-rankable. Another 155 ADM1 regions are published explicitly as country-level-only, bringing the regional-energy artifact to 3,185 series without fabricating unavailable state values. OpenStreetMap-derived records are attributed under ODbL and visibly labelled `community_mapped`; curated announcements are labelled `official_verified`. Missing evidence is stored as `null`, never as zero.
+
+## Industrial-demand candidate release
+
+The July 2026 local candidate adds the downloaded IEA Hydrogen Production and Hydrogen Infrastructure releases, GEM Global Iron and Steel Tracker, and GEM Global Cement and Concrete Tracker. The source files enter through the same checksum-governed manual-snapshot path as other protected releases; their original rows and fields remain traceable.
+
+- Hydrogen production: 2,928 normalized projects; an electricity range is calculated only when coordinates, lifecycle, commissioning year, capacity, and power-supply evidence pass the forecast gates.
+- Hydrogen infrastructure: 808 pipelines, storage, blending, and terminal records remain visible context only. They never create electricity demand by themselves.
+- Cement: 3,469 mappable projects; only explicitly future, capacity-bearing projects can enter the 2026–2031 demand forecast.
+- Steel: 1,825 plant/status records, with electric-arc-furnace and direct-reduced-iron evidence required for forecast eligibility.
+
+The annual-energy calculations are versioned and exposed in every eligible project dossier:
+
+- Hydrogen: `capacity MWel × 8.76 GWh/MW-year × capacity factor × grid share`.
+- Steel: `capacity kt/year × electricity intensity MWh/tonne`.
+- Cement: `capacity Mt/year × 1,000 × electricity intensity MWh/tonne`.
+
+These estimates are published as low, central, and high ranges. They add to the existing baseline; they do not overwrite observed demand and they do not replace any existing data-centre, water, or generator records. The public lifecycle filters use Operating, Under construction, Pre-construction, Announced, and Retired.
+
+The ENTSO-E connector reads `ENTSOE_SECURITY_TOKEN` only from the runtime environment. If no token is configured, its state is `not_configured` and the last governed European evidence remains available. No credential is committed to the repository.
 
 Facility details expose all available public identity, address, operational, energy, and source fields. A reported electrical tag remains separate from Wattlas demand estimates; missing capacity is never inferred.
 

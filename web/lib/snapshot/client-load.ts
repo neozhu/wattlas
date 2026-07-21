@@ -72,6 +72,7 @@ export async function loadMethodologyFromStaticAssets(signal?: AbortSignal): Pro
   catalog: SourceCatalog;
   generatedAt: string | null;
   sourceCoverage: SourceCoverage | null;
+  assetCoverage: Pick<SnapshotManifest["coverage"], "industrialLoads" | "hydrogenInfrastructure" | "forecastIndustrialLoads">;
 }> {
   const manifest = manifestSchema.parse(await fetchJson<unknown>("latest.json", signal));
   const catalog = await loadSourceCatalog(manifest, signal);
@@ -79,5 +80,10 @@ export async function loadMethodologyFromStaticAssets(signal?: AbortSignal): Pro
     catalog: catalog ?? { schemaVersion: "1.0", sources: [] },
     generatedAt: manifest.generatedAt,
     sourceCoverage: manifest.sourceCoverage ?? null,
+    assetCoverage: {
+      industrialLoads: manifest.coverage.industrialLoads,
+      hydrogenInfrastructure: manifest.coverage.hydrogenInfrastructure,
+      forecastIndustrialLoads: manifest.coverage.forecastIndustrialLoads,
+    },
   };
 }

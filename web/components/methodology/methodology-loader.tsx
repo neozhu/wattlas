@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 
 import { MethodologyPage } from "@/components/methodology/methodology-page";
 import { loadMethodologyFromStaticAssets } from "@/lib/snapshot/client-load";
-import type { SourceCatalog, SourceCoverage } from "@/lib/snapshot/types";
+import type { SnapshotManifest, SourceCatalog, SourceCoverage } from "@/lib/snapshot/types";
 
 type MethodologyData = {
   catalog: SourceCatalog;
   generatedAt: string | null;
   sourceCoverage: SourceCoverage | null;
+  assetCoverage: Pick<SnapshotManifest["coverage"], "industrialLoads" | "hydrogenInfrastructure" | "forecastIndustrialLoads">;
 };
 
 export function MethodologyLoader() {
