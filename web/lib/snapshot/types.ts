@@ -76,6 +76,8 @@ export type AssetSummary = {
   planned: number;
   dataCentres: number;
   waterInfrastructure: number;
+  industrialLoads: number;
+  hydrogenInfrastructure: number;
   officialVerified: number;
   communityMapped: number;
 };
@@ -207,6 +209,9 @@ export type SnapshotManifest = {
     assets: number;
     dataCentres: number;
     waterInfrastructure: number;
+    industrialLoads?: number;
+    hydrogenInfrastructure?: number;
+    forecastIndustrialLoads?: number;
     powerSourceRecords?: number;
     powerSourceRecordsBySource?: Record<string, number>;
     canonicalPowerPlants?: number;

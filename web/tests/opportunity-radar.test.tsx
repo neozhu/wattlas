@@ -254,7 +254,7 @@ describe("OpportunityRadar", () => {
 
   it("offers independent infrastructure layers and accessible generator filters", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
-    for (const name of ["Data centres", "Water infrastructure"]) {
+    for (const name of ["Data centres", "Water infrastructure", "Industrial demand", "Hydrogen network"]) {
       const toggle = screen.getByRole("switch", { name });
       expect(toggle).toHaveAttribute("aria-checked", "true");
       fireEvent.click(toggle);
@@ -268,11 +268,19 @@ describe("OpportunityRadar", () => {
     expect(solar).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("switch", { name: "Power generators" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("switch", { name: "Wind" })).toHaveAttribute("aria-checked", "false");
-    // Plant-status filters stay behind the advanced toggle.
-    expect(screen.queryByRole("switch", { name: "Operational" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Advanced power filters/i }));
-    expect(screen.getByRole("switch", { name: "Operational" })).toBeInTheDocument();
-    for (const lifecycle of ["Under construction", "Planned", "Paused", "Cancelled or shelved", "Retired or decommissioned", "Unknown status"]) expect(screen.getByRole("switch", { name: lifecycle })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Project status/i }));
+    for (const lifecycle of ["Operating", "Under construction", "Pre-construction", "Announced", "Retired"]) expect(screen.getByRole("switch", { name: lifecycle })).toBeInTheDocument();
+  });
+
+  it("switches between Opportunity Radar and Asset Explorer without losing the selected year", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    fireEvent.click(screen.getByRole("button", { name: "2031" }));
+    fireEvent.click(screen.getByRole("button", { name: "Asset Explorer" }));
+    expect(screen.getByRole("button", { name: "Asset Explorer" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("global-map")).toHaveTextContent("year 2031");
+    expect(screen.getByText(/published facilities/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Opportunity Radar" }));
+    expect(screen.getByRole("button", { name: "2031" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("clears stale regional energy on snapshot path change and exposes a recoverable error", async () => {

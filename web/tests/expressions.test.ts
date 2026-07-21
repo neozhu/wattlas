@@ -55,8 +55,10 @@ describe("global map expressions", () => {
   });
 
   it("assigns distinct infrastructure colors", () => {
-    expect(assetColor("data_centre")).toBe("#8FAEFF");
-    expect(assetColor("water_infrastructure")).toBe("#72D9BD");
+    expect(assetColor("data_centre")).toBe("#2F80ED");
+    expect(assetColor("water_infrastructure")).toBe("#23A6D5");
+    expect(assetColor("industrial_load")).toBe("#E58A2B");
+    expect(assetColor("hydrogen_infrastructure")).toBe("#8B5CF6");
   });
 
   it("distinguishes officially verified facilities", () => {

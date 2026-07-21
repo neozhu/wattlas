@@ -9,7 +9,14 @@ const lenses: Array<{ id: LensKey; label: string; description: string }> = [
   { id: "powerBalance", label: "Power Balance", description: "Demand versus dependable supply" },
 ];
 
-export type InfrastructureVisibility = { dataCentres: boolean; water: boolean; generators: boolean };
+export type InfrastructureVisibility = {
+  dataCentres: boolean;
+  water: boolean;
+  industrial: boolean;
+  hydrogen: boolean;
+  generators: boolean;
+};
+export type LayerCounts = Partial<Record<keyof InfrastructureVisibility, number>>;
 type Props = {
   activeLens: LensKey; onChange: (lens: LensKey) => void;
   onHide?: () => void;
@@ -18,17 +25,16 @@ type Props = {
   infrastructure?: InfrastructureVisibility; onInfrastructureChange?: (value: InfrastructureVisibility) => void;
   technologies?: ReadonlySet<GenerationTechnology>; onTechnologiesChange?: (value: Set<GenerationTechnology>) => void;
   lifecycles?: ReadonlySet<string>; onLifecyclesChange?: (value: Set<string>) => void;
+  counts?: LayerCounts;
 };
 
 const technologyLabels: Record<GenerationTechnology, string> = { solar: "Solar", wind: "Wind", hydro: "Hydro", nuclear: "Nuclear", gas: "Gas", coal: "Coal", oil: "Oil", biomass: "Biomass", geothermal: "Geothermal", other: "Other" };
 const lifecycleGroups = {
-  operational: { label: "Operational", states: ["operational"] },
+  operating: { label: "Operating", states: ["operational"] },
   construction: { label: "Under construction", states: ["under_construction"] },
-  planned: { label: "Planned", states: ["announced", "planning_filed", "permitted"] },
-  paused: { label: "Paused", states: ["paused"] },
-  cancelled: { label: "Cancelled or shelved", states: ["cancelled", "shelved"] },
-  retired: { label: "Retired or decommissioned", states: ["retired", "decommissioned"] },
-  unknown: { label: "Unknown status", states: ["unknown"] },
+  preConstruction: { label: "Pre-construction", states: ["pre_construction", "planning_filed", "permitted"] },
+  announced: { label: "Announced", states: ["announced"] },
+  retired: { label: "Retired", states: ["retired", "decommissioned"] },
 } as const;
 
 const layerIcons = {
@@ -48,23 +54,38 @@ const layerIcons = {
       <path d="M9.2 1.5 3.6 9h3.2l-.9 5.5L11.5 7H8.3l.9-5.5Z" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
     </svg>
   ),
+  industrial: (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M2 13.5h12M3 13.5V7.8l3 1.7V6.6l3 1.8V4.5h4v9" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M10.5 2.2h2v2.3h-2z" fill="none" stroke="currentColor" strokeWidth="1.1" />
+    </svg>
+  ),
+  hydrogen: (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="4" cy="8" r="2" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="12" cy="4" r="2" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="12" cy="12" r="2" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <path d="m5.8 7.1 4.4-2.2M5.8 8.9l4.4 2.2" fill="none" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  ),
 } as const;
 
 function Switch({ checked }: { checked: boolean }) {
   return <span className={checked ? "switch on" : "switch"} aria-hidden="true"><i /></span>;
 }
 
-function LayerRow({ id, label, checked, onToggle }: { id: keyof InfrastructureVisibility; label: string; checked: boolean; onToggle: () => void }) {
+function LayerRow({ id, label, checked, count, onToggle }: { id: keyof InfrastructureVisibility; label: string; checked: boolean; count?: number; onToggle: () => void }) {
   return (
     <button type="button" className={`layer-row ${id}`} role="switch" aria-label={label} aria-checked={checked} onClick={onToggle}>
       <span className="layer-icon">{layerIcons[id]}</span>
       <span className="layer-name">{label}</span>
+      {count != null && <span className="layer-count" aria-label={`${count.toLocaleString()} published facilities`}>{count.toLocaleString()}</span>}
       <Switch checked={checked} />
     </button>
   );
 }
 
-export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvancedOpen, infrastructure, onInfrastructureChange, technologies, onTechnologiesChange, lifecycles, onLifecyclesChange }: Props) {
+export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvancedOpen, infrastructure, onInfrastructureChange, technologies, onTechnologiesChange, lifecycles, onLifecyclesChange, counts = {} }: Props) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   return (
     <aside className="layer-rail" aria-label="Map controls">
@@ -73,9 +94,11 @@ export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvanced
       {infrastructure && onInfrastructureChange && <div className="rail-section infrastructure-controls">
         <p className="rail-heading">Infrastructure layers</p>
         <div className="layer-list">
-          <LayerRow id="dataCentres" label="Data centres" checked={infrastructure.dataCentres} onToggle={() => onInfrastructureChange({ ...infrastructure, dataCentres: !infrastructure.dataCentres })} />
-          <LayerRow id="water" label="Water infrastructure" checked={infrastructure.water} onToggle={() => onInfrastructureChange({ ...infrastructure, water: !infrastructure.water })} />
-          <LayerRow id="generators" label="Power generators" checked={infrastructure.generators} onToggle={() => onInfrastructureChange({ ...infrastructure, generators: !infrastructure.generators })} />
+          <LayerRow id="dataCentres" label="Data centres" count={counts.dataCentres} checked={infrastructure.dataCentres} onToggle={() => onInfrastructureChange({ ...infrastructure, dataCentres: !infrastructure.dataCentres })} />
+          <LayerRow id="water" label="Water infrastructure" count={counts.water} checked={infrastructure.water} onToggle={() => onInfrastructureChange({ ...infrastructure, water: !infrastructure.water })} />
+          <LayerRow id="industrial" label="Industrial demand" count={counts.industrial} checked={infrastructure.industrial} onToggle={() => onInfrastructureChange({ ...infrastructure, industrial: !infrastructure.industrial })} />
+          <LayerRow id="hydrogen" label="Hydrogen network" count={counts.hydrogen} checked={infrastructure.hydrogen} onToggle={() => onInfrastructureChange({ ...infrastructure, hydrogen: !infrastructure.hydrogen })} />
+          <LayerRow id="generators" label="Power generators" count={counts.generators} checked={infrastructure.generators} onToggle={() => onInfrastructureChange({ ...infrastructure, generators: !infrastructure.generators })} />
           {technologies && onTechnologiesChange && <div className="tech-tree" aria-label="Generator technology filters">
             {(Object.keys(technologyLabels) as GenerationTechnology[]).map((technology) => (
               <button key={technology} type="button" className="tech-row" role="switch" aria-label={technologyLabels[technology]} aria-checked={technologies.has(technology)} onClick={() => { const next = new Set(technologies); if (next.has(technology)) next.delete(technology); else next.add(technology); onTechnologiesChange(next); }}>
@@ -85,9 +108,9 @@ export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvanced
               </button>
             ))}
           </div>}
-          <button className="advanced-filter-toggle" type="button" aria-expanded={advancedOpen} onClick={() => { const next = !advancedOpen; setAdvancedOpen(next); if (next) onAdvancedOpen?.(); }}>Advanced power filters <span aria-hidden="true">{advancedOpen ? "−" : "+"}</span></button>
+          <button className="advanced-filter-toggle" type="button" aria-label="Project status · Advanced power filters" aria-expanded={advancedOpen} onClick={() => { const next = !advancedOpen; setAdvancedOpen(next); if (next) onAdvancedOpen?.(); }}>Project status <span aria-hidden="true">{advancedOpen ? "−" : "+"}</span></button>
           {advancedOpen && lifecycles && onLifecyclesChange && <div className="tech-tree lifecycle-tree" aria-label="Generator lifecycle filters">
-            <p>Plant status</p>
+            <div className="filter-section-actions"><span>Lifecycle</span><button type="button" onClick={() => onLifecyclesChange(new Set())}>Clear</button></div>
             {(Object.entries(lifecycleGroups)).map(([id, group]) => { const pressed = group.states.every((state) => lifecycles.has(state)); return (
               <button key={id} type="button" className="tech-row" role="switch" aria-label={group.label} aria-checked={pressed} onClick={() => { const next = new Set(lifecycles); for (const state of group.states) { if (pressed) next.delete(state); else next.add(state); } onLifecyclesChange(next); }}>
                 <span className="tech-name">{group.label}</span>

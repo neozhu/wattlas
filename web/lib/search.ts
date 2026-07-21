@@ -1,7 +1,7 @@
 import type { AssetFeature, CityCollection, GeneratorFeature, GeographyFeature, RegionFeature } from "@/lib/snapshot/types";
 
-export type SearchEntityType = "country" | "state" | "region" | "city" | "data_centre" | "water_infrastructure" | "generator";
-export type SearchGroup = "Places" | "Power generators" | "Data centres" | "Water infrastructure";
+export type SearchEntityType = "country" | "state" | "region" | "city" | "data_centre" | "water_infrastructure" | "industrial_load" | "hydrogen_infrastructure" | "generator";
+export type SearchGroup = "Places" | "Power generators" | "Data centres" | "Water infrastructure" | "Industrial demand" | "Hydrogen network";
 
 export type SearchResult = {
   id: string;
@@ -74,11 +74,24 @@ function geographyDetail(feature: GeographyFeature | RegionFeature): string {
 }
 
 function assetGroup(feature: AssetFeature): SearchGroup {
-  return feature.properties.category === "data_centre" ? "Data centres" : "Water infrastructure";
+  if (feature.properties.category === "data_centre") return "Data centres";
+  if (feature.properties.category === "water_infrastructure") return "Water infrastructure";
+  if (feature.properties.category === "industrial_load") return "Industrial demand";
+  return "Hydrogen network";
 }
 
 function assetEntityType(feature: AssetFeature): SearchEntityType {
-  return feature.properties.category === "data_centre" ? "data_centre" : "water_infrastructure";
+  if (feature.properties.category === "data_centre") return "data_centre";
+  if (feature.properties.category === "water_infrastructure") return "water_infrastructure";
+  if (feature.properties.category === "industrial_load") return "industrial_load";
+  return "hydrogen_infrastructure";
+}
+
+function assetTypeLabel(feature: AssetFeature): string {
+  if (feature.properties.category === "data_centre") return "Data centre";
+  if (feature.properties.category === "water_infrastructure") return "Water infrastructure";
+  if (feature.properties.category === "industrial_load") return "Industrial demand project";
+  return "Hydrogen network project";
 }
 
 export function buildSearchIndex({ geographies, assets, generators, cities = [] }: SearchIndexInput): SearchIndex {
@@ -98,7 +111,7 @@ export function buildSearchIndex({ geographies, assets, generators, cities = [] 
   const assetItems = assets.map((feature): SearchIndexItem => ({
     id: feature.properties.id,
     label: feature.properties.name,
-    detail: `${feature.properties.category === "data_centre" ? "Data centre" : "Water infrastructure"} · ${feature.properties.country}`,
+    detail: `${assetTypeLabel(feature)} · ${feature.properties.country}`,
     group: assetGroup(feature),
     entityType: assetEntityType(feature),
     country: feature.properties.country,
@@ -156,6 +169,8 @@ function typePriority(entityType: SearchEntityType): number {
   if (entityType === "city") return 28;
   if (entityType === "data_centre") return 20;
   if (entityType === "water_infrastructure") return 15;
+  if (entityType === "industrial_load") return 18;
+  if (entityType === "hydrogen_infrastructure") return 16;
   return 10;
 }
 

@@ -31,6 +31,20 @@ const dataCentre = {
   properties: { id: "asset-1", name: "India AI Campus", country: "IN", category: "data_centre" },
 } as unknown as AssetFeature;
 
+const hydrogenPlant = {
+  type: "Feature",
+  id: "h2-1",
+  geometry: { type: "Point", coordinates: [8.6, 50.1] },
+  properties: { id: "h2-1", name: "Rhine Electrolyser", country: "DE", category: "industrial_load", subtype: "hydrogen_production" },
+} as unknown as AssetFeature;
+
+const hydrogenPipeline = {
+  type: "Feature",
+  id: "h2-network-1",
+  geometry: { type: "Point", coordinates: [4.9, 52.3] },
+  properties: { id: "h2-network-1", name: "North Sea Hydrogen Backbone", country: "NL", category: "hydrogen_infrastructure", subtype: "hydrogen_pipeline" },
+} as unknown as AssetFeature;
+
 const windFarm = {
   type: "Feature",
   id: "generator-1",
@@ -69,5 +83,12 @@ describe("searchEntities", () => {
   it("indexes million-plus cities as coordinate search targets", () => {
     const index = buildSearchIndex({ geographies: [], assets: [], generators: [], cities: [jamshedpur] });
     expect(searchEntities(index, "jamshedpur")[0]).toMatchObject({ entityType: "city", coordinates: [86.195573, 22.789481] });
+  });
+
+  it("groups industrial demand and hydrogen-network projects separately", () => {
+    const index = buildSearchIndex({ geographies: [], assets: [hydrogenPlant, hydrogenPipeline], generators: [] });
+
+    expect(searchEntities(index, "electrolyser")[0]).toMatchObject({ entityType: "industrial_load", group: "Industrial demand" });
+    expect(searchEntities(index, "backbone")[0]).toMatchObject({ entityType: "hydrogen_infrastructure", group: "Hydrogen network" });
   });
 });

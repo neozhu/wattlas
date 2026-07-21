@@ -1,6 +1,6 @@
 import type { ExpressionSpecification } from "maplibre-gl";
 
-import type { InfrastructureCategory, LensKey } from "@/lib/snapshot/types";
+import type { AssetCategory, LensKey } from "@/lib/snapshot/types";
 
 const ramps: Record<LensKey, Array<[number, string]>> = {
   infrastructureDemand: [
@@ -67,8 +67,12 @@ export function admin1LineOpacityExpression(): ExpressionSpecification {
   return ["interpolate", ["linear"], ["zoom"], 1, 0.28, 3, 0.65, 6, 0.9] as ExpressionSpecification;
 }
 
-export function assetColor(category: Exclude<InfrastructureCategory, "combined">): string {
-  return category === "data_centre" ? "#8FAEFF" : "#72D9BD";
+export function assetColor(category: AssetCategory): string {
+  if (category === "data_centre") return "#2F80ED";
+  if (category === "water_infrastructure") return "#23A6D5";
+  if (category === "industrial_load") return "#E58A2B";
+  if (category === "hydrogen_infrastructure") return "#8B5CF6";
+  return "#6B7280";
 }
 
 export function assetStrokeColorExpression(): ExpressionSpecification {

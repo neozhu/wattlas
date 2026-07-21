@@ -26,6 +26,7 @@ const MAX_INSPECTOR_WIDTH = 600;
 
 export function OpportunityRadar({ snapshot }: Props) {
   const [lens, setLens] = useState<LensKey>("infrastructureDemand");
+  const [mode, setMode] = useState<"radar" | "explorer">("radar");
   const [year, setYear] = useState(snapshot.manifest.activeYears[0] ?? 2026);
   const initialId = snapshot.countries.features.find((feature) => feature.properties.scores.infrastructureDemand != null)?.properties.id ?? snapshot.countries.features[0]?.properties.id ?? null;
   const [selectedId, setSelectedId] = useState<string | null>(initialId);
@@ -37,7 +38,7 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [filtersVisible, setFiltersVisible] = useState(true);
   const [inspectorWidth, setInspectorWidth] = useState(DEFAULT_INSPECTOR_WIDTH);
   const inspectorWidthLoaded = useRef(false);
-  const [infrastructure, setInfrastructure] = useState<InfrastructureVisibility>({ dataCentres: true, water: true, generators: false });
+  const [infrastructure, setInfrastructure] = useState<InfrastructureVisibility>({ dataCentres: true, water: true, industrial: true, hydrogen: true, generators: false });
   const [cities, setCities] = useState<CityCollection>({ type: "FeatureCollection", features: [] });
   const [technologies, setTechnologies] = useState<Set<GenerationTechnology>>(() => new Set());
   const [lifecycles, setLifecycles] = useState<Set<string>>(() => new Set(["operational", "under_construction", "announced", "planning_filed", "permitted", "paused", "cancelled", "retired", "decommissioned", "shelved", "unknown"]));
@@ -145,6 +146,13 @@ export function OpportunityRadar({ snapshot }: Props) {
     () => buildSearchIndex({ geographies: selectableGeographies, assets: snapshot.assets.features as AssetFeature[], generators: searchGenerators, cities: cities.features }),
     [cities.features, searchGenerators, selectableGeographies, snapshot.assets.features],
   );
+  const layerCounts = useMemo(() => ({
+    dataCentres: snapshot.manifest.coverage.dataCentres,
+    water: snapshot.manifest.coverage.waterInfrastructure,
+    industrial: snapshot.manifest.coverage.industrialLoads ?? snapshot.assets.features.filter((feature) => feature.properties.category === "industrial_load").length,
+    hydrogen: snapshot.manifest.coverage.hydrogenInfrastructure ?? snapshot.assets.features.filter((feature) => feature.properties.category === "hydrogen_infrastructure").length,
+    generators: generatorIndex?.totals.featureCount ?? snapshot.manifest.coverage.publishedPowerPlants,
+  }), [generatorIndex?.totals.featureCount, snapshot.assets.features, snapshot.manifest.coverage]);
 
   const addComparison = () => {
     if (!selectedId || selectedAsset || comparisonIds.includes(selectedId)) return;
@@ -178,7 +186,14 @@ export function OpportunityRadar({ snapshot }: Props) {
 
   return (
     <main className={filtersVisible ? "radar-shell" : "radar-shell filters-hidden"} style={{ "--inspector": `${inspectorWidth}px` } as CSSProperties}>
-      <CommandBar manifest={snapshot.manifest} onOpenStatus={() => { setStatusOpen(true); trackWattlasAction("data_status_opened"); }} />
+      <CommandBar manifest={snapshot.manifest} mode={mode} onModeChange={(next) => {
+        setMode(next);
+        if (next === "explorer") {
+          setInfrastructure({ dataCentres: true, water: true, industrial: true, hydrogen: true, generators: true });
+          if (technologies.size === 0) setTechnologies(new Set(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"]));
+        }
+        trackWattlasAction("workspace_changed", { workspace: next });
+      }} onOpenStatus={() => { setStatusOpen(true); trackWattlasAction("data_status_opened"); }} />
       {filtersVisible ? <LayerRail
         activeLens={lens}
         onChange={(next) => { setLens(next); if (next !== lens) trackWattlasAction("lens_changed", { lens: next }); }}
@@ -186,6 +201,7 @@ export function OpportunityRadar({ snapshot }: Props) {
         searchSlot={<SearchBox index={searchIndex} onSelect={selectSearchResult} />}
         onAdvancedOpen={() => trackWattlasAction("advanced_filters_opened")}
         infrastructure={infrastructure}
+        counts={layerCounts}
         onInfrastructureChange={(next) => {
           const changed = (Object.keys(next) as Array<keyof InfrastructureVisibility>).find((key) => next[key] !== infrastructure[key]);
           setInfrastructure(next);

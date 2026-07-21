@@ -9,7 +9,7 @@ type Props = {
   onSelect: (result: SearchResult) => void;
 };
 
-const groupOrder = ["Places", "Power generators", "Data centres", "Water infrastructure"] as const;
+const groupOrder = ["Places", "Industrial demand", "Hydrogen network", "Power generators", "Data centres", "Water infrastructure"] as const;
 
 export function SearchBox({ index, onSelect }: Props) {
   const id = useId();
