@@ -70,6 +70,31 @@ def test_publishable_manual_import_is_public_and_versioned(tmp_path: Path) -> No
     assert metadata.observation_date == date(2026, 3, 1)
 
 
+def test_industrial_workbook_import_is_public_and_versioned(tmp_path: Path) -> None:
+    source_path = tmp_path / "hydrogen.xlsx"
+    body = b"PK\x03\x04synthetic-workbook"
+    source_path.write_bytes(body)
+    catalog = load_source_catalog(
+        PROJECT_ROOT / "data" / "curated" / "source-catalog.json"
+    )
+    governed = stores(tmp_path)
+
+    result = import_source_snapshot(
+        catalog=catalog,
+        source_id="iea-hydrogen-production-2026",
+        input_path=source_path,
+        expected_checksum=sha256(body).hexdigest(),
+        observation_date=date(2026, 6, 18),
+        stores=governed,
+        source_version="2026-06",
+    )
+
+    assert result.publication_state == "publishable"
+    assert result.capture.media_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    assert governed.public.latest_capture("iea-hydrogen-production-2026") is not None
+    assert governed.quarantine.latest_capture("iea-hydrogen-production-2026") is None
+
+
 def test_quarantined_manual_import_is_physically_isolated(tmp_path: Path) -> None:
     source_path = tmp_path / "sapp.csv"
     body = b"region,demand\nSAPP,1\n"

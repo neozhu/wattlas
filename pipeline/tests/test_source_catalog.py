@@ -36,6 +36,12 @@ APPROVED_SOURCE_IDS = {
     "uruguay-adme",
     "argentina-official-power",
     "olade-sielac",
+    "iea-hydrogen-production-2026",
+    "iea-hydrogen-infrastructure-2026",
+    "gem-global-cement-concrete-2025",
+    "gem-global-steel-plants-2026",
+    "gem-global-steel-units-2026",
+    "gem-global-iron-units-2026",
 }
 
 
@@ -88,3 +94,27 @@ def test_catalog_indexes_categories_and_geographies() -> None:
         source.id for source in catalog.for_category("digital_infrastructure")
     }
     assert isinstance(catalog, SourceCatalog)
+
+
+@pytest.mark.parametrize(
+    ("source_id", "path_env"),
+    [
+        ("iea-hydrogen-production-2026", "IEA_HYDROGEN_PRODUCTION_PATH"),
+        ("iea-hydrogen-infrastructure-2026", "IEA_HYDROGEN_INFRASTRUCTURE_PATH"),
+        ("gem-global-cement-concrete-2025", "GEM_CEMENT_CONCRETE_PATH"),
+        ("gem-global-steel-plants-2026", "GEM_STEEL_PLANTS_PATH"),
+        ("gem-global-steel-units-2026", "GEM_STEEL_UNITS_PATH"),
+        ("gem-global-iron-units-2026", "GEM_IRON_UNITS_PATH"),
+    ],
+)
+def test_industrial_demand_sources_are_publishable_manual_snapshots(
+    source_id: str, path_env: str
+) -> None:
+    source = load_source_catalog(CATALOG_PATH).by_id[source_id]
+
+    assert source.access_mode == "manual_snapshot"
+    assert source.publication_state == "publishable"
+    assert source.refresh_cadence == "manual"
+    assert source.licence == "CC BY 4.0"
+    assert source.manual_path_env == path_env
+    assert {"demand", "projects"} & set(source.categories)

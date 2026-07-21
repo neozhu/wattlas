@@ -154,6 +154,60 @@
       "url": "https://dadosabertos.aneel.gov.br/pt_BR/dataset/siga-sistema-de-informacoes-de-geracao-da-aneel",
       "licence": "ODbL-1.0",
       "licenceUrl": "https://opendatacommons.org/licenses/odbl/1-0/"
+    },
+    {
+      "id": "iea-hydrogen-production-2026",
+      "name": "IEA Hydrogen Production Projects Database — June 2026",
+      "tier": "B",
+      "url": "https://www.iea.org/data-and-statistics/data-product/hydrogen-production-and-infrastructure-projects-database",
+      "publishedAt": "2026-06-18T00:00:00Z",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "id": "iea-hydrogen-infrastructure-2026",
+      "name": "IEA Hydrogen Infrastructure Projects Database — June 2026",
+      "tier": "B",
+      "url": "https://www.iea.org/data-and-statistics/data-product/hydrogen-production-and-infrastructure-projects-database",
+      "publishedAt": "2026-06-18T00:00:00Z",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "id": "gem-global-cement-concrete-2025",
+      "name": "GEM Global Cement and Concrete Tracker — July 2025",
+      "tier": "B",
+      "url": "https://globalenergymonitor.org/projects/global-cement-concrete-tracker/",
+      "publishedAt": "2025-07-01T00:00:00Z",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "id": "gem-global-steel-plants-2026",
+      "name": "GEM Global Iron and Steel Tracker — June 2026",
+      "tier": "B",
+      "url": "https://globalenergymonitor.org/projects/global-iron-steel-tracker/",
+      "publishedAt": "2026-06-01T00:00:00Z",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "id": "gem-global-steel-units-2026",
+      "name": "GEM Global Iron and Steel Tracker steel units — June 2026",
+      "tier": "B",
+      "url": "https://globalenergymonitor.org/projects/global-iron-steel-tracker/",
+      "publishedAt": "2026-06-01T00:00:00Z",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/"
+    },
+    {
+      "id": "gem-global-iron-units-2026",
+      "name": "GEM Global Iron and Steel Tracker iron units — June 2026",
+      "tier": "B",
+      "url": "https://globalenergymonitor.org/projects/global-iron-steel-tracker/",
+      "publishedAt": "2026-06-01T00:00:00Z",
+      "licence": "CC BY 4.0",
+      "licenceUrl": "https://creativecommons.org/licenses/by/4.0/"
     }
   ]
 }
