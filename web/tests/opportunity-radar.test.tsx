@@ -285,6 +285,14 @@ describe("OpportunityRadar", () => {
     expect(screen.getByRole("button", { name: "2031" })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("opens Country Intelligence as a drill-down and returns to the selected country", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open country intelligence" }));
+    expect(screen.getByRole("heading", { name: "Darmstadt intelligence" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back to region" }));
+    expect(screen.getByRole("heading", { name: "Darmstadt" })).toBeInTheDocument();
+  });
+
   it("clears stale regional energy on snapshot path change and exposes a recoverable error", async () => {
     const forecast = Array.from({ length: 6 }, (_, index) => ({ geographyId: "DE71", year: 2026 + index, metrics: { demandGwh: { low: 90, central: 100, high: 110 }, localGenerationGwh: { low: 80, central: 90, high: 100 }, localGenerationGapGwh: { low: -10, central: 10, high: 30 }, netBalanceGwh: null, observedUnmetDemandGwh: null, installedCapacityMw: 50, dependableCapacityMw: { low: 30, central: 35, high: 40 }, peakDemandMw: { low: 20, central: 25, high: 30 } }, methodId: "m1", sourceIds: ["s1"], confidence: 70, coverage: 80, valueKind: "estimated", appliedIncrementIds: [], metricLineage: {} }));
     mockLoadRegionalEnergy.mockResolvedValueOnce({ ok: true, data: { DE71: forecast } }).mockResolvedValue({ ok: false, error: { kind: "network", message: "Network unavailable", recoverable: true, path: "snapshots/new/regional-energy.json" } });

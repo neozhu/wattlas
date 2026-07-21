@@ -2803,3 +2803,49 @@ body,
 .project-summary-card dl { display: grid; grid-template-columns: repeat(4, minmax(70px, 1fr)); gap: 10px; margin: 0; }
 .project-summary-card dd { margin: 3px 0 0; overflow: hidden; color: var(--text); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .project-summary-card > a { padding: 8px 10px; border: 1px solid #176b5b; border-radius: 7px; color: #176b5b; font: 600 9px/1 var(--font-plex-mono), monospace; text-decoration: none; white-space: nowrap; }
+
+.asset-explorer-summary {
+  grid-area: map;
+  z-index: 11;
+  align-self: start;
+  justify-self: center;
+  display: grid;
+  grid-template-columns: 160px minmax(360px, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  width: min(900px, calc(100% - 48px));
+  margin-top: 18px;
+  padding: 10px 12px;
+  border: 1px solid rgb(154 172 165 / 72%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 92%);
+  box-shadow: 0 10px 32px rgb(37 56 49 / 14%);
+  backdrop-filter: blur(12px);
+}
+.explorer-total { display: grid; grid-template-columns: auto 1fr; align-items: end; column-gap: 8px; }
+.explorer-total small { grid-column: 1 / -1; color: var(--muted); font: 7px/1.2 var(--font-plex-mono), monospace; text-transform: uppercase; }
+.explorer-total strong { font: 600 22px/1 var(--font-plex-condensed), sans-serif; }
+.explorer-total span { color: var(--muted); font-size: 8px; }
+.explorer-types { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.explorer-types > span { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 5px; color: var(--muted); font-size: 8px; }
+.explorer-types strong { grid-column: 2; color: var(--text); font: 600 12px/1 var(--font-plex-mono), monospace; }
+.explorer-types .dot { width: 7px; height: 7px; border-radius: 50%; }
+.explorer-types .data { background: #2f80ed; }.explorer-types .water { background: #23a6d5; }.explorer-types .industry { background: #e58a2b; }.explorer-types .hydrogen { background: #8b5cf6; }.explorer-types .power { background: #4b5563; }
+.explorer-statuses { display: flex; max-width: 150px; flex-wrap: wrap; gap: 3px 8px; color: var(--muted); font: 7px/1.3 var(--font-plex-mono), monospace; }
+
+.country-intelligence { padding: 18px; }
+.country-intelligence-header { display: flex; gap: 12px; align-items: start; justify-content: space-between; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.country-intelligence-header small { color: #167c68; font: 8px/1 var(--font-plex-mono), monospace; text-transform: uppercase; }
+.country-intelligence-header h1 { margin: 5px 0 4px; }
+.country-intelligence-header p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+.country-intelligence-header button { padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--muted); font-size: 9px; cursor: pointer; }
+.country-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 12px; }
+.country-kpis span { display: flex; min-height: 58px; flex-direction: column; justify-content: space-between; padding: 9px; border: 1px solid var(--line); border-radius: 8px; background: #f8faf9; color: var(--muted); font-size: 9px; }
+.country-kpis strong { color: var(--text); font: 600 16px/1 var(--font-plex-condensed), sans-serif; }
+.country-outlook,.country-pipeline,.country-mix,.country-lineage { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line); }
+.country-intelligence h2 { margin: 0 0 9px; font: 600 11px/1 var(--font-plex-mono), monospace; text-transform: uppercase; }
+.country-year-row { position: relative; display: grid; grid-template-columns: 38px 1fr 1fr; gap: 6px; margin-bottom: 5px; padding: 6px 7px 8px; overflow: hidden; border-radius: 5px; background: #f4f7f6; font-size: 8px; }
+.country-year-row i { position: absolute; bottom: 0; left: 0; height: 2px; background: #36a68c; }
+.country-pipeline div,.country-mix div { display: flex; flex-wrap: wrap; gap: 5px; }
+.country-pipeline span,.country-mix span { padding: 6px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 8px; }
+.country-lineage p { color: var(--muted); font: 8px/1.45 var(--font-plex-mono), monospace; }

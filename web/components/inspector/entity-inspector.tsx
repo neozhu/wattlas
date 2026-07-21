@@ -30,6 +30,7 @@ type Props = {
   year: number;
   onOpenEvidence: () => void;
   onAddComparison: () => void;
+  onOpenCountryIntelligence?: () => void;
 };
 
 function humanize(value: string): string {
@@ -183,9 +184,10 @@ type RegionInspectorProps = {
   year: number;
   onOpenEvidence: () => void;
   onAddComparison: () => void;
+  onOpenCountryIntelligence?: () => void;
 };
 
-function RegionInspector({ geography, regionalEnergy, generatorOverview, evidence, regionalEnergyState, regionalEnergyError, onRetryRegionalEnergy, lens, year, onOpenEvidence, onAddComparison }: RegionInspectorProps) {
+function RegionInspector({ geography, regionalEnergy, generatorOverview, evidence, regionalEnergyState, regionalEnergyError, onRetryRegionalEnergy, lens, year, onOpenEvidence, onAddComparison, onOpenCountryIntelligence }: RegionInspectorProps) {
   const properties = geography.properties;
   const scores = properties.scoresByYear[String(year)] ?? properties.scores;
   const score = scores[lens];
@@ -277,12 +279,13 @@ function RegionInspector({ geography, regionalEnergy, generatorOverview, evidenc
       <div className="inspector-actions">
         <button type="button" className="primary-action" onClick={onOpenEvidence}>Open evidence dossier</button>
         <button type="button" className="secondary-action" onClick={onAddComparison}>Add to comparison</button>
+        {"level" in properties && properties.level === "country" && onOpenCountryIntelligence && <button type="button" className="secondary-action country-intelligence-action" onClick={onOpenCountryIntelligence}>Open country intelligence</button>}
       </div>
     </aside>
   );
 }
 
-export function EntityInspector({ geography, asset, generator, regionalEnergy = [], generatorOverview, evidence, regionalEnergyState = "ready", regionalEnergyError, onRetryRegionalEnergy, lens, year, onOpenEvidence, onAddComparison }: Props) {
+export function EntityInspector({ geography, asset, generator, regionalEnergy = [], generatorOverview, evidence, regionalEnergyState = "ready", regionalEnergyError, onRetryRegionalEnergy, lens, year, onOpenEvidence, onAddComparison, onOpenCountryIntelligence }: Props) {
   if (generator) {
     const properties = generator.properties;
     const name = typeof properties.name === "string" ? properties.name : properties.id;
@@ -401,6 +404,7 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
       year={year}
       onOpenEvidence={onOpenEvidence}
       onAddComparison={onAddComparison}
+      onOpenCountryIntelligence={onOpenCountryIntelligence}
     />
   );
 }
