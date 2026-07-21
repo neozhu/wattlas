@@ -34,6 +34,106 @@ def test_entsoe_without_token_is_not_configured() -> None:
     assert result.payload is None
 
 
+def test_entsoe_fetches_load_and_generation_without_serializing_token() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        fixture = (
+            "entsoe-actual-load.xml"
+            if request.url.params["documentType"] == "A65"
+            else "entsoe-generation-by-type.xml"
+        )
+        return httpx.Response(
+            200,
+            content=(Path(__file__).parents[2] / "data" / "fixtures" / fixture).read_bytes(),
+        )
+
+    area = {
+        "areaCode": "10YBE----------2",
+        "name": "Belgium",
+        "countries": ["BE"],
+        "geographyIds": ["BE"],
+        "mappingMode": "direct",
+    }
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = EntsoeConnector(token="top-secret").fetch(
+            client,
+            now=datetime(2026, 7, 21, tzinfo=UTC),
+            areas=[area],
+        )
+
+    assert result.state == ConnectorState.CURRENT
+    assert result.payload is not None
+    payload = json.loads(result.payload.body)
+    assert payload["complete"] is True
+    assert len(payload["records"]) == 1
+    assert len(requests) == 2
+    assert {request.url.params["documentType"] for request in requests} == {"A65", "A75"}
+    assert b"top-secret" not in result.payload.body
+    assert "top-secret" not in repr(result)
+
+
+def test_entsoe_authentication_failure_is_redacted() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(401, text="invalid securityToken=top-secret")
+
+    area = {
+        "areaCode": "10YBE----------2",
+        "name": "Belgium",
+        "countries": ["BE"],
+        "geographyIds": ["BE"],
+        "mappingMode": "direct",
+    }
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = EntsoeConnector(token="top-secret").fetch(
+            client,
+            now=datetime(2026, 7, 21, tzinfo=UTC),
+            areas=[area],
+        )
+
+    assert result.state == ConnectorState.FAILED
+    assert result.payload is None
+    assert result.message == "ENTSO-E authentication failed."
+    assert "top-secret" not in repr(result)
+
+
+def test_entsoe_retries_rate_limit_before_succeeding() -> None:
+    attempts = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return httpx.Response(429, text="rate limited")
+        fixture = (
+            "entsoe-actual-load.xml"
+            if request.url.params["documentType"] == "A65"
+            else "entsoe-generation-by-type.xml"
+        )
+        return httpx.Response(
+            200,
+            content=(Path(__file__).parents[2] / "data" / "fixtures" / fixture).read_bytes(),
+        )
+
+    area = {
+        "areaCode": "10YBE----------2",
+        "name": "Belgium",
+        "countries": ["BE"],
+        "geographyIds": ["BE"],
+        "mappingMode": "direct",
+    }
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = EntsoeConnector(token="top-secret", retry_delays=(0, 0)).fetch(
+            client,
+            now=datetime(2026, 7, 21, tzinfo=UTC),
+            areas=[area],
+        )
+
+    assert result.state == ConnectorState.CURRENT
+    assert attempts == 3
+
+
 def test_connector_health_is_independent_from_publication_state() -> None:
     result = ConnectorResult(
         source_id="restricted-but-reachable",

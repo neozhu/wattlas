@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<GL_MarketDocument xmlns="urn:iec62325.351:tc57wg16:451-6:generationloaddocument:3:0">
+  <mRID>load-document</mRID>
+  <revisionNumber>1</revisionNumber>
+  <TimeSeries>
+    <mRID>load-series</mRID>
+    <outBiddingZone_Domain.mRID>10YBE----------2</outBiddingZone_Domain.mRID>
+    <Period>
+      <timeInterval>
+        <start>2026-06-01T00:00Z</start>
+        <end>2026-06-01T04:00Z</end>
+      </timeInterval>
+      <resolution>PT60M</resolution>
+      <Point><position>1</position><quantity>100</quantity></Point>
+      <Point><position>2</position><quantity>200</quantity></Point>
+      <Point><position>4</position><quantity>100</quantity></Point>
+    </Period>
+  </TimeSeries>
+</GL_MarketDocument>
