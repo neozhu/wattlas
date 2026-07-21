@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from datetime import date, datetime
+import json
 from pathlib import Path
 import math
 import re
@@ -542,3 +543,115 @@ def parse_gem_steel(
             }
         )
     return sorted(assets, key=lambda asset: asset["id"])
+
+
+def load_industrial_demand_assumptions(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("schemaVersion") != "1.0" or not isinstance(payload.get("methods"), dict):
+        raise ValueError("industrial demand assumptions require schema version 1.0 and methods")
+    required = {
+        "hydrogen-electrolyser-grid-v1",
+        "steel-eaf-electricity-v1",
+        "cement-electricity-v1",
+    }
+    if not required <= set(payload["methods"]):
+        raise ValueError("industrial demand assumptions are missing required methods")
+    return payload
+
+
+def _ordered_range(values: Mapping[str, Any]) -> tuple[float, float, float]:
+    result = tuple(float(values[key]) for key in ("low", "central", "high"))
+    if not 0 <= result[0] <= result[1] <= result[2]:
+        raise ValueError("industrial demand assumption ranges must be non-negative and ordered")
+    return result
+
+
+def hydrogen_annual_demand_gwh(
+    *,
+    capacity_mwel: float | None,
+    grid_connection_type: str | None,
+    assumptions: Mapping[str, Any],
+) -> dict[str, float] | None:
+    if capacity_mwel is None or capacity_mwel < 0:
+        return None
+    method = assumptions["methods"]["hydrogen-electrolyser-grid-v1"]
+    shares = method["gridShareByConnection"].get(grid_connection_type)
+    if shares is None:
+        return None
+    utilization = _ordered_range(method["capacityFactor"])
+    grid_share = _ordered_range(shares)
+    return {
+        key: round(capacity_mwel * 8.76 * utilization[index] * grid_share[index], 6)
+        for index, key in enumerate(("low", "central", "high"))
+    }
+
+
+def steel_eaf_annual_demand_gwh(
+    *, capacity_ttpa: float | None, assumptions: Mapping[str, Any]
+) -> dict[str, float] | None:
+    if capacity_ttpa is None or capacity_ttpa < 0:
+        return None
+    intensity = _ordered_range(
+        assumptions["methods"]["steel-eaf-electricity-v1"]
+        ["electricityIntensityMwhPerTonne"]
+    )
+    return {
+        key: round(capacity_ttpa * intensity[index], 6)
+        for index, key in enumerate(("low", "central", "high"))
+    }
+
+
+def cement_annual_demand_gwh(
+    *, capacity_mtpa: float | None, assumptions: Mapping[str, Any]
+) -> dict[str, float] | None:
+    if capacity_mtpa is None or capacity_mtpa < 0:
+        return None
+    intensity = _ordered_range(
+        assumptions["methods"]["cement-electricity-v1"]
+        ["electricityIntensityMwhPerTonne"]
+    )
+    return {
+        key: round(capacity_mtpa * 1_000 * intensity[index], 6)
+        for index, key in enumerate(("low", "central", "high"))
+    }
+
+
+def apply_industrial_demand_model(
+    asset: Mapping[str, Any], *, assumptions: Mapping[str, Any]
+) -> dict[str, Any]:
+    if asset.get("category") != "industrial_load" or not asset.get("gridDemandEligible"):
+        return dict(asset)
+    subtype = asset.get("subtype")
+    method_id: str | None = None
+    demand: dict[str, float] | None = None
+    if subtype == "hydrogen_production":
+        method_id = "hydrogen-electrolyser-grid-v1"
+        demand = hydrogen_annual_demand_gwh(
+            capacity_mwel=asset.get("reportedCapacity"),
+            grid_connection_type=asset.get("gridConnectionType"),
+            assumptions=assumptions,
+        )
+    elif subtype == "steel_plant":
+        method_id = "steel-eaf-electricity-v1"
+        demand = steel_eaf_annual_demand_gwh(
+            capacity_ttpa=asset.get("electricArcCapacityTtpa"),
+            assumptions=assumptions,
+        )
+    elif subtype == "cement_plant":
+        method_id = "cement-electricity-v1"
+        demand = cement_annual_demand_gwh(
+            capacity_mtpa=asset.get("cementCapacityMtpa"),
+            assumptions=assumptions,
+        )
+    if demand is None or method_id is None:
+        return dict(asset)
+    modelled = dict(asset)
+    modelled.update(
+        {
+            "annualDemandGwh": demand,
+            "demandMethodId": method_id,
+            "gridDemandContribution": True,
+            "valueKind": "estimated",
+        }
+    )
+    return modelled

@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "1.0",
+  "methods": {
+    "hydrogen-electrolyser-grid-v1": {
+      "label": "Grid-related electrolyser electricity demand",
+      "reportedInput": "electrolyser nameplate capacity",
+      "reportedUnit": "MWel",
+      "formula": "capacity MWel × 8.76 GWh/MW-year × capacity factor × grid share",
+      "capacityFactor": {
+        "low": 0.35,
+        "central": 0.57,
+        "high": 0.9
+      },
+      "gridShareByConnection": {
+        "grid": {
+          "low": 0.9,
+          "central": 0.95,
+          "high": 1.0
+        },
+        "grid_plus_renewables": {
+          "low": 0.25,
+          "central": 0.5,
+          "high": 0.75
+        }
+      },
+      "sources": [
+        {
+          "publisher": "International Energy Agency",
+          "url": "https://www.iea.org/reports/ccus-in-clean-energy-transitions/ccus-in-the-transition-to-net-zero-emissions",
+          "basis": "IEA analysis uses 3,000–4,000 electrolyser full-load hours for 2019 and 2,000–3,000 for 2050 in the cited case."
+        },
+        {
+          "publisher": "National Renewable Energy Laboratory",
+          "url": "https://www.nrel.gov/docs/fy25osti/92575.pdf",
+          "basis": "NREL evaluates 50% and 90% average electrolyser capacity-factor cases."
+        }
+      ],
+      "limitations": "Grid-share ranges are Wattlas analyst assumptions because the project database classifies electricity supply but does not report an hourly grid share. Dedicated-renewable and nuclear projects are excluded from grid demand."
+    },
+    "steel-eaf-electricity-v1": {
+      "label": "Electric-arc-furnace electricity demand",
+      "reportedInput": "nominal EAF steel capacity",
+      "reportedUnit": "thousand tonnes per year",
+      "formula": "capacity kt/year × electricity intensity MWh/tonne = GWh/year",
+      "electricityIntensityMwhPerTonne": {
+        "low": 0.3,
+        "central": 0.436,
+        "high": 0.77
+      },
+      "sources": [
+        {
+          "publisher": "United States Department of Energy",
+          "url": "https://www.energy.gov/sites/prod/files/2013/11/f4/steel_profile.pdf",
+          "basis": "DOE reports modern EAF values as low as 300 kWh/t, an average of 436 kWh/t raw steel, and 770 kWh/t shipped steel including auxiliary equipment."
+        }
+      ],
+      "limitations": "The range represents EAF and associated plant electricity. Blast-furnace and BOF thermal energy is excluded. DRI is retained as context unless its electrical pathway is explicit."
+    },
+    "cement-electricity-v1": {
+      "label": "Cement plant electricity demand",
+      "reportedInput": "cement production capacity",
+      "reportedUnit": "million tonnes per year",
+      "formula": "capacity Mt/year × 1,000 × electricity intensity MWh/tonne = GWh/year",
+      "electricityIntensityMwhPerTonne": {
+        "low": 0.09,
+        "central": 0.111,
+        "high": 0.15
+      },
+      "sources": [
+        {
+          "publisher": "IEA Energy Technology Systems Analysis Programme",
+          "url": "https://iea-etsap.org/E-TechDS/PDF/I03_cement_June_2010_GS-gct.pdf",
+          "basis": "The technology brief reports 90–150 kWh/t electricity use and a 111 kWh/t global average."
+        },
+        {
+          "publisher": "International Energy Agency",
+          "url": "https://www.iea.org/data-and-statistics/charts/electricity-use-per-tonne-of-cement-in-selected-countries-and-regions-2018",
+          "basis": "IEA publishes regional electricity intensity evidence in kWh per tonne of cement."
+        }
+      ],
+      "limitations": "This method estimates electrical grinding and plant auxiliaries. It does not convert kiln thermal fuel into electricity."
+    }
+  }
+}

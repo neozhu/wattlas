@@ -3,15 +3,21 @@ from pathlib import Path
 from openpyxl import Workbook
 
 from grid_scope.industrial_demand import (
+    apply_industrial_demand_model,
+    cement_annual_demand_gwh,
+    hydrogen_annual_demand_gwh,
+    load_industrial_demand_assumptions,
     parse_gem_cement,
     parse_gem_steel,
     parse_hydrogen_infrastructure,
     parse_hydrogen_production,
+    steel_eaf_annual_demand_gwh,
 )
 
 
 ISO3_TO_ISO2 = {"DEU": "DE", "NLD": "NL", "AUS": "AU"}
 COUNTRY_TO_ISO2 = {"germany": "DE", "namibia": "NA", "australia": "AU"}
+ASSUMPTIONS_PATH = Path(__file__).resolve().parents[2] / "data" / "curated" / "industrial-demand-assumptions.json"
 
 
 def _production_workbook(path: Path) -> None:
@@ -256,3 +262,69 @@ def test_gem_steel_joins_plant_eaf_and_dri_evidence(tmp_path: Path) -> None:
         "gem-global-steel-units-2026",
     ]
     assert asset["projectUrl"] == "https://www.gem.wiki/Alpha_Green_Steel"
+
+
+def test_hydrogen_capacity_uses_utilization_and_grid_share_ranges() -> None:
+    assumptions = load_industrial_demand_assumptions(ASSUMPTIONS_PATH)
+
+    grid = hydrogen_annual_demand_gwh(
+        capacity_mwel=100, grid_connection_type="grid", assumptions=assumptions
+    )
+    mixed = hydrogen_annual_demand_gwh(
+        capacity_mwel=100,
+        grid_connection_type="grid_plus_renewables",
+        assumptions=assumptions,
+    )
+
+    assert grid == {"low": 275.94, "central": 474.354, "high": 788.4}
+    assert mixed == {"low": 76.65, "central": 249.66, "high": 591.3}
+    assert hydrogen_annual_demand_gwh(
+        capacity_mwel=100,
+        grid_connection_type="dedicated_renewable",
+        assumptions=assumptions,
+    ) is None
+
+
+def test_steel_and_cement_intensity_conversions_preserve_units() -> None:
+    assumptions = load_industrial_demand_assumptions(ASSUMPTIONS_PATH)
+
+    assert steel_eaf_annual_demand_gwh(
+        capacity_ttpa=1200, assumptions=assumptions
+    ) == {"low": 360.0, "central": 523.2, "high": 924.0}
+    assert cement_annual_demand_gwh(
+        capacity_mtpa=2.4, assumptions=assumptions
+    ) == {"low": 216.0, "central": 266.4, "high": 360.0}
+
+
+def test_demand_model_keeps_missing_and_context_only_inputs_unavailable() -> None:
+    assumptions = load_industrial_demand_assumptions(ASSUMPTIONS_PATH)
+    context = {
+        "category": "hydrogen_infrastructure", "subtype": "hydrogen_pipeline",
+        "reportedCapacity": 10_000, "gridDemandEligible": False,
+        "gridDemandContribution": False, "annualDemandGwh": None,
+    }
+    missing = {
+        "category": "industrial_load", "subtype": "hydrogen_production",
+        "reportedCapacity": None, "gridConnectionType": "grid", "gridDemandEligible": False,
+        "gridDemandContribution": False, "annualDemandGwh": None,
+    }
+
+    assert apply_industrial_demand_model(context, assumptions=assumptions) == context
+    assert apply_industrial_demand_model(missing, assumptions=assumptions) == missing
+
+
+def test_demand_model_attaches_method_and_estimated_range() -> None:
+    assumptions = load_industrial_demand_assumptions(ASSUMPTIONS_PATH)
+    project = {
+        "category": "industrial_load", "subtype": "steel_plant",
+        "electricArcCapacityTtpa": 1200, "gridDemandEligible": True,
+        "gridDemandContribution": False, "annualDemandGwh": None,
+        "valueKind": "reported",
+    }
+
+    modelled = apply_industrial_demand_model(project, assumptions=assumptions)
+
+    assert modelled["annualDemandGwh"] == {"low": 360.0, "central": 523.2, "high": 924.0}
+    assert modelled["demandMethodId"] == "steel-eaf-electricity-v1"
+    assert modelled["gridDemandContribution"] is True
+    assert modelled["valueKind"] == "estimated"
