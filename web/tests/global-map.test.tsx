@@ -144,6 +144,19 @@ describe("GlobalMap", () => {
     expect(screen.queryByLabelText("Generator cluster composition")).not.toBeInTheDocument();
   });
 
+  it("outlines every infrastructure marker in neutral gray so colored symbols remain visible on the basemap", () => {
+    render(
+      <GlobalMap countries={{ type: "FeatureCollection", features: [] }} admin1={{ type: "FeatureCollection", features: [] }} regions={{ type: "FeatureCollection", features: [] }} assets={{ type: "FeatureCollection", features: [] }} lens="infrastructureDemand" year={2030} selectedId={null} onSelect={() => undefined} coverage={{ countries: 1, regions: 0, admin1Regions: 0, countriesWithAdmin1: 0, assets: 0, dataCentres: 0, waterInfrastructure: 0 }} generatorOverview={{ type: "FeatureCollection", features: [] }} />,
+    );
+    const outline = "#59635F";
+    for (const id of ["asset-clusters", "industrial-assets", "data-centre-assets", "generator-overview-markers", "generator-clusters"]) {
+      expect(mapCalls.layers.find((layer) => layer.id === id)?.paint).toMatchObject({ "circle-stroke-color": outline });
+    }
+    for (const id of ["water-assets", "hydrogen-assets", "generator-assets"]) {
+      expect(mapCalls.layers.find((layer) => layer.id === id)?.paint).toMatchObject({ "text-halo-color": outline });
+    }
+  });
+
   it("applies generator overview data even while the style reports a transient loading state", () => {
     const overview = { type: "FeatureCollection", features: [] } as const;
     const props = { countries: { type: "FeatureCollection", features: [] } as const, admin1: { type: "FeatureCollection", features: [] } as const, regions: { type: "FeatureCollection", features: [] } as const, assets: { type: "FeatureCollection", features: [] } as const, lens: "infrastructureDemand" as const, year: 2030, selectedId: null, onSelect: () => undefined, coverage: { countries: 1, regions: 0, admin1Regions: 0, countriesWithAdmin1: 0, assets: 0, dataCentres: 0, waterInfrastructure: 0 } };

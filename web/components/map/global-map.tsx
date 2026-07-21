@@ -9,7 +9,7 @@ import { baseMapStyle } from "@/components/map/map-style";
 import type { InfrastructureVisibility } from "@/components/controls/layer-rail";
 import { generatorColorExpression, generatorTechnologyExpression } from "@/lib/map/generator-colors";
 import { countriesInBounds, createGeneratorShardController, DEFAULT_GENERATOR_LIFECYCLES, filterGeneratorOverview, filterGenerators, generatorSelection, type MapBounds } from "@/lib/map/generator-shards";
-import { admin1LineOpacityExpression, admin1LineWidthExpression, assetColor, assetStrokeColorExpression, countryBorderWidthExpression, mapColorExpression } from "@/lib/map/expressions";
+import { admin1LineOpacityExpression, admin1LineWidthExpression, assetColor, countryBorderWidthExpression, mapColorExpression } from "@/lib/map/expressions";
 import type {
   AssetCollection,
   CityCollection,
@@ -46,6 +46,7 @@ type Props = {
 };
 
 export const GLOBAL_VIEW = { center: [12, 22] as [number, number], zoom: 2.25 };
+const INFRASTRUCTURE_OUTLINE = "#59635F";
 
 function visibleAssets(assets: AssetCollection, infrastructure: InfrastructureVisibility, lifecycles: ReadonlySet<string>): AssetCollection {
   return { ...assets, features: assets.features.filter(({ properties }) => {
@@ -195,7 +196,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         type: "circle",
         source: "assets",
         filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "category"], "industrial_load"]],
-        paint: { "circle-color": assetColor("industrial_load"), "circle-radius": 5, "circle-stroke-color": "#FFFFFF", "circle-stroke-width": 1.2 },
+        paint: { "circle-color": assetColor("industrial_load"), "circle-radius": 5, "circle-stroke-color": INFRASTRUCTURE_OUTLINE, "circle-stroke-width": 1.5 },
       });
       map.addLayer({
         id: "hydrogen-assets",
@@ -203,7 +204,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         source: "assets",
         filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "category"], "hydrogen_infrastructure"]],
         layout: { "text-field": "◇", "text-size": 12, "text-allow-overlap": true },
-        paint: { "text-color": assetColor("hydrogen_infrastructure"), "text-halo-color": "#FFFFFF", "text-halo-width": 1.2 },
+        paint: { "text-color": assetColor("hydrogen_infrastructure"), "text-halo-color": INFRASTRUCTURE_OUTLINE, "text-halo-width": 1.25 },
       });
       map.addLayer({
         id: "admin1-fill",
@@ -293,16 +294,16 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
           "circle-color": "#E2B45C",
           "circle-radius": ["step", ["get", "point_count"], 10, 25, 13, 100, 17, 500, 21],
           "circle-opacity": 0.9,
-          "circle-stroke-color": "#FFFFFF",
-          "circle-stroke-width": 1.5,
+          "circle-stroke-color": INFRASTRUCTURE_OUTLINE,
+          "circle-stroke-width": 1.75,
         },
       });
-      map.addLayer({ id: "generator-overview-markers", type: "circle", source: "generator-overview", maxzoom: 3, layout: { visibility: infrastructureRef.current.generators ? "visible" : "none" }, paint: { "circle-color": ["case", ["boolean", ["get", "isMixed"], false], "#84918E", generatorColorExpression("displayTechnology")], "circle-radius": ["step", ["get", "count"], 5, 10, 8, 50, 11], "circle-stroke-color": "#07100F", "circle-stroke-width": 1.5, "circle-opacity": 0.9 } });
+      map.addLayer({ id: "generator-overview-markers", type: "circle", source: "generator-overview", maxzoom: 3, layout: { visibility: infrastructureRef.current.generators ? "visible" : "none" }, paint: { "circle-color": ["case", ["boolean", ["get", "isMixed"], false], "#84918E", generatorColorExpression("displayTechnology")], "circle-radius": ["step", ["get", "count"], 5, 10, 8, 50, 11], "circle-stroke-color": INFRASTRUCTURE_OUTLINE, "circle-stroke-width": 1.5, "circle-opacity": 0.9 } });
       map.addLayer({ id: "generator-overview-composition", type: "symbol", source: "generator-overview", minzoom: 1.8, maxzoom: 3, layout: { visibility: infrastructureRef.current.generators ? "visible" : "none", "text-field": ["get", "overviewLabel"], "text-size": 9, "text-offset": [0, 1.4], "text-optional": true }, paint: { "text-color": "#D7E2DF", "text-halo-color": "#07100F", "text-halo-width": 1 } });
       const technologyKindCount = ["+", ...(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"].map((technology) => ["case", [">", ["get", technology], 0], 1, 0]))] as unknown as ExpressionSpecification;
-      map.addLayer({ id: "generator-clusters", type: "circle", source: "generators", minzoom: 3, filter: ["has", "point_count"], paint: { "circle-color": ["case", [">", technologyKindCount, 1], "#84918E", ["case", [">", ["get", "solar"], 0], "#E7B84B", [">", ["get", "wind"], 0], "#55C7D9", [">", ["get", "hydro"], 0], "#4E8EDB", [">", ["get", "nuclear"], 0], "#A98AE8", [">", ["get", "gas"], 0], "#E07A5F", [">", ["get", "coal"], 0], "#6F7782", [">", ["get", "oil"], 0], "#B88762", [">", ["get", "biomass"], 0], "#78B77A", [">", ["get", "geothermal"], 0], "#D98255", "#9AA6A4"]], "circle-radius": ["step", ["get", "point_count"], 13, 25, 18, 100, 24], "circle-stroke-color": "#E8EFED", "circle-stroke-width": 1.5 } });
+      map.addLayer({ id: "generator-clusters", type: "circle", source: "generators", minzoom: 3, filter: ["has", "point_count"], paint: { "circle-color": ["case", [">", technologyKindCount, 1], "#84918E", ["case", [">", ["get", "solar"], 0], "#E7B84B", [">", ["get", "wind"], 0], "#55C7D9", [">", ["get", "hydro"], 0], "#4E8EDB", [">", ["get", "nuclear"], 0], "#A98AE8", [">", ["get", "gas"], 0], "#E07A5F", [">", ["get", "coal"], 0], "#6F7782", [">", ["get", "oil"], 0], "#B88762", [">", ["get", "biomass"], 0], "#78B77A", [">", ["get", "geothermal"], 0], "#D98255", "#9AA6A4"]], "circle-radius": ["step", ["get", "point_count"], 13, 25, 18, 100, 24], "circle-stroke-color": INFRASTRUCTURE_OUTLINE, "circle-stroke-width": 1.75 } });
       map.addLayer({ id: "generator-cluster-count", type: "symbol", source: "generators", minzoom: 3, filter: ["has", "point_count"], layout: { "text-field": ["concat", ["get", "point_count_abbreviated"], " · composition S", ["get", "solar"], " W", ["get", "wind"], " H", ["get", "hydro"], " N", ["get", "nuclear"], " G", ["get", "gas"], " C", ["get", "coal"], " O", ["get", "oil"], " B", ["get", "biomass"], " T", ["get", "geothermal"], " X", ["get", "other"]], "text-size": 9, "text-offset": [0, 2] }, paint: { "text-color": "#D7E2DF", "text-halo-color": "#07100F", "text-halo-width": 1 } });
-      map.addLayer({ id: "generator-assets", type: "symbol", source: "generators", minzoom: 3, filter: ["!", ["has", "point_count"]], layout: { "text-field": "●", "text-size": 10, "text-allow-overlap": true }, paint: { "text-color": generatorTechnologyExpression(), "text-halo-color": "#FFFFFF", "text-halo-width": 1, "text-opacity": ["case", ["==", ["get", "lifecycle"], "operational"], 0.82, 1] } });
+      map.addLayer({ id: "generator-assets", type: "symbol", source: "generators", minzoom: 3, filter: ["!", ["has", "point_count"]], layout: { "text-field": "●", "text-size": 10, "text-allow-overlap": true }, paint: { "text-color": generatorTechnologyExpression(), "text-halo-color": INFRASTRUCTURE_OUTLINE, "text-halo-width": 1.25, "text-opacity": ["case", ["==", ["get", "lifecycle"], "operational"], 0.82, 1] } });
       map.addLayer({
         id: "asset-cluster-count",
         type: "symbol",
@@ -323,8 +324,8 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
           "circle-color": assetColor("data_centre"),
           "circle-radius": 4,
           "circle-opacity": ["case", ["==", ["get", "lifecycle"], "operational"], 0.68, 1],
-          "circle-stroke-color": assetStrokeColorExpression(),
-          "circle-stroke-width": 2,
+          "circle-stroke-color": INFRASTRUCTURE_OUTLINE,
+          "circle-stroke-width": 1.5,
         },
       });
       map.addLayer({
@@ -335,7 +336,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         layout: { "text-field": "◆", "text-size": 14, "text-allow-overlap": true },
         paint: {
           "text-color": assetColor("water_infrastructure"),
-          "text-halo-color": "#07100F",
+          "text-halo-color": INFRASTRUCTURE_OUTLINE,
           "text-halo-width": 1.5,
           "text-opacity": ["case", ["==", ["get", "lifecycle"], "operational"], 0.72, 1],
         },
