@@ -13,15 +13,15 @@ import {
 
 describe("scoreColor", () => {
   it("keeps unavailable regions neutral", () => {
-    expect(scoreColor(null, "infrastructureDemand")).toBe("#142321");
+    expect(scoreColor(null, "infrastructureDemand")).toBe("#DDE5E2");
   });
 
   it("uses amber for high infrastructure demand", () => {
-    expect(scoreColor(85, "infrastructureDemand")).toBe("#E2B45C");
+    expect(scoreColor(85, "infrastructureDemand")).toBe("#E7A84A");
   });
 
   it("uses rust for high system risk", () => {
-    expect(scoreColor(85, "systemRisk")).toBe("#D66F5F");
+    expect(scoreColor(85, "systemRisk")).toBe("#D65345");
   });
 });
 
@@ -35,8 +35,8 @@ describe("global map expressions", () => {
     expect(mapColorExpression("powerBalance")).toEqual([
       "case",
       ["==", ["get", "activeScore"], null],
-      "#142321",
-      ["interpolate", ["linear"], ["to-number", ["get", "activeScore"]], 0, "#4D8879", 35, "#71817D", 55, "#A4864E", 75, "#D66F5F"],
+      "#DDE5E2",
+      ["interpolate", ["linear"], ["to-number", ["get", "activeScore"]], 0, "#8ECDBB", 35, "#CFD8D5", 55, "#F1CE88", 75, "#D95C4F"],
     ]);
   });
 

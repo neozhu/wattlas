@@ -36,6 +36,25 @@ function humanize(value: string): string {
   return value.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
+const assetCategoryLabel = (category: AssetFeature["properties"]["category"]): string => ({
+  data_centre: "Data centre",
+  water_infrastructure: "Water infrastructure",
+  power_generation: "Power generation",
+  industrial_load: "Industrial load",
+  hydrogen_infrastructure: "Hydrogen infrastructure",
+})[category];
+
+const sourceTypeLabel = (sourceType: AssetFeature["properties"]["sourceType"]): string => ({
+  official_verified: "Officially verified",
+  research_verified: "Research verified",
+  community_mapped: "Community mapped",
+  modelled: "Modelled",
+})[sourceType];
+
+const range = (value: { low: number; central: number; high: number } | null | undefined, unit: string): string => value
+  ? `${number(value.central)} ${unit} (${number(value.low)}–${number(value.high)})`
+  : "Not publicly available";
+
 function formatObserved(value?: string | null): string {
   if (!value) return "Observation date unavailable";
   return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(value));
@@ -188,7 +207,7 @@ function RegionInspector({ geography, regionalEnergy, generatorOverview, evidenc
   const peak = peakMaxPoints(contributions);
 
   return (
-    <aside className="region-inspector">
+    <aside className="region-inspector" id="wattlas-dossier">
       <div className="inspector-kicker">Selected region · {properties.country}</div>
       <div className="inspector-title-row"><h1>{properties.name}</h1><GoogleSearchLink name={properties.name} entityType={geographyEntityType(properties)} country={properties.country} /></div>
       <p className="region-meta">{properties.id} · {formatPopulation(properties.population)}</p>
@@ -268,7 +287,7 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
     const properties = generator.properties;
     const name = typeof properties.name === "string" ? properties.name : properties.id;
     const sourceUrl = safeHttpUrl(properties.sourceUrl);
-    return <aside className="region-inspector facility-inspector generator-inspector">
+    return <aside className="region-inspector facility-inspector generator-inspector" id="wattlas-dossier">
       <div className="inspector-kicker">Selected power generator · {properties.country}</div>
       <div className="inspector-title-row"><h1>{name}</h1><GoogleSearchLink name={name} entityType="generator" country={properties.country} /></div>
       <p className="region-meta">{properties.technologies.map(humanize).join(" · ")}</p>
@@ -300,7 +319,7 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
   if (asset) {
     const properties = asset.properties;
     return (
-      <aside className="region-inspector facility-inspector">
+        <aside className="region-inspector facility-inspector" id="wattlas-dossier">
         <div className="inspector-kicker">Selected facility · {properties.country}</div>
         <div className="inspector-title-row"><h1>{properties.name}</h1><GoogleSearchLink name={properties.name} entityType={properties.category} country={properties.country} /></div>
         <p className="region-meta">{properties.operator || "Operator unavailable"}</p>
@@ -309,7 +328,9 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
             fact("Operator", properties.operator || "Unavailable"),
             fact("Owner", properties.owner || "Unavailable"),
             fact("Facility reference", properties.facilityRef || "Unavailable"),
-            fact("Category", properties.category === "data_centre" ? "Data centre" : "Water infrastructure"),
+            fact("Category", assetCategoryLabel(properties.category)),
+            fact("Project type", properties.subtype ? humanize(properties.subtype) : "Unavailable"),
+            fact("Technology", properties.technologyDetail || "Unavailable"),
           ]} />
           <FactGroup title="Location" facts={[
             fact("Address", formatAddress(properties.address)),
@@ -319,6 +340,8 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
           ]} />
           <FactGroup title="Operations" facts={[
             fact("Lifecycle", humanize(properties.lifecycle)),
+            fact("Raw source status", properties.rawStatus || "Unavailable"),
+            fact("Target year", properties.targetYear != null ? String(properties.targetYear) : "Unavailable"),
             fact("Start date", properties.startDate || "Unavailable"),
             fact("Opening date", properties.openingDate || "Unavailable"),
             fact("Last observed", formatObserved(properties.lastObservedAt)),
@@ -326,13 +349,19 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
           <FactGroup title="Energy" facts={[
             fact("Reported power", properties.reportedPower || "Not publicly available"),
             fact("Demand MW", properties.demandMw ? `${properties.demandMw.low}–${properties.demandMw.high} MW` : "Not publicly available"),
+            fact("Annual electricity demand", range(properties.annualDemandGwh, "GWh")),
+            fact("Reported capacity", properties.reportedCapacity != null && properties.reportedCapacityUnit ? `${number(properties.reportedCapacity)} ${properties.reportedCapacityUnit}` : "Not publicly available"),
+            fact("Grid connection", properties.gridConnectionType ? humanize(properties.gridConnectionType) : "Unavailable"),
+            fact("Demand method", properties.demandMethodId || "Unavailable"),
           ]} />
           <FactGroup title="Sources" facts={[
-            fact("Source type", properties.sourceType === "official_verified" ? "Officially verified" : "Community mapped"),
+            fact("Source type", sourceTypeLabel(properties.sourceType)),
+            fact("Source record IDs", properties.sourceRecordIds?.join(", ") || "Unavailable"),
             fact("Public IDs", Object.entries(properties.externalIds).map(([key, value]) => `${key.toUpperCase()} ${value}`).join(" · ") || "Unavailable"),
           ]}>
             <div className="facility-source-links">
               {properties.sourceUrl && <a href={properties.sourceUrl} target="_blank" rel="noreferrer">Source record</a>}
+              {safeHttpUrl(properties.projectUrl) && <a href={properties.projectUrl!} target="_blank" rel="noreferrer">Project page</a>}
               {properties.website && <a href={properties.website} target="_blank" rel="noreferrer">Facility website</a>}
               {properties.externalIds.wikidata && <a href={`https://www.wikidata.org/wiki/${properties.externalIds.wikidata}`} target="_blank" rel="noreferrer">Wikidata</a>}
             </div>
@@ -346,6 +375,8 @@ export function EntityInspector({ geography, asset, generator, regionalEnergy = 
         <div className="inspector-actions single-action">
           {properties.sourceUrl
             ? <a className="primary-action" href={properties.sourceUrl} target="_blank" rel="noreferrer">Open source record</a>
+            : safeHttpUrl(properties.projectUrl)
+              ? <a className="primary-action" href={properties.projectUrl!} target="_blank" rel="noreferrer">Open project page</a>
             : <span className="empty-evidence">Source URL unavailable</span>}
         </div>
       </aside>

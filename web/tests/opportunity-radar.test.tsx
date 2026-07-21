@@ -218,6 +218,8 @@ describe("OpportunityRadar", () => {
 
     expect(screen.getByRole("heading", { name: "Alpha DC" })).toBeInTheDocument();
     expect(screen.getByText("Community mapped")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Selected project summary" })).toHaveTextContent("Alpha DC");
+    expect(screen.getByRole("link", { name: "Open full dossier" })).toHaveAttribute("href", "#wattlas-dossier");
   });
 
   it("selects and inspects a global first-level region", () => {
@@ -234,7 +236,7 @@ describe("OpportunityRadar", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     fireEvent.click(screen.getByRole("button", { name: "Select generator" }));
     expect(screen.getByRole("heading", { name: "Rhine Solar" })).toBeInTheDocument();
-    expect(screen.getByText("80 MW")).toBeInTheDocument();
+    expect(screen.getAllByText("80 MW").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Source record unavailable" })).toBeVisible();
   });
 

@@ -4,33 +4,33 @@ import type { AssetCategory, LensKey } from "@/lib/snapshot/types";
 
 const ramps: Record<LensKey, Array<[number, string]>> = {
   infrastructureDemand: [
-    [0, "#1B3430"],
-    [45, "#3D7467"],
-    [65, "#A4864E"],
-    [80, "#E2B45C"],
+    [0, "#D8E9E4"],
+    [45, "#9DCCBE"],
+    [65, "#F3D69A"],
+    [80, "#E7A84A"],
   ],
   siteAttractiveness: [
-    [0, "#1A2C2A"],
-    [45, "#32685E"],
-    [65, "#55A28E"],
-    [80, "#72D9BD"],
+    [0, "#E1EEE9"],
+    [45, "#A7D5C9"],
+    [65, "#6FC2AD"],
+    [80, "#2FAF8D"],
   ],
   systemRisk: [
-    [0, "#26312F"],
-    [45, "#72564D"],
-    [65, "#A85E51"],
-    [80, "#D66F5F"],
+    [0, "#E7EBEA"],
+    [45, "#EDC4B9"],
+    [65, "#E78E7B"],
+    [80, "#D65345"],
   ],
   powerBalance: [
-    [0, "#4D8879"],
-    [35, "#71817D"],
-    [55, "#A4864E"],
-    [75, "#D66F5F"],
+    [0, "#8ECDBB"],
+    [35, "#CFD8D5"],
+    [55, "#F1CE88"],
+    [75, "#D95C4F"],
   ],
 };
 
 export function scoreColor(score: number | null, lens: LensKey): string {
-  if (score === null) return "#142321";
+  if (score === null) return "#DDE5E2";
   const ramp = ramps[lens];
   return [...ramp].reverse().find(([threshold]) => score >= threshold)?.[1] ?? ramp[0][1];
 }
@@ -40,7 +40,7 @@ export function mapColorExpression(lens: LensKey): ExpressionSpecification {
   return [
     "case",
     ["==", ["get", "activeScore"], null],
-    "#142321",
+    "#DDE5E2",
     [
       "interpolate",
       ["linear"],

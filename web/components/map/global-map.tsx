@@ -146,6 +146,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
       maxZoom: 12,
       attributionControl: false,
     });
+    map.setProjection({ type: "globe" });
     hoveredAdmin1Ref.current = null;
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-left");
@@ -186,7 +187,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         source: "countries",
         paint: {
           "fill-color": mapColorExpression(lensRef.current),
-          "fill-opacity": ["case", ["==", ["get", "activeScore"], null], 0.5, 0.86],
+          "fill-opacity": ["case", ["==", ["get", "activeScore"], null], 0.08, 0.3],
         },
       });
       map.addLayer({
@@ -211,7 +212,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         minzoom: 2.2,
         paint: {
           "fill-color": mapColorExpression(lensRef.current),
-          "fill-opacity": ["case", ["==", ["get", "activeScore"], null], 0.04, 0.34],
+          "fill-opacity": ["case", ["==", ["get", "activeScore"], null], 0.025, 0.18],
         },
       });
       map.addLayer({
@@ -219,7 +220,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         type: "line",
         source: "admin1",
         paint: {
-          "line-color": "#49635E",
+          "line-color": "#7A8A86",
           "line-width": admin1LineWidthExpression(),
           "line-opacity": admin1LineOpacityExpression(),
         },
@@ -229,7 +230,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         type: "line",
         source: "admin1",
         paint: {
-          "line-color": "#F1F6F4",
+          "line-color": "#176B5B",
           "line-width": ["case", ["any", ["==", ["get", "id"], selectedIdRef.current ?? ""], ["boolean", ["feature-state", "hover"], false]], 2.6, 0],
           "line-opacity": 0.96,
         },
@@ -241,7 +242,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         minzoom: 4.5,
         paint: {
           "fill-color": mapColorExpression(lensRef.current),
-          "fill-opacity": ["case", ["==", ["get", "activeScore"], null], 0.1, 0.58],
+          "fill-opacity": ["case", ["==", ["get", "activeScore"], null], 0.03, 0.22],
         },
       });
       map.addLayer({
@@ -250,7 +251,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         source: "regions",
         minzoom: 4.5,
         paint: {
-          "line-color": ["case", ["==", ["get", "id"], selectedIdRef.current ?? ""], "#E1EBE8", "#47635E"],
+          "line-color": ["case", ["==", ["get", "id"], selectedIdRef.current ?? ""], "#176B5B", "#8B9995"],
           "line-width": ["case", ["==", ["get", "id"], selectedIdRef.current ?? ""], 2.2, 0.5],
           "line-opacity": 0.72,
         },
@@ -268,8 +269,8 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
           "text-optional": true,
         },
         paint: {
-          "text-color": "#D7E2DF",
-          "text-halo-color": "#0B1715",
+          "text-color": "#465651",
+          "text-halo-color": "#FFFFFF",
           "text-halo-width": 1.25,
         },
       });
@@ -278,7 +279,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         type: "line",
         source: "countries",
         paint: {
-          "line-color": ["case", ["==", ["get", "id"], selectedIdRef.current ?? ""], "#F1F6F4", "#76908A"],
+          "line-color": ["case", ["==", ["get", "id"], selectedIdRef.current ?? ""], "#176B5B", "#60716C"],
           "line-width": countryBorderWidthExpression(selectedIdRef.current),
           "line-opacity": 0.94,
         },
@@ -290,10 +291,10 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         filter: ["has", "point_count"],
         paint: {
           "circle-color": "#E2B45C",
-          "circle-radius": ["step", ["get", "point_count"], 14, 25, 18, 100, 23, 500, 29],
+          "circle-radius": ["step", ["get", "point_count"], 10, 25, 13, 100, 17, 500, 21],
           "circle-opacity": 0.9,
-          "circle-stroke-color": "#07100F",
-          "circle-stroke-width": 2,
+          "circle-stroke-color": "#FFFFFF",
+          "circle-stroke-width": 1.5,
         },
       });
       map.addLayer({ id: "generator-overview-markers", type: "circle", source: "generator-overview", maxzoom: 3, layout: { visibility: infrastructureRef.current.generators ? "visible" : "none" }, paint: { "circle-color": ["case", ["boolean", ["get", "isMixed"], false], "#84918E", generatorColorExpression("displayTechnology")], "circle-radius": ["step", ["get", "count"], 5, 10, 8, 50, 11], "circle-stroke-color": "#07100F", "circle-stroke-width": 1.5, "circle-opacity": 0.9 } });
@@ -301,7 +302,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
       const technologyKindCount = ["+", ...(["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"].map((technology) => ["case", [">", ["get", technology], 0], 1, 0]))] as unknown as ExpressionSpecification;
       map.addLayer({ id: "generator-clusters", type: "circle", source: "generators", minzoom: 3, filter: ["has", "point_count"], paint: { "circle-color": ["case", [">", technologyKindCount, 1], "#84918E", ["case", [">", ["get", "solar"], 0], "#E7B84B", [">", ["get", "wind"], 0], "#55C7D9", [">", ["get", "hydro"], 0], "#4E8EDB", [">", ["get", "nuclear"], 0], "#A98AE8", [">", ["get", "gas"], 0], "#E07A5F", [">", ["get", "coal"], 0], "#6F7782", [">", ["get", "oil"], 0], "#B88762", [">", ["get", "biomass"], 0], "#78B77A", [">", ["get", "geothermal"], 0], "#D98255", "#9AA6A4"]], "circle-radius": ["step", ["get", "point_count"], 13, 25, 18, 100, 24], "circle-stroke-color": "#E8EFED", "circle-stroke-width": 1.5 } });
       map.addLayer({ id: "generator-cluster-count", type: "symbol", source: "generators", minzoom: 3, filter: ["has", "point_count"], layout: { "text-field": ["concat", ["get", "point_count_abbreviated"], " · composition S", ["get", "solar"], " W", ["get", "wind"], " H", ["get", "hydro"], " N", ["get", "nuclear"], " G", ["get", "gas"], " C", ["get", "coal"], " O", ["get", "oil"], " B", ["get", "biomass"], " T", ["get", "geothermal"], " X", ["get", "other"]], "text-size": 9, "text-offset": [0, 2] }, paint: { "text-color": "#D7E2DF", "text-halo-color": "#07100F", "text-halo-width": 1 } });
-      map.addLayer({ id: "generator-assets", type: "symbol", source: "generators", minzoom: 3, filter: ["!", ["has", "point_count"]], layout: { "text-field": "■", "text-size": 13, "text-allow-overlap": true }, paint: { "text-color": generatorTechnologyExpression(), "text-halo-color": "#F1F6F4", "text-halo-width": 1, "text-opacity": ["case", ["==", ["get", "lifecycle"], "operational"], 0.82, 1] } });
+      map.addLayer({ id: "generator-assets", type: "symbol", source: "generators", minzoom: 3, filter: ["!", ["has", "point_count"]], layout: { "text-field": "●", "text-size": 10, "text-allow-overlap": true }, paint: { "text-color": generatorTechnologyExpression(), "text-halo-color": "#FFFFFF", "text-halo-width": 1, "text-opacity": ["case", ["==", ["get", "lifecycle"], "operational"], 0.82, 1] } });
       map.addLayer({
         id: "asset-cluster-count",
         type: "symbol",
@@ -320,7 +321,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         filter: ["all", ["!", ["has", "point_count"]], ["==", ["get", "category"], "data_centre"]],
         paint: {
           "circle-color": assetColor("data_centre"),
-          "circle-radius": 6,
+          "circle-radius": 4,
           "circle-opacity": ["case", ["==", ["get", "lifecycle"], "operational"], 0.68, 1],
           "circle-stroke-color": assetStrokeColorExpression(),
           "circle-stroke-width": 2,

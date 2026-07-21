@@ -25,6 +25,27 @@ const energy = (year: number, netBalanceGwh: RegionalEnergyForecast["metrics"]["
 });
 
 describe("EntityInspector", () => {
+  it("explains an industrial demand project with reported inputs and model lineage", () => {
+    const asset = {
+      type: "Feature", id: "h2-1", geometry: { type: "Point", coordinates: [8.6, 50.1] },
+      properties: {
+        id: "h2-1", name: "Rhine Electrolyser", geographyId: "DE-HE", country: "DE",
+        category: "industrial_load", subtype: "hydrogen_production", lifecycle: "pre_construction",
+        demandMw: { low: 70, central: 110, high: 180 }, annualDemandGwh: { low: 613, central: 964, high: 1577 },
+        reportedCapacity: 200, reportedCapacityUnit: "MWel", gridConnectionType: "grid_plus_renewables",
+        gridDemandContribution: true, technologyDetail: "PEM electrolysis", rawStatus: "Feasibility study",
+        demandMethodId: "hydrogen-electrolyser-grid-v1", targetYear: 2029,
+        locationPrecision: "exact", valueKind: "estimated", sourceIds: ["iea-hydrogen-production-2026"],
+        sourceRecordIds: ["P-001"], projectUrl: "https://example.org/rhine", confidence: 84,
+        sourceType: "research_verified", externalIds: {},
+      },
+    } as AssetFeature;
+
+    render(<EntityInspector geography={null} asset={asset} lens="infrastructureDemand" year={2030} onOpenEvidence={vi.fn()} onAddComparison={vi.fn()} />);
+
+    for (const text of ["Industrial load", "Hydrogen production", "200 MWel", "964 GWh (613–1,577)", "PEM electrolysis", "Feasibility study", "2029", "hydrogen-electrolyser-grid-v1", "Research verified"]) expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open project page" })).toHaveAttribute("href", "https://example.org/rhine");
+  });
   it("explains community facility provenance without inventing capacity", () => {
     const asset = {
       type: "Feature",

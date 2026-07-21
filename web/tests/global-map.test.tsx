@@ -8,6 +8,7 @@ const mapCalls = vi.hoisted(() => ({
   layers: [] as Array<Record<string, unknown>>,
   handlers: [] as Array<[string, unknown, unknown?]>,
   featureStates: [] as Array<Record<string, unknown>>,
+  projections: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock("maplibre-gl", () => ({
@@ -30,6 +31,7 @@ vi.mock("maplibre-gl", () => ({
         if (event === "load" && typeof layerOrHandler === "function") layerOrHandler();
       }
       setFeatureState(target: Record<string, unknown>, state: Record<string, unknown>) { mapCalls.featureStates.push({ target, state }); }
+      setProjection(projection: Record<string, unknown>) { mapCalls.projections.push(projection); }
       remove() {}
       setPaintProperty() {}
     },
@@ -49,6 +51,7 @@ describe("GlobalMap", () => {
     mapCalls.layers.length = 0;
     mapCalls.handlers.length = 0;
     mapCalls.featureStates.length = 0;
+    mapCalls.projections.length = 0;
   });
 
   it("opens at world scale and reports global coverage", () => {
@@ -70,6 +73,8 @@ describe("GlobalMap", () => {
     expect(screen.getByRole("region", { name: "Global opportunity map" })).toBeInTheDocument();
     expect(screen.getByText(/246 countries · 14 infrastructure assets/i)).toBeInTheDocument();
     expect(screen.queryByLabelText("Map data and project attribution")).not.toBeInTheDocument();
+    expect(mapCalls.projections.at(-1)).toEqual({ type: "globe" });
+    expect((mapCalls.options.at(-1)?.style as { sources?: Record<string, unknown> }).sources).toHaveProperty("physical-geography");
   });
 
   it("clusters infrastructure while preserving selectable facility layers", () => {
@@ -94,7 +99,10 @@ describe("GlobalMap", () => {
       "asset-cluster-count",
       "data-centre-assets",
       "water-assets",
+      "industrial-assets",
+      "hydrogen-assets",
     ]));
+    expect(mapCalls.layers.find((layer) => layer.id === "data-centre-assets")?.paint).toMatchObject({ "circle-radius": 4 });
   });
 
   it("shows fixed-size city dots and names only after regional zoom", () => {
@@ -129,7 +137,7 @@ describe("GlobalMap", () => {
     expect(clusterPaint).toContain("wind");
     expect(JSON.stringify(mapCalls.layers.find((layer) => layer.id === "generator-cluster-count")?.layout)).toContain("composition");
     expect(mapCalls.layers.find((layer) => layer.id === "generator-overview-composition")).toMatchObject({ type: "symbol", source: "generator-overview", layout: { "text-field": ["get", "overviewLabel"] } });
-    expect(mapCalls.layers.find((layer) => layer.id === "generator-assets")).toMatchObject({ type: "symbol", layout: { "text-field": "■" } });
+    expect(mapCalls.layers.find((layer) => layer.id === "generator-assets")).toMatchObject({ type: "symbol", layout: { "text-field": "●", "text-size": 10 } });
     expect(mapCalls.layers.find((layer) => layer.id === "water-assets")).toMatchObject({ type: "symbol", layout: { "text-field": "◆" } });
     expect(mapCalls.layers.find((layer) => layer.id === "data-centre-assets")).toMatchObject({ type: "circle" });
     expect(mapCalls.handlers.some(([event, layer]) => event === "click" && layer === "generator-assets")).toBe(true);
@@ -222,7 +230,7 @@ describe("GlobalMap", () => {
     render(
       <GlobalMap countries={{ type: "FeatureCollection", features: [] }} admin1={{ type: "FeatureCollection", features: [] }} regions={{ type: "FeatureCollection", features: [] }} assets={{ type: "FeatureCollection", features: [] }} lens="powerBalance" year={2030} selectedId={null} onSelect={onSelect} coverage={{ countries: 246, regions: 334, admin1Regions: 3229, countriesWithAdmin1: 197, assets: 0, dataCentres: 0, waterInfrastructure: 0 }} />,
     );
-    expect(mapCalls.layers.find((layer) => layer.id === "admin1-fill")?.paint).toMatchObject({ "fill-opacity": ["case", ["==", ["get", "activeScore"], null], 0.04, 0.34] });
+    expect(mapCalls.layers.find((layer) => layer.id === "admin1-fill")?.paint).toMatchObject({ "fill-opacity": ["case", ["==", ["get", "activeScore"], null], 0.025, 0.18] });
     expect(mapCalls.handlers.some(([event, layer]) => event === "click" && layer === "admin1-fill")).toBe(true);
     expect(mapCalls.handlers.some(([event, layer]) => event === "click" && layer === "countries-fill")).toBe(true);
     expect(mapCalls.sources.find(([id]) => id === "admin1")?.[1]).toMatchObject({ data: { features: [] } });
