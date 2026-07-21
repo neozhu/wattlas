@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 from grid_scope.industrial_demand import (
     apply_industrial_demand_model,
@@ -408,3 +408,38 @@ def test_loader_assigns_admin1_and_resolves_named_city_without_removing_existing
     merged = merge_industrial_assets(registry, assets)
     assert len(merged["assets"]) == 1 + len(assets)
     assert next(asset for asset in merged["assets"] if asset["id"] == "existing")["name"] == "Existing asset"
+
+
+def test_forecast_eligible_count_uses_unique_project_identities(tmp_path: Path) -> None:
+    production_path = tmp_path / "production.xlsx"
+    _production_workbook(production_path)
+    workbook = load_workbook(production_path)
+    sheet = workbook["Hydrogen production projects"]
+    sheet.append([cell.value for cell in sheet[3]])
+    workbook.save(production_path)
+    workbook.close()
+    countries = {
+        "type": "FeatureCollection",
+        "features": [
+            {"type": "Feature", "id": "DE", "geometry": {"type": "Polygon", "coordinates": [[[5, 47], [16, 47], [16, 56], [5, 56], [5, 47]]]}, "properties": {"id": "DE", "country": "DE", "name": "Germany", "iso3": "DEU"}},
+            {"type": "Feature", "id": "NL", "geometry": {"type": "Polygon", "coordinates": [[[3, 50], [8, 50], [8, 54], [3, 54], [3, 50]]]}, "properties": {"id": "NL", "country": "NL", "name": "Netherlands", "iso3": "NLD"}},
+            {"type": "Feature", "id": "AU", "geometry": {"type": "Polygon", "coordinates": [[[110, -45], [155, -45], [155, -10], [110, -10], [110, -45]]]}, "properties": {"id": "AU", "country": "AU", "name": "Australia", "iso3": "AUS"}},
+        ],
+    }
+    admin1 = {
+        "type": "FeatureCollection",
+        "features": [
+            {"type": "Feature", "id": "DE-BY", "geometry": {"type": "Polygon", "coordinates": [[[9, 47], [14, 47], [14, 50.7], [9, 50.7], [9, 47]]]}, "properties": {"id": "DE-BY", "country": "DE", "level": "admin_1"}},
+        ],
+    }
+
+    _, counts = load_industrial_assets_from_paths(
+        {"iea-hydrogen-production-2026": production_path},
+        countries=countries,
+        admin1=admin1,
+        cities={"type": "FeatureCollection", "features": []},
+        assumptions=load_industrial_demand_assumptions(ASSUMPTIONS_PATH),
+    )
+
+    assert counts["normalized"] == 4
+    assert counts["forecastEligible"] == 1

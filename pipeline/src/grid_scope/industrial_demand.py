@@ -794,16 +794,17 @@ def load_industrial_assets_from_paths(
         if geography_id != country:
             asset["admin1Id"] = geography_id
         mappable.append(asset)
-    forecast_eligible = sum(
-        bool(asset.get("gridDemandContribution"))
+    forecast_eligible = len({
+        str(asset["id"])
+        for asset in mappable
+        if bool(asset.get("gridDemandContribution"))
         and asset.get("lifecycle") in {
             "announced", "planning_filed", "permitted", "pre_construction", "under_construction"
         }
         and isinstance(asset.get("targetYear"), int)
         and 2026 <= asset["targetYear"] <= 2031
         and asset.get("geographyId") != asset.get("country")
-        for asset in mappable
-    )
+    })
     return sorted(mappable, key=lambda asset: asset["id"]), {
         "normalized": len(normalized),
         "mappable": len(mappable),
