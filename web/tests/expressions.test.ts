@@ -16,12 +16,12 @@ describe("scoreColor", () => {
     expect(scoreColor(null, "infrastructureDemand")).toBe("#DDE5E2");
   });
 
-  it("uses amber for high infrastructure demand", () => {
-    expect(scoreColor(85, "infrastructureDemand")).toBe("#E7A84A");
-  });
-
-  it("uses rust for high system risk", () => {
-    expect(scoreColor(85, "systemRisk")).toBe("#D65345");
+  it("uses one light-green to yellow to red intensity scale across score lenses", () => {
+    for (const lens of ["infrastructureDemand", "siteAttractiveness", "systemRisk"] as const) {
+      expect(scoreColor(0, lens)).toBe("#D7EBCB");
+      expect(scoreColor(65, lens)).toBe("#F0D36F");
+      expect(scoreColor(85, lens)).toBe("#D95C4F");
+    }
   });
 });
 
@@ -43,6 +43,11 @@ describe("global map expressions", () => {
   it("keeps the Power Balance legend gradient consistent with the map ramp", () => {
     const css = readFileSync(`${process.cwd()}/app/globals.css`, "utf8");
     expect(css).toContain("linear-gradient(90deg, #4d8879, #71817d, #a4864e, #d66f5f)");
+  });
+
+  it("uses the shared green-yellow-red score ramp in every generic score legend", () => {
+    const css = readFileSync(`${process.cwd()}/app/globals.css`, "utf8");
+    expect(css.match(/linear-gradient\(90deg, #d7ebcb, #a9d39d, #f0d36f, #d95c4f\)/g)).toHaveLength(3);
   });
 
   it("keeps national borders stronger than regional boundaries", () => {

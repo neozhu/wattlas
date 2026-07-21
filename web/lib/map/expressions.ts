@@ -2,25 +2,17 @@ import type { ExpressionSpecification } from "maplibre-gl";
 
 import type { AssetCategory, LensKey } from "@/lib/snapshot/types";
 
+const scoreIntensityRamp: Array<[number, string]> = [
+  [0, "#D7EBCB"],
+  [45, "#A9D39D"],
+  [65, "#F0D36F"],
+  [80, "#D95C4F"],
+];
+
 const ramps: Record<LensKey, Array<[number, string]>> = {
-  infrastructureDemand: [
-    [0, "#D8E9E4"],
-    [45, "#9DCCBE"],
-    [65, "#F3D69A"],
-    [80, "#E7A84A"],
-  ],
-  siteAttractiveness: [
-    [0, "#E1EEE9"],
-    [45, "#A7D5C9"],
-    [65, "#6FC2AD"],
-    [80, "#2FAF8D"],
-  ],
-  systemRisk: [
-    [0, "#E7EBEA"],
-    [45, "#EDC4B9"],
-    [65, "#E78E7B"],
-    [80, "#D65345"],
-  ],
+  infrastructureDemand: scoreIntensityRamp,
+  siteAttractiveness: scoreIntensityRamp,
+  systemRisk: scoreIntensityRamp,
   powerBalance: [
     [0, "#8ECDBB"],
     [35, "#CFD8D5"],

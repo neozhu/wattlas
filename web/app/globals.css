@@ -722,15 +722,15 @@ button {
 }
 
 .legend-ramp.infrastructureDemand {
-  background: linear-gradient(90deg, #1b3430, #3d7467, #a4864e, var(--amber));
+  background: linear-gradient(90deg, #d7ebcb, #a9d39d, #f0d36f, #d95c4f);
 }
 
 .legend-ramp.siteAttractiveness {
-  background: linear-gradient(90deg, #1a2c2a, #32685e, #55a28e, var(--mint));
+  background: linear-gradient(90deg, #d7ebcb, #a9d39d, #f0d36f, #d95c4f);
 }
 
 .legend-ramp.systemRisk {
-  background: linear-gradient(90deg, #26312f, #72564d, #a85e51, var(--rust));
+  background: linear-gradient(90deg, #d7ebcb, #a9d39d, #f0d36f, #d95c4f);
 }
 
 .legend-ramp.powerBalance {
