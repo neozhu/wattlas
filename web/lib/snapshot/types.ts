@@ -189,6 +189,21 @@ export type SourceCoverage = {
   publishedRecords: number;
   publishedRecordsBySource: Record<string, number>;
 };
+export type EntsoeMonthlyRecord = {
+  id: string; areaCode: string; areaName: string; countries: string[]; geographyIds: string[];
+  mappingMode: "direct" | "composite" | "overlapping" | "evidence_only";
+  mappingEligible: boolean; scoreEligible: false; observationMonth: string;
+  periodStart: string; periodEnd: string; demandGwh: number; peakDemandMw: number;
+  meanDemandMw: number; generationGwh: number; generationMixGwh: Record<string, number>;
+  coverage: { loadPct: number; generationPct: number; loadObservedPoints: number; loadExpectedPoints: number; generationObservedPoints: number; generationExpectedPoints: number };
+  sourceIds: ["entsoe"]; sourceUrl: "https://transparency.entsoe.eu/";
+  valueKind: "reported"; methodId: "entsoe-monthly-aggregate-v1"; retrievedAt: string;
+};
+export type EntsoeMonthlyData = {
+  schemaVersion: "1.0.0"; source: "entsoe"; retrievedAt: string | null;
+  periodStart: string | null; periodEnd: string | null; observationMonth: string | null;
+  complete: boolean; areasRequested: number; records: EntsoeMonthlyRecord[];
+};
 
 export type SnapshotManifest = {
   snapshotId: string;
@@ -200,6 +215,7 @@ export type SnapshotManifest = {
     regionalEnergy?: string; generatorOverview?: string; generatorIndex?: string;
     sourceCatalog?: string;
     cities?: string; grid?: string; cooling?: string;
+    entsoeMonthly?: string;
   };
   coverage: {
     countries: number;
@@ -222,6 +238,8 @@ export type SnapshotManifest = {
     cities?: number;
     gridRecords?: number;
     coolingRecords?: number;
+    entsoeAreas?: number;
+    entsoeDirectAreas?: number;
   };
   quality?: {
     countryDemandReconciled: boolean;

@@ -138,6 +138,52 @@ export const connectorStatusSchema = z.object({
   publicationState: publicationStateSchema.optional(),
 }).strict();
 
+const entsoeCoverageSchema = z.object({
+  loadPct: z.number().min(0).max(100),
+  generationPct: z.number().min(0).max(100),
+  loadObservedPoints: z.number().int().nonnegative(),
+  loadExpectedPoints: z.number().int().nonnegative(),
+  generationObservedPoints: z.number().int().nonnegative(),
+  generationExpectedPoints: z.number().int().nonnegative(),
+}).strict();
+
+export const entsoeMonthlyRecordSchema = z.object({
+  id: z.string().trim().min(1),
+  areaCode: z.string().regex(/^[A-Z0-9-]{16}$/),
+  areaName: z.string().trim().min(1),
+  countries: z.array(z.string().regex(/^[A-Z]{2}$/)).min(1),
+  geographyIds: z.array(z.string().trim().min(1)),
+  mappingMode: z.enum(["direct", "composite", "overlapping", "evidence_only"]),
+  mappingEligible: z.boolean(),
+  scoreEligible: z.literal(false),
+  observationMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  periodStart: z.string().datetime(),
+  periodEnd: z.string().datetime(),
+  demandGwh: z.number().nonnegative(),
+  peakDemandMw: z.number().nonnegative(),
+  meanDemandMw: z.number().nonnegative(),
+  generationGwh: z.number().nonnegative(),
+  generationMixGwh: z.record(z.string().min(1), z.number().nonnegative()),
+  coverage: entsoeCoverageSchema,
+  sourceIds: z.tuple([z.literal("entsoe")]),
+  sourceUrl: z.literal("https://transparency.entsoe.eu/"),
+  valueKind: z.literal("reported"),
+  methodId: z.literal("entsoe-monthly-aggregate-v1"),
+  retrievedAt: z.string().datetime(),
+}).strict();
+
+export const entsoeMonthlySchema = z.object({
+  schemaVersion: z.literal("1.0.0"),
+  source: z.literal("entsoe"),
+  retrievedAt: z.string().datetime().nullable(),
+  periodStart: z.string().datetime().nullable(),
+  periodEnd: z.string().datetime().nullable(),
+  observationMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).nullable(),
+  complete: z.boolean(),
+  areasRequested: z.number().int().nonnegative(),
+  records: z.array(entsoeMonthlyRecordSchema),
+}).strict();
+
 export const manifestSchema = z.object({
   snapshotId: z.string().min(1),
   generatedAt: z.string().datetime(),
@@ -159,6 +205,7 @@ export const manifestSchema = z.object({
     cities: z.string().optional(),
     grid: z.string().optional(),
     cooling: z.string().optional(),
+    entsoeMonthly: z.string().optional(),
   }).strict(),
   coverage: z.object({
     countries: z.number().int().nonnegative(),
@@ -181,6 +228,8 @@ export const manifestSchema = z.object({
     cities: z.number().int().nonnegative().optional(),
     gridRecords: z.number().int().nonnegative().optional(),
     coolingRecords: z.number().int().nonnegative().optional(),
+    entsoeAreas: z.number().int().nonnegative().optional(),
+    entsoeDirectAreas: z.number().int().nonnegative().optional(),
   }).strict(),
   quality: z.object({
     countryDemandReconciled: z.boolean(),

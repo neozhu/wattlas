@@ -147,6 +147,10 @@ class SnapshotPublisher:
         missing = required - artifacts.keys()
         if missing:
             raise ValueError(f"missing required artifacts: {', '.join(sorted(missing))}")
+        if "entsoe-monthly.json" in artifacts:
+            SnapshotPublisher._validate_entsoe_monthly(
+                json.loads(artifacts["entsoe-monthly.json"])
+            )
         publication = manifest.get("publication")
         quarantined_ids = set()
         if isinstance(publication, dict):
@@ -515,6 +519,71 @@ class SnapshotPublisher:
             return any(
                 SnapshotPublisher._contains_source_claim(child, quarantined_ids)
                 for child in value
+            )
+        return False
+
+    @staticmethod
+    def _validate_entsoe_monthly(payload: object) -> None:
+        if not isinstance(payload, dict):
+            raise ValueError("ENTSO-E monthly artifact must be an object")
+        if SnapshotPublisher._contains_credential_key(payload):
+            raise ValueError("ENTSO-E monthly artifact contains credential material")
+        if (
+            payload.get("schemaVersion") != "1.0.0"
+            or payload.get("source") != "entsoe"
+            or not isinstance(payload.get("records"), list)
+        ):
+            raise ValueError("invalid ENTSO-E monthly envelope")
+        identifiers: set[str] = set()
+        area_codes: set[str] = set()
+        mapping_modes = {"direct", "composite", "overlapping", "evidence_only"}
+        for record in payload["records"]:
+            if not isinstance(record, dict):
+                raise ValueError("invalid ENTSO-E monthly record")
+            identifier = record.get("id")
+            area_code = record.get("areaCode")
+            if (
+                not isinstance(identifier, str)
+                or not identifier
+                or identifier in identifiers
+                or not isinstance(area_code, str)
+                or not area_code
+                or area_code in area_codes
+            ):
+                raise ValueError("duplicate or invalid ENTSO-E area record")
+            identifiers.add(identifier)
+            area_codes.add(area_code)
+            if record.get("mappingMode") not in mapping_modes:
+                raise ValueError("invalid ENTSO-E mapping mode")
+            if record.get("scoreEligible") is not False:
+                raise ValueError("ENTSO-E monthly records cannot be score eligible")
+            if record.get("sourceIds") != ["entsoe"]:
+                raise ValueError("invalid ENTSO-E source lineage")
+            for field in ("demandGwh", "peakDemandMw", "meanDemandMw", "generationGwh"):
+                SnapshotPublisher._nonnegative_number(
+                    record.get(field), label=f"ENTSO-E {field}"
+                )
+            coverage = record.get("coverage")
+            if not isinstance(coverage, dict):
+                raise ValueError("invalid ENTSO-E coverage")
+            for field in ("loadPct", "generationPct"):
+                value = SnapshotPublisher._nonnegative_number(
+                    coverage.get(field), label=f"ENTSO-E {field}"
+                )
+                if value > 100:
+                    raise ValueError("ENTSO-E coverage cannot exceed 100")
+
+    @staticmethod
+    def _contains_credential_key(value: object) -> bool:
+        if isinstance(value, dict):
+            return any(
+                "securitytoken" in str(key).replace("_", "").casefold()
+                or SnapshotPublisher._contains_credential_key(child)
+                for key, child in value.items()
+            )
+        if isinstance(value, list):
+            return any(
+                SnapshotPublisher._contains_credential_key(child) for child in value
             )
         return False
 

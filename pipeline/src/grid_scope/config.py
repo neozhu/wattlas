@@ -19,6 +19,7 @@ CITIES_PATH = PROJECT_ROOT / "data" / "curated" / "cities.json"
 GRID_INTELLIGENCE_PATH = PROJECT_ROOT / "data" / "curated" / "grid-intelligence.json"
 COOLING_EVIDENCE_PATH = PROJECT_ROOT / "data" / "curated" / "cooling-evidence.json"
 SOURCE_CATALOG_PATH = PROJECT_ROOT / "data" / "curated" / "source-catalog.json"
+ENTSOE_AREAS_PATH = PROJECT_ROOT / "data" / "curated" / "entsoe-areas.json"
 PUBLISH_DIR = PROJECT_ROOT / os.getenv("GRID_SCOPE_PUBLISH_DIR", "web/public/data")
 UN_GEODATA_URL = os.getenv(
     "UN_GEODATA_URL",

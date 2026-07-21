@@ -18,6 +18,7 @@ from grid_scope.config import (
     BRAZIL_EPE_CONSUMPTION_PATH,
     AFRICA_GRID_PATH,
     EMBER_YEARLY_PATH,
+    ENTSOE_AREAS_PATH,
     GLOBAL_ADMIN1_PATH,
     CITIES_PATH,
     GRID_INTELLIGENCE_PATH,
@@ -40,7 +41,7 @@ from grid_scope.connectors.base import ConnectorResult, FetchPayload
 from grid_scope.connectors.africa_grid import load_africa_grid
 from grid_scope.connectors.brazil import AneelSigaConnector, load_epe_annual_observations
 from grid_scope.connectors.curated import CuratedConnector
-from grid_scope.connectors.entsoe import EntsoeConnector
+from grid_scope.connectors.entsoe import EntsoeConnector, load_entsoe_areas
 from grid_scope.connectors.ember import normalize_ember_yearly_csv
 from grid_scope.connectors.eia import (
     EiaV2Connector,
@@ -735,6 +736,43 @@ def _optional_network_result(
             payload=None,
             message=f"Optional source failed without a cached capture: {error}",
         )
+
+
+def _contains_credential_material(value: object) -> bool:
+    if isinstance(value, Mapping):
+        return any(
+            "securitytoken" in str(key).replace("_", "").casefold()
+            or _contains_credential_material(child)
+            for key, child in value.items()
+        )
+    if isinstance(value, list):
+        return any(_contains_credential_material(child) for child in value)
+    return False
+
+
+def normalize_entsoe_publication(body: bytes) -> dict[str, Any]:
+    """Normalize a source capture to the credential-free public envelope."""
+
+    try:
+        payload = json.loads(body)
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise ValueError("ENTSO-E publication capture must be valid JSON") from error
+    if not isinstance(payload, dict) or not isinstance(payload.get("records"), list):
+        raise ValueError("ENTSO-E publication capture requires a records array")
+    if _contains_credential_material(payload):
+        raise ValueError("ENTSO-E publication contains credential material")
+    records = payload["records"]
+    return {
+        "schemaVersion": "1.0.0",
+        "source": "entsoe",
+        "retrievedAt": payload.get("retrievedAt"),
+        "periodStart": payload.get("periodStart"),
+        "periodEnd": payload.get("periodEnd"),
+        "observationMonth": payload.get("observationMonth"),
+        "complete": bool(payload.get("complete", False)) and bool(records),
+        "areasRequested": int(payload.get("areasRequested", len(records))),
+        "records": records,
+    }
 
 
 def collect_power_source_records(
@@ -1528,6 +1566,13 @@ def refresh() -> Path:
     model_artifacts = load_refresh_model_artifacts(population_path, weights_path)
 
     stage("plant_sources")
+    country_ids = {
+        str((feature.get("properties") or {}).get("id") or feature.get("id") or "")
+        for feature in json.loads(countries_body).get("features", [])
+    }
+    entsoe_areas = load_entsoe_areas(
+        ENTSOE_AREAS_PATH, valid_geography_ids=country_ids
+    )
     with httpx.Client(timeout=90, follow_redirects=True) as client:
         eurostat_body, eurostat_status = _network_result(
             lambda: EurostatConnector().fetch(client, now=now), "eurostat", store
@@ -1553,6 +1598,14 @@ def refresh() -> Path:
             "osm_power",
             store,
         )
+        entsoe_body, entsoe_status = _optional_network_result(
+            lambda: EntsoeConnector(os.getenv("ENTSOE_SECURITY_TOKEN")).fetch(
+                client, now=now, areas=entsoe_areas
+            ),
+            "entsoe",
+            store,
+        )
+    entsoe_publication = normalize_entsoe_publication(entsoe_body)
 
     official_power_path_value = os.getenv("OFFICIAL_POWER_PATH")
     official_power_path = Path(official_power_path_value) if official_power_path_value else None
@@ -1585,8 +1638,6 @@ def refresh() -> Path:
         curated_result.payload.body,
         curated_result.payload.media_type,
     )
-    entsoe_status = EntsoeConnector(os.getenv("ENTSOE_SECURITY_TOKEN")).fetch(now=now)
-
     global_assets_result = CuratedConnector(
         GLOBAL_ASSETS_PATH, source_id="global_assets"
     ).fetch(now=now)
@@ -1802,6 +1853,9 @@ def refresh() -> Path:
         ensure_ascii=False,
         separators=(",", ":"),
     ).encode()
+    artifacts["entsoe-monthly.json"] = json.dumps(
+        entsoe_publication, ensure_ascii=False, separators=(",", ":")
+    ).encode()
 
     statuses = [
         countries_status,
@@ -1846,6 +1900,7 @@ def refresh() -> Path:
             "grid": f"snapshots/{snapshot_id}/grid.geojson",
             "cooling": f"snapshots/{snapshot_id}/cooling.json",
             "sourceCatalog": f"snapshots/{snapshot_id}/source-catalog.json",
+            "entsoeMonthly": f"snapshots/{snapshot_id}/entsoe-monthly.json",
         },
         "coverage": {
             "countries": country_count,
@@ -1871,6 +1926,11 @@ def refresh() -> Path:
             "cities": len(json.loads(artifacts["cities.geojson"])["features"]),
             "gridRecords": len(json.loads(artifacts["grid.geojson"])["features"]),
             "coolingRecords": len(json.loads(artifacts["cooling.json"])["records"]),
+            "entsoeAreas": len(entsoe_publication["records"]),
+            "entsoeDirectAreas": sum(
+                record.get("mappingMode") == "direct"
+                for record in entsoe_publication["records"]
+            ),
         },
         "quality": {
             "countryDemandReconciled": country_demand_reconciled,
@@ -1902,6 +1962,7 @@ def refresh() -> Path:
         "gisco": gisco_body,
         "eurostat": eurostat_body,
         "osm_infrastructure": osm_body,
+        "entsoe": entsoe_body,
         **source_bodies,
         "country_electricity_controls": (
             country_control_status.payload.body

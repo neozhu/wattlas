@@ -30,6 +30,7 @@ from grid_scope.cli import (
     governed_evidence_sources,
     _official_demand_rows_for_year,
     _brazil_state_mapping,
+    normalize_entsoe_publication,
 )
 from grid_scope.connectors.base import ConnectorResult, FetchPayload
 from grid_scope.models import ConnectorState
@@ -68,6 +69,29 @@ def test_cli_help_exits_cleanly(capsys) -> None:
 def test_cli_describes_wattlas() -> None:
     parser = __import__("grid_scope.cli", fromlist=["build_parser"]).build_parser()
     assert "Wattlas" in parser.description
+
+
+def test_entsoe_publication_normalizes_unconfigured_source_without_fabrication() -> None:
+    payload = normalize_entsoe_publication(b'{"records":[]}')
+
+    assert payload == {
+        "schemaVersion": "1.0.0",
+        "source": "entsoe",
+        "retrievedAt": None,
+        "periodStart": None,
+        "periodEnd": None,
+        "observationMonth": None,
+        "complete": False,
+        "areasRequested": 0,
+        "records": [],
+    }
+
+
+def test_entsoe_publication_rejects_credential_fields() -> None:
+    with pytest.raises(ValueError, match="credential"):
+        normalize_entsoe_publication(
+            b'{"records":[],"nested":{"securityToken":"nope"}}'
+        )
 
 
 def test_brazil_state_mapping_handles_publisher_and_boundary_spellings() -> None:

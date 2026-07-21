@@ -13,6 +13,7 @@ import {
   gridFeatureCollectionSchema,
   coolingEvidenceCollectionSchema,
   sourceCatalogSchema,
+  entsoeMonthlySchema,
 } from "@/lib/snapshot/schema";
 import { loadSnapshot, serverSnapshotArtifactPaths } from "@/lib/snapshot/load";
 import {
@@ -101,6 +102,40 @@ describe("snapshot manifest", () => {
   });
   it("accepts the six-year snapshot contract", () => {
     expect(manifestSchema.parse(validManifest).activeYears).toHaveLength(6);
+  });
+
+  it("validates governed ENTSO-E monthly aggregates without making them score inputs", () => {
+    const artifact = entsoeMonthlySchema.parse({
+      schemaVersion: "1.0.0",
+      source: "entsoe",
+      retrievedAt: "2026-07-21T08:00:00Z",
+      periodStart: "2026-06-01T00:00:00Z",
+      periodEnd: "2026-07-01T00:00:00Z",
+      observationMonth: "2026-06",
+      complete: true,
+      areasRequested: 1,
+      records: [{
+        id: "entsoe:10YBE----------2:2026-06", areaCode: "10YBE----------2", areaName: "Belgium",
+        countries: ["BE"], geographyIds: ["BE"], mappingMode: "direct",
+        mappingEligible: true, scoreEligible: false, observationMonth: "2026-06",
+        periodStart: "2026-06-01T00:00:00Z", periodEnd: "2026-07-01T00:00:00Z",
+        demandGwh: 6500, peakDemandMw: 11500, meanDemandMw: 9027.8,
+        generationGwh: 6300, generationMixGwh: { gas: 2000, nuclear: 3500 },
+        coverage: { loadPct: 100, generationPct: 99.9, loadObservedPoints: 2880, loadExpectedPoints: 2880, generationObservedPoints: 10070, generationExpectedPoints: 10080 },
+        sourceIds: ["entsoe"], sourceUrl: "https://transparency.entsoe.eu/",
+        valueKind: "reported", methodId: "entsoe-monthly-aggregate-v1", retrievedAt: "2026-07-21T08:00:00Z",
+      }],
+    });
+    const manifest = manifestSchema.parse({
+      ...validManifest,
+      artifacts: { ...validManifest.artifacts, entsoeMonthly: "snapshots/2026-06-27T04-12-00Z/entsoe-monthly.json" },
+      coverage: { ...validManifest.coverage, entsoeAreas: 1, entsoeDirectAreas: 1 },
+    });
+
+    expect(artifact.records[0].scoreEligible).toBe(false);
+    expect(manifest.artifacts.entsoeMonthly).toContain("entsoe-monthly.json");
+    expect(() => entsoeMonthlySchema.parse({ ...artifact, securityToken: "nope" })).toThrow();
+    expect(() => entsoeMonthlySchema.parse({ ...artifact, records: [{ ...artifact.records[0], scoreEligible: true }] })).toThrow();
   });
 
   it("keeps ADM1, regional energy, and generator layers out of the server payload", () => {

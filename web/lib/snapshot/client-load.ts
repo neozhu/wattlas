@@ -5,9 +5,10 @@ import {
   evidenceSchema,
   geographyFeatureCollectionSchema,
   manifestSchema,
+  entsoeMonthlySchema,
   sourceCatalogSchema,
 } from "@/lib/snapshot/schema";
-import type { SnapshotData, SnapshotManifest, SourceCatalog, SourceCoverage } from "@/lib/snapshot/types";
+import type { EntsoeMonthlyData, SnapshotData, SnapshotManifest, SourceCatalog, SourceCoverage } from "@/lib/snapshot/types";
 import { migrateLegacyContributions } from "@/lib/snapshot/legacy";
 
 async function fetchJson<T>(artifactPath: string, signal?: AbortSignal): Promise<T> {
@@ -66,6 +67,16 @@ export async function loadSourceCatalog(
   const expected = `snapshots/${manifest.snapshotId}/source-catalog.json`;
   if (artifactPath !== expected) throw new Error(`Snapshot artifact path must be ${expected}`);
   return sourceCatalogSchema.parse(await fetchJson<unknown>(artifactPath, signal));
+}
+
+export async function loadEntsoeMonthly(
+  manifest: SnapshotManifest, signal?: AbortSignal,
+): Promise<EntsoeMonthlyData | null> {
+  const artifactPath = manifest.artifacts.entsoeMonthly;
+  if (!artifactPath) return null;
+  const expected = `snapshots/${manifest.snapshotId}/entsoe-monthly.json`;
+  if (artifactPath !== expected) throw new Error(`Snapshot artifact path must be ${expected}`);
+  return entsoeMonthlySchema.parse(await fetchJson<unknown>(artifactPath, signal));
 }
 
 export async function loadMethodologyFromStaticAssets(signal?: AbortSignal): Promise<{

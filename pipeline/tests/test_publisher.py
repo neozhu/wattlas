@@ -23,6 +23,73 @@ def global_artifacts() -> dict[str, bytes]:
     }
 
 
+def entsoe_artifact() -> bytes:
+    return json.dumps({
+        "schemaVersion": "1.0.0",
+        "source": "entsoe",
+        "retrievedAt": "2026-07-21T08:00:00Z",
+        "periodStart": "2026-06-01T00:00:00Z",
+        "periodEnd": "2026-07-01T00:00:00Z",
+        "observationMonth": "2026-06",
+        "complete": True,
+        "areasRequested": 1,
+        "records": [{
+            "id": "entsoe:10YBE----------2:2026-06",
+            "areaCode": "10YBE----------2",
+            "areaName": "Belgium",
+            "countries": ["BE"],
+            "geographyIds": ["BE"],
+            "mappingMode": "direct",
+            "mappingEligible": True,
+            "scoreEligible": False,
+            "observationMonth": "2026-06",
+            "periodStart": "2026-06-01T00:00:00Z",
+            "periodEnd": "2026-07-01T00:00:00Z",
+            "demandGwh": 6_500.0,
+            "peakDemandMw": 11_500.0,
+            "meanDemandMw": 9_027.8,
+            "generationGwh": 6_300.0,
+            "generationMixGwh": {"gas": 2_000.0, "nuclear": 3_500.0},
+            "coverage": {
+                "loadPct": 100.0,
+                "generationPct": 99.9,
+                "loadObservedPoints": 2_880,
+                "loadExpectedPoints": 2_880,
+                "generationObservedPoints": 10_070,
+                "generationExpectedPoints": 10_080,
+            },
+            "sourceIds": ["entsoe"],
+            "sourceUrl": "https://transparency.entsoe.eu/",
+            "valueKind": "reported",
+            "methodId": "entsoe-monthly-aggregate-v1",
+            "retrievedAt": "2026-07-21T08:00:00Z",
+        }],
+    }).encode()
+
+
+def test_publish_accepts_governed_entsoe_monthly_artifact(tmp_path) -> None:
+    artifacts = global_artifacts()
+    artifacts["entsoe-monthly.json"] = entsoe_artifact()
+
+    destination = SnapshotPublisher(tmp_path).publish(
+        "entsoe", artifacts, {"snapshotId": "entsoe"}
+    )
+
+    assert (destination / "entsoe-monthly.json").exists()
+
+
+def test_publish_rejects_entsoe_artifact_with_credential_material(tmp_path) -> None:
+    artifacts = global_artifacts()
+    payload = json.loads(entsoe_artifact())
+    payload["securityToken"] = "must-never-publish"
+    artifacts["entsoe-monthly.json"] = json.dumps(payload).encode()
+
+    with pytest.raises(ValueError, match="credential"):
+        SnapshotPublisher(tmp_path).publish(
+            "entsoe-secret", artifacts, {"snapshotId": "entsoe-secret"}
+        )
+
+
 def test_failed_publish_keeps_last_known_good(tmp_path) -> None:
     publisher = SnapshotPublisher(tmp_path)
     publisher.publish(
