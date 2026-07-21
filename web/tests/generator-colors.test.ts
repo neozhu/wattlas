@@ -40,6 +40,19 @@ describe("generator semantics", () => {
     expect(filterGenerators(collection([feature("missing", undefined, "solar")]), new Set(["solar"]), new Set(["unknown"])).features.map((item) => item.id)).toEqual(["missing"]);
   });
 
+  it("filters canonical plants by lifecycle counts instead of hiding records without a singular lifecycle", () => {
+    const canonical = feature("leipzig-plant", undefined, "solar", { operational: 3, under_construction: 1 });
+    expect(filterGenerators(collection([canonical]), new Set(["solar"]), new Set(["operational"])).features.map((item) => item.id)).toEqual(["leipzig-plant"]);
+    expect(filterGenerators(collection([canonical]), new Set(["solar"]), new Set(["under_construction"])).features.map((item) => item.id)).toEqual(["leipzig-plant"]);
+    expect(filterGenerators(collection([canonical]), new Set(["solar"]), new Set(["announced"])).features).toHaveLength(0);
+  });
+
+  it("shows unclassified canonical records only when the explicit unknown status is selected", () => {
+    const partiallyClassified = feature("partially-classified", undefined, "wind", { operational: 1 }, 2);
+    expect(filterGenerators(collection([partiallyClassified]), new Set(["wind"]), new Set(["unknown"])).features.map((item) => item.id)).toEqual(["partially-classified"]);
+    expect(filterGenerators(collection([partiallyClassified]), new Set(["wind"]), new Set(["announced"])).features).toHaveLength(0);
+  });
+
   it("returns the typed generator entity selected by a map feature id", () => {
     const selected = generatorSelection(collection([feature("plant-1", "operational", "wind")]), "plant-1");
     expect(selected?.properties.category).toBe("power_generation");
@@ -118,8 +131,8 @@ describe("generator semantics", () => {
 });
 
 function collection(features: GeneratorCollection["features"]): GeneratorCollection { return { type: "FeatureCollection", features }; }
-function feature(id: string, lifecycle: string | undefined, technology: "solar" | "wind"): GeneratorCollection["features"][number] {
-  return { type: "Feature", id, geometry: { type: "Point", coordinates: [0, 0] }, properties: { id, category: "power_generation", country: "US", geographyId: "US-X", lifecycle, technologies: [technology], capacityMw: 1, operatingCapacityMw: 1, plannedCapacityMw: 0, technologyMixMw: { [technology]: 1 }, sourceIds: ["source"] } };
+function feature(id: string, lifecycle: string | undefined, technology: "solar" | "wind", lifecycleCounts?: Record<string, number>, recordCount?: number): GeneratorCollection["features"][number] {
+  return { type: "Feature", id, geometry: { type: "Point", coordinates: [0, 0] }, properties: { id, category: "power_generation", country: "US", geographyId: "US-X", lifecycle, lifecycleCounts, recordCount, technologies: [technology], capacityMw: 1, operatingCapacityMw: 1, plannedCapacityMw: 0, technologyMixMw: { [technology]: 1 }, sourceIds: ["source"] } };
 }
 function overviewCollection(technologyMixMw: Record<string, number>, lifecycleCounts?: Record<string, number>): GeneratorOverviewCollection {
   return { type: "FeatureCollection", features: [{ type: "Feature", id: "US-X", geometry: { type: "Point", coordinates: [0, 0] }, properties: { geographyId: "US-X", country: "US", count: 2, capacityMw: 100, operatingCapacityMw: 100, plannedCapacityMw: 0, technologyMixMw, dominantTechnology: "solar", lifecycleCounts } }] } as GeneratorOverviewCollection;

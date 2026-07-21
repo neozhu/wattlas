@@ -8,7 +8,7 @@ import maplibregl, { type ExpressionSpecification, type GeoJSONSource, type MapG
 import { baseMapStyle } from "@/components/map/map-style";
 import type { InfrastructureVisibility } from "@/components/controls/layer-rail";
 import { generatorColorExpression, generatorTechnologyExpression } from "@/lib/map/generator-colors";
-import { countriesInBounds, createGeneratorShardController, filterGeneratorOverview, filterGenerators, generatorSelection, type MapBounds } from "@/lib/map/generator-shards";
+import { countriesInBounds, createGeneratorShardController, DEFAULT_GENERATOR_LIFECYCLES, filterGeneratorOverview, filterGenerators, generatorSelection, type MapBounds } from "@/lib/map/generator-shards";
 import { admin1LineOpacityExpression, admin1LineWidthExpression, assetColor, assetStrokeColorExpression, countryBorderWidthExpression, mapColorExpression } from "@/lib/map/expressions";
 import type {
   AssetCollection,
@@ -45,7 +45,7 @@ type Props = {
   onVisibleGeneratorsChange?: (ids: ReadonlySet<string>) => void;
 };
 
-export const GLOBAL_VIEW = { center: [12, 22] as [number, number], zoom: 1.25 };
+export const GLOBAL_VIEW = { center: [12, 22] as [number, number], zoom: 2.25 };
 
 function visibleAssets(assets: AssetCollection, infrastructure: InfrastructureVisibility, lifecycles: ReadonlySet<string>): AssetCollection {
   return { ...assets, features: assets.features.filter(({ properties }) => {
@@ -58,7 +58,7 @@ function visibleAssets(assets: AssetCollection, infrastructure: InfrastructureVi
           : properties.category === "hydrogen_infrastructure"
             ? infrastructure.hydrogen
             : false;
-    return categoryVisible && lifecycles.has(properties.lifecycle);
+    return categoryVisible && lifecycles.has(properties.lifecycle ?? "unknown");
   }) };
 }
 
@@ -96,7 +96,7 @@ const EMPTY_OVERVIEW: GeneratorOverviewCollection = { type: "FeatureCollection",
 const EMPTY_CITIES: CityCollection = { type: "FeatureCollection", features: [] };
 const cityClass = (cities: CityCollection, value: "million_plus" | "german_large_city"): CityCollection => ({ ...cities, features: cities.features.filter((feature) => feature.properties.classes.includes(value)) });
 
-export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_CITIES, lens, year, selectedId, focusTarget = null, onSelect, coverage, infrastructure = { dataCentres: true, water: true, industrial: true, hydrogen: true, generators: false }, technologies = new Set<GenerationTechnology>(), lifecycles = new Set(["operational", "under_construction", "pre_construction", "announced", "planning_filed", "permitted", "retired", "decommissioned"]), generatorOverview = null, generatorIndex = null, snapshotRoot = null, onSelectGenerator, onVisibleGeneratorsChange }: Props) {
+export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_CITIES, lens, year, selectedId, focusTarget = null, onSelect, coverage, infrastructure = { dataCentres: true, water: true, industrial: true, hydrogen: true, generators: false }, technologies = new Set<GenerationTechnology>(), lifecycles = new Set(DEFAULT_GENERATOR_LIFECYCLES), generatorOverview = null, generatorIndex = null, snapshotRoot = null, onSelectGenerator, onVisibleGeneratorsChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -525,7 +525,6 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         <small>{coverage.countries} countries · {coverage.assets} infrastructure assets</small>
       </div>
       <div ref={containerRef} className="map-container" data-testid="global-map" />
-      <div className="map-composition-key" aria-label="Generator cluster composition">Cluster labels show technology counts; mixed clusters are neutral. At world scale lifecycle filters exclude aggregates only when no selected plants match; partial lifecycle matches retain unfiltered capacity and technology mix and are labelled approximate.</div>
     </section>
   );
 }

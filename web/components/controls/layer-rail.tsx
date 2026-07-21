@@ -35,6 +35,7 @@ const lifecycleGroups = {
   preConstruction: { label: "Pre-construction", states: ["pre_construction", "planning_filed", "permitted"] },
   announced: { label: "Announced", states: ["announced"] },
   retired: { label: "Retired", states: ["retired", "decommissioned"] },
+  other: { label: "Other / unknown", states: ["paused", "cancelled", "shelved", "mothballed", "unknown"] },
 } as const;
 
 const layerIcons = {

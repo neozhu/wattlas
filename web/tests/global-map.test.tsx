@@ -69,7 +69,7 @@ describe("GlobalMap", () => {
       />,
     );
 
-    expect(GLOBAL_VIEW.zoom).toBeLessThan(2);
+    expect(GLOBAL_VIEW.zoom).toBeCloseTo(2.25);
     expect(screen.getByRole("region", { name: "Global opportunity map" })).toBeInTheDocument();
     expect(screen.getByText(/246 countries · 14 infrastructure assets/i)).toBeInTheDocument();
     expect(screen.queryByLabelText("Map data and project attribution")).not.toBeInTheDocument();
@@ -141,7 +141,7 @@ describe("GlobalMap", () => {
     expect(mapCalls.layers.find((layer) => layer.id === "water-assets")).toMatchObject({ type: "symbol", layout: { "text-field": "◆" } });
     expect(mapCalls.layers.find((layer) => layer.id === "data-centre-assets")).toMatchObject({ type: "circle" });
     expect(mapCalls.handlers.some(([event, layer]) => event === "click" && layer === "generator-assets")).toBe(true);
-    expect(screen.getAllByLabelText("Generator cluster composition").at(-1)).toHaveTextContent(/partial lifecycle matches retain unfiltered capacity and technology mix/i);
+    expect(screen.queryByLabelText("Generator cluster composition")).not.toBeInTheDocument();
   });
 
   it("applies generator overview data even while the style reports a transient loading state", () => {

@@ -271,7 +271,7 @@ describe("OpportunityRadar", () => {
     expect(screen.getByRole("switch", { name: "Power generators" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("switch", { name: "Wind" })).toHaveAttribute("aria-checked", "false");
     fireEvent.click(screen.getByRole("button", { name: /Project status/i }));
-    for (const lifecycle of ["Operating", "Under construction", "Pre-construction", "Announced", "Retired"]) {
+    for (const lifecycle of ["Operating", "Under construction", "Pre-construction", "Announced", "Retired", "Other / unknown"]) {
       expect(screen.getByRole("switch", { name: lifecycle })).toHaveAttribute("aria-checked", "true");
     }
   });

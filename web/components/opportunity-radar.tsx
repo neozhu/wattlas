@@ -16,6 +16,7 @@ import { DataStatusDrawer } from "@/components/status/data-status-drawer";
 import { CountryIntelligence } from "@/components/intelligence/country-intelligence";
 import { AssetExplorerSummary } from "@/components/intelligence/asset-explorer-summary";
 import { geographyEntityType, trackWattlasAction } from "@/lib/analytics";
+import { DEFAULT_GENERATOR_LIFECYCLES, generatorMatchesLifecycles } from "@/lib/map/generator-shards";
 import { buildSearchIndex, type SearchResult } from "@/lib/search";
 import { cityFeatureCollectionSchema, geographyFeatureCollectionSchema } from "@/lib/snapshot/schema";
 import { loadGeneratorCountry, loadGeneratorIndex, loadGeneratorOverview, loadRegionalEnergy } from "@/lib/snapshot/generators";
@@ -45,7 +46,7 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [infrastructure, setInfrastructure] = useState<InfrastructureVisibility>({ dataCentres: true, water: true, industrial: true, hydrogen: true, generators: false });
   const [cities, setCities] = useState<CityCollection>({ type: "FeatureCollection", features: [] });
   const [technologies, setTechnologies] = useState<Set<GenerationTechnology>>(() => new Set());
-  const [lifecycles, setLifecycles] = useState<Set<string>>(() => new Set(["operational", "under_construction", "pre_construction", "planning_filed", "permitted", "announced", "retired", "decommissioned"]));
+  const [lifecycles, setLifecycles] = useState<Set<string>>(() => new Set(DEFAULT_GENERATOR_LIFECYCLES));
   const [generatorOverview, setGeneratorOverview] = useState<GeneratorOverviewCollection | null>(null);
   const [generatorIndex, setGeneratorIndex] = useState<GeneratorIndex | null>(null);
   const [searchGenerators, setSearchGenerators] = useState<GeneratorFeature[]>([]);
@@ -247,7 +248,7 @@ export function OpportunityRadar({ snapshot }: Props) {
         onLifecyclesChange={(next) => {
           const changed = [...new Set([...lifecycles, ...next])].filter((lifecycle) => next.has(lifecycle) !== lifecycles.has(lifecycle));
           setLifecycles(next);
-          setSelectedGenerator((current) => current && !next.has(current.properties.lifecycle ?? "unknown") ? null : current);
+          setSelectedGenerator((current) => current && !generatorMatchesLifecycles(current.properties, next) ? null : current);
           if (changed.length) trackWattlasAction("filter_changed", { filter_name: "generator_lifecycle", filter_value: changed.map((lifecycle) => `${lifecycle}:${next.has(lifecycle) ? "enabled" : "disabled"}`).join(",") });
         }}
       /> : <button className="show-filters" type="button" onClick={() => { setFiltersVisible(true); trackWattlasAction("filters_shown"); }} aria-label="Show filters" aria-expanded="false">Filters <span aria-hidden="true">→</span></button>}

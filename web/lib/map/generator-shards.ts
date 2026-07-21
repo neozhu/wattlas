@@ -5,6 +5,10 @@ export type MapBounds = [west: number, south: number, east: number, north: numbe
 type CountryLoader = (root: string, index: GeneratorIndex, country: string, options?: { signal?: AbortSignal }) => Promise<LayerResult<GeneratorCollection>>;
 
 const emptyCollection = (): GeneratorCollection => ({ type: "FeatureCollection", features: [] });
+export const DEFAULT_GENERATOR_LIFECYCLES = [
+  "operational", "under_construction", "pre_construction", "planning_filed", "permitted", "announced",
+  "retired", "decommissioned", "paused", "cancelled", "shelved", "mothballed", "unknown",
+] as const;
 const normalizeLongitude = (longitude: number): number => ((longitude + 180) % 360 + 360) % 360 - 180;
 function longitudeSegments(west: number, east: number): Array<[number, number]> {
   const rawSpan = east - west;
@@ -31,8 +35,18 @@ export function filterGenerators(data: GeneratorCollection, technologies: Readon
   if (technologies.size === 0 || lifecycles.size === 0) return emptyCollection();
   return {
     type: "FeatureCollection",
-    features: data.features.filter(({ properties }) => properties.technologies.some((technology) => technologies.has(technology)) && lifecycles.has(properties.lifecycle ?? "unknown")),
+    features: data.features.filter(({ properties }) => properties.technologies.some((technology) => technologies.has(technology)) && generatorMatchesLifecycles(properties, lifecycles)),
   };
+}
+
+export function generatorMatchesLifecycles(properties: GeneratorFeature["properties"], lifecycles: ReadonlySet<string>): boolean {
+  if (lifecycles.size === 0) return false;
+  const lifecycleCounts = properties.lifecycleCounts as Partial<Record<string, number>> | undefined;
+  if (!lifecycleCounts) return lifecycles.has(properties.lifecycle ?? "unknown");
+  if (Object.entries(lifecycleCounts).some(([state, count]) => lifecycles.has(state) && (count ?? 0) > 0)) return true;
+  const classifiedCount = Object.values(lifecycleCounts).reduce<number>((sum, count) => sum + (count ?? 0), 0);
+  const recordCount = typeof properties.recordCount === "number" ? properties.recordCount : classifiedCount;
+  return lifecycles.has("unknown") && recordCount > classifiedCount;
 }
 
 const technologyLabel = (technology: GenerationTechnology) => technology.charAt(0).toUpperCase() + technology.slice(1);
