@@ -77,13 +77,11 @@ Keep the live record totals and asset totals. Rewrite labels so readers can dist
 
 ### 7. Complete source library
 
-The existing 32 source catalogue is only one part of the source system. The page will combine:
+The existing 32 source catalogue is only one part of the source system. The current published snapshot also contains 57 evidence source records. The page will combine both collections.
 
-1. 32 governed regional and connector sources.
-2. 27 curated project, demand, and modelling sources.
-3. 8 early European opportunity sources.
+The merge will remove exact overlaps and group file level variants that belong to the same source family. For example, the WorldPop country rasters belong to one WorldPop release family, the two OpenStreetMap records belong to one OpenStreetMap family, and the short GEM GIPT identifier belongs to the full Global Integrated Power Tracker source.
 
-After removing nine overlaps, these files contain 58 distinct named source records. The page will also disclose foundational geography and population sources separately because they are not all represented in the governed expansion catalogue.
+After this normalization, the current snapshot contains 59 distinct source families. The page will also disclose foundational geography sources separately because they are not all represented in the governed expansion catalogue.
 
 The visible source library will separate:
 
