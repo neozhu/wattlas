@@ -8,7 +8,7 @@ import {
   entsoeMonthlySchema,
   sourceCatalogSchema,
 } from "@/lib/snapshot/schema";
-import type { EntsoeMonthlyData, SnapshotData, SnapshotManifest, SourceCatalog, SourceCoverage } from "@/lib/snapshot/types";
+import type { EntsoeMonthlyData, EvidenceSource, SnapshotData, SnapshotManifest, SourceCatalog, SourceCoverage } from "@/lib/snapshot/types";
 import { migrateLegacyContributions } from "@/lib/snapshot/legacy";
 
 async function fetchJson<T>(artifactPath: string, signal?: AbortSignal): Promise<T> {
@@ -81,14 +81,22 @@ export async function loadEntsoeMonthly(
 
 export async function loadMethodologyFromStaticAssets(signal?: AbortSignal): Promise<{
   catalog: SourceCatalog;
+  evidenceSources: EvidenceSource[];
   generatedAt: string | null;
   sourceCoverage: SourceCoverage | null;
   assetCoverage: Pick<SnapshotManifest["coverage"], "industrialLoads" | "hydrogenInfrastructure" | "forecastIndustrialLoads">;
 }> {
   const manifest = manifestSchema.parse(await fetchJson<unknown>("latest.json", signal));
-  const catalog = await loadSourceCatalog(manifest, signal);
+  const evidencePath = manifest.artifacts.evidence;
+  const expectedEvidencePath = `snapshots/${manifest.snapshotId}/evidence.json`;
+  if (evidencePath !== expectedEvidencePath) throw new Error(`Snapshot artifact path must be ${expectedEvidencePath}`);
+  const [catalog, evidence] = await Promise.all([
+    loadSourceCatalog(manifest, signal),
+    fetchJson<unknown>(evidencePath, signal).then((payload) => evidenceSchema.parse(payload)),
+  ]);
   return {
     catalog: catalog ?? { schemaVersion: "1.0", sources: [] },
+    evidenceSources: evidence.sources,
     generatedAt: manifest.generatedAt,
     sourceCoverage: manifest.sourceCoverage ?? null,
     assetCoverage: {
