@@ -314,7 +314,11 @@ export type EvidenceSource = {
   name: string;
   tier: "A" | "B" | "C" | "D";
   url: string;
-  publishedAt: string;
+  publishedAt?: string | null;
+  checksumSha256?: string | null;
+  licence?: string | null;
+  licenceUrl?: string | null;
+  lastModified?: string | null;
 };
 
 export type EvidenceData = {
