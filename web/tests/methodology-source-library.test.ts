@@ -15,7 +15,7 @@ function currentSourceInputs() {
 }
 
 describe("methodology source library", () => {
-  it("merges the current snapshot into 59 honest source families", () => {
+  it("merges the current snapshot and requested official references into 68 source families", () => {
     const { catalog, evidence, sourceCoverage } = currentSourceInputs();
     const sources = buildMethodologySourceLibrary({
       catalogSources: catalog.sources,
@@ -23,7 +23,7 @@ describe("methodology source library", () => {
       publishedRecordsBySource: sourceCoverage?.publishedRecordsBySource ?? {},
     });
 
-    expect(sources).toHaveLength(59);
+    expect(sources).toHaveLength(68);
     expect(sources.filter((source) => source.id === "gem-global-integrated-power-tracker")).toHaveLength(1);
     expect(sources.some((source) => source.id === "gem-gipt")).toBe(false);
     expect(sources.filter((source) => source.id === "worldpop-global2")).toHaveLength(1);
@@ -31,6 +31,9 @@ describe("methodology source library", () => {
     expect(sources.filter((source) => source.id === "openstreetmap")).toHaveLength(1);
     expect(sources.some((source) => source.id === "openstreetmap-power")).toBe(false);
     expect(sources.some((source) => source.id === "openstreetmap-infrastructure")).toBe(false);
+    for (const id of ["eia-861", "ferc-714", "statistics-canada-electricity", "cer-energy-future-2026", "cea-lgbr-2026-27", "entsoe-tyndp-2024", "aemo-operational-demand", "occto-demand-forecasts", "iea-building-demand-model"]) {
+      expect(sources.some((source) => source.id === id)).toBe(true);
+    }
   });
 
   it("prefers governed fields and makes global source families discoverable in Europe", () => {

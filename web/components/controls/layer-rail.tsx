@@ -114,7 +114,7 @@ export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvanced
               </button>
             ))}
           </div>}
-          {capacityRange && onCapacityRangeChange && <GeneratorCapacityFilter value={capacityRange} scaleMaximumMw={capacityScaleMaximumMw} catalogueReady={generatorCatalogueReady} catalogueError={generatorCatalogueError} onRetryCatalogue={onRetryGeneratorCatalogue} disabled={!infrastructure.generators} onChange={onCapacityRangeChange} />}
+          {capacityRange && onCapacityRangeChange && <GeneratorCapacityFilter value={capacityRange} scaleMaximumMw={capacityScaleMaximumMw} catalogueReady={generatorCatalogueReady} catalogueError={generatorCatalogueError} onRetryCatalogue={onRetryGeneratorCatalogue} onChange={onCapacityRangeChange} />}
           <button className="advanced-filter-toggle" type="button" aria-label="Project status · Advanced power filters" aria-expanded={advancedOpen} onClick={() => { const next = !advancedOpen; setAdvancedOpen(next); if (next) onAdvancedOpen?.(); }}>Project status <span aria-hidden="true">{advancedOpen ? "−" : "+"}</span></button>
           {advancedOpen && lifecycles && onLifecyclesChange && <div className="tech-tree lifecycle-tree" aria-label="Generator lifecycle filters">
             <div className="filter-section-actions"><span>Lifecycle</span><button type="button" onClick={() => onLifecyclesChange(new Set())}>Clear</button></div>

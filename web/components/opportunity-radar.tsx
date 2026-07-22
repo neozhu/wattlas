@@ -30,6 +30,7 @@ const MIN_INSPECTOR_WIDTH = 300;
 const MAX_INSPECTOR_WIDTH = 600;
 const EMPTY_GENERATOR_OVERVIEW: GeneratorOverviewCollection = { type: "FeatureCollection", features: [] };
 const EMPTY_GENERATOR_CATALOGUE: GeneratorFeature[] = [];
+const ALL_GENERATION_TECHNOLOGIES: GenerationTechnology[] = ["solar", "wind", "hydro", "nuclear", "gas", "coal", "oil", "biomass", "geothermal", "other"];
 
 export function OpportunityRadar({ snapshot }: Props) {
   const [lens, setLens] = useState<LensKey>("infrastructureDemand");
@@ -287,6 +288,8 @@ export function OpportunityRadar({ snapshot }: Props) {
         onCapacityRangeChange={(next) => {
           if (next.minMw === capacityRange.minMw && next.maxMw === capacityRange.maxMw) return;
           setCapacityRange(next);
+          setInfrastructure((current) => ({ ...current, generators: true }));
+          if (technologies.size === 0) setTechnologies(new Set(ALL_GENERATION_TECHNOLOGIES));
           setSelectedGenerator((current) => current && !generatorMatchesCapacity(current.properties.capacityMw, next) ? null : current);
           trackWattlasAction("filter_changed", { filter_name: "generator_capacity", filter_value: `${next.minMw}:${next.maxMw ?? "unlimited"}` });
         }}

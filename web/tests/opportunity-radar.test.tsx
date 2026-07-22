@@ -287,6 +287,20 @@ describe("OpportunityRadar", () => {
     expect(screen.getByLabelText("Active generator capacity range")).toHaveTextContent("100 MW+");
   });
 
+  it("lets a capacity choice activate power generators from the clean default map", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    expect(screen.getByRole("switch", { name: "Power generators" })).toHaveAttribute("aria-checked", "false");
+    const minimumCapacity = screen.getByRole("spinbutton", { name: "Minimum capacity (MW)" });
+    expect(minimumCapacity).toBeEnabled();
+
+    fireEvent.change(minimumCapacity, { target: { value: "100" } });
+    fireEvent.blur(minimumCapacity);
+
+    expect(screen.getByRole("switch", { name: "Power generators" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("switch", { name: "Solar" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByLabelText("Active generator capacity range")).toHaveTextContent("100 MW+");
+  });
+
   it("offers independent infrastructure layers and accessible generator filters", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     for (const name of ["Data centres", "Water infrastructure", "Industrial demand", "Hydrogen network"]) {

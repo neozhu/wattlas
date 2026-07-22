@@ -54,14 +54,14 @@ describe("methodology and sources", () => {
     expect(container.querySelector("main")).toHaveClass("methodology-page");
   });
 
-  it("tells the human story and makes the project relationship clear", () => {
+  it("tells the human story without a separate company disclaimer box", () => {
     render(<MethodologyPage catalog={catalog} evidenceSources={evidenceSources} generatedAt="2026-07-17T00:00:00Z" />);
 
     expect(screen.queryByText(/PUBLIC DATA · EXPLAINABLE METHODS/i)).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Why I built Wattlas" })).toBeInTheDocument();
-    expect(screen.getByText(/predictive maintenance at Siemens Energy/i)).toBeInTheDocument();
-    expect(screen.getByText(/independent open source project/i)).toBeInTheDocument();
-    expect(screen.getByText(/not an official Siemens Energy product/i)).toBeInTheDocument();
+    expect(screen.getByText(/market intelligence for a predictive maintenance product at Siemens Energy/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Independent project/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/not an official Siemens Energy product/i)).not.toBeInTheDocument();
   });
 
   it("explains the regional expansion and industrial demand process in plain language", () => {
@@ -93,7 +93,7 @@ describe("methodology and sources", () => {
       /bidding zone boundaries do not always match countries/i,
       /does not alter annual forecasts or Opportunity Radar scores/i,
       /last successful monthly result/i,
-    ]) expect(screen.getByText(text)).toBeInTheDocument();
+    ]) expect(screen.getAllByText(text).length).toBeGreaterThan(0);
     expect(screen.getByText("4,220")).toBeInTheDocument();
     expect(screen.getByText("808")).toBeInTheDocument();
     expect(screen.getByText("118")).toBeInTheDocument();
@@ -108,10 +108,13 @@ describe("methodology and sources", () => {
     expect(screen.getByText("Meta Richland Parish data center")).toBeInTheDocument();
   });
 
-  it("shows the verified current snapshot as 59 source families", () => {
+  it("shows the current source library with the requested official demand references", () => {
     const current = currentInputs();
     render(<MethodologyPage catalog={current.currentCatalog} evidenceSources={current.evidenceSources} generatedAt={current.manifest.generatedAt} sourceCoverage={current.manifest.sourceCoverage ?? null} />);
-    expect(screen.getByRole("heading", { name: /59 source families/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /68 source families/i })).toBeInTheDocument();
+    expect(screen.getByText("EIA Form 861")).toBeInTheDocument();
+    expect(screen.getByText("FERC Form 714")).toBeInTheDocument();
+    expect(screen.getByText("OCCTO demand forecasts")).toBeInTheDocument();
   });
 
   it("filters the complete source library by continent, role, and state", () => {

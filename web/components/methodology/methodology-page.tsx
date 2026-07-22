@@ -90,11 +90,10 @@ export function MethodologyPage({
           <h2 id="story-heading">Why I built Wattlas</h2>
         </div>
         <div className={styles.storyCopy}>
-          <p>I work in predictive maintenance at Siemens Energy. Wattlas started with a simple question. Where are new data centres and desalination plants being built around the world?</p>
+          <p>I work in market intelligence for a predictive maintenance product at Siemens Energy. Wattlas started with a simple question. Where are new data centres and desalination plants being built around the world?</p>
           <p>Finding an answer was harder than expected. Useful information was spread across company announcements, public records, project trackers, and local datasets. I wanted one place where I could see these projects on a map and open the original source when I needed to check something.</p>
           <p>Once the first map worked, I added the supply side. That meant power plants, their technology, capacity, status, and expected timing. Then I added the demand side so the map could show how new infrastructure may change regional electricity needs.</p>
           <p>The project kept growing through feedback. People contacted me after I shared Wattlas on LinkedIn. I also showed it to teammates and people working in grid planning and market intelligence at Siemens Energy. Their questions helped shape the search, filters, regional views, forecasts, and source page you see today.</p>
-          <aside><strong>Independent project</strong><span>Wattlas is an independent open source project created by Aditya Gupta. It is not an official Siemens Energy product and it does not represent the company.</span></aside>
         </div>
       </section>
 
@@ -194,7 +193,7 @@ export function MethodologyPage({
       </section>
 
       <section className={styles.supportingReferences} aria-labelledby="references-heading">
-        <div className={styles.sectionLead}><span>05</span><h2 id="references-heading">Map and method references</h2><p>These sources support boundaries, regional context, and conversion assumptions. They sit outside the 59 project and data source families above.</p></div>
+        <div className={styles.sectionLead}><span>05</span><h2 id="references-heading">Map and method references</h2><p>These sources support boundaries, regional context, and conversion assumptions. They sit outside the {sources.length} project and data source families above.</p></div>
         <div>{SUPPORTING_REFERENCES.map((source) => <article key={source.name}><h3>{source.name}</h3><p>{source.publisher}</p><span>{source.use}</span><a href={source.url} target="_blank" rel="noreferrer">Open source ↗</a></article>)}</div>
       </section>
     </main>

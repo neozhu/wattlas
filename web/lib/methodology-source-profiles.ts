@@ -14,9 +14,30 @@ export type MethodologySourceProfile = {
   notes?: string;
 };
 
+export const METHODOLOGY_ADDITIONAL_REFERENCE_IDS = [
+  "eia-861",
+  "ferc-714",
+  "statistics-canada-electricity",
+  "cer-energy-future-2026",
+  "cea-lgbr-2026-27",
+  "entsoe-tyndp-2024",
+  "aemo-operational-demand",
+  "occto-demand-forecasts",
+  "iea-building-demand-model",
+] as const;
+
 const global = ALL_SOURCE_CONTINENTS;
 
 export const METHODOLOGY_SOURCE_PROFILES: Record<string, MethodologySourceProfile> = {
+  "eia-861": { name: "EIA Form 861", publisher: "U.S. Energy Information Administration", url: "https://www.eia.gov/electricity/data/eia861/", categories: ["demand", "grid_context"], continents: ["North America"], countries: ["US"], role: "demand", notes: "State, sector, balancing authority, customer, demand response, and service territory data." },
+  "ferc-714": { name: "FERC Form 714", publisher: "Federal Energy Regulatory Commission", url: "https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-no-714-annual-electric/overview", categories: ["demand", "grid_context"], continents: ["North America"], countries: ["US"], role: "demand", notes: "Planning area load and demand forecasts." },
+  "statistics-canada-electricity": { name: "Statistics Canada electricity supply and disposition", publisher: "Statistics Canada", url: "https://www150.statcan.gc.ca/n1/en/catalogue/2510002101", categories: ["generation", "demand"], continents: ["North America"], countries: ["CA"], role: "demand", notes: "Provincial electricity supply and disposition." },
+  "cer-energy-future-2026": { name: "Canada Energy Future 2026", publisher: "Canada Energy Regulator", url: "https://www.cer-rec.gc.ca/en/data-analysis/canada-energy-future/2026/access-and-explore-energy-future-data.html", categories: ["generation", "demand"], continents: ["North America"], countries: ["CA"], role: "demand", notes: "Provincial and territorial energy scenarios through 2050." },
+  "cea-lgbr-2026-27": { name: "Load Generation Balance Report 2026 to 2027", publisher: "Central Electricity Authority", url: "https://cea.nic.in/l-g-b-r-report/?lang=en", categories: ["generation", "demand"], continents: ["Asia"], countries: ["IN"], role: "demand", notes: "Official state and regional energy and peak balance forecasts for India." },
+  "entsoe-tyndp-2024": { name: "ENTSO E TYNDP 2024", publisher: "ENTSO E", url: "https://www.entsoe.eu/outlooks/tyndp/2024/", categories: ["generation", "demand", "grid_context"], continents: ["Europe"], countries: [], role: "demand", notes: "European bidding zone demand and supply scenarios used where stronger local evidence is available." },
+  "aemo-operational-demand": { name: "AEMO operational demand", publisher: "Australian Energy Market Operator", url: "https://aemo.com.au/energy-systems/electricity/national-electricity-market-nem/data-nem/operational-demand-data", categories: ["demand", "grid_context"], continents: ["Oceania"], countries: ["AU"], role: "demand", notes: "Regional actual demand, probabilistic forecasts, and long term scenario traces." },
+  "occto-demand-forecasts": { name: "OCCTO demand forecasts", publisher: "Organization for Cross-regional Coordination of Transmission Operators", url: "https://www.occto.or.jp/en/works/no10.html", categories: ["demand", "grid_context"], continents: ["Asia"], countries: ["JP"], role: "demand", notes: "Ten year electricity demand forecasts for each Japanese supply area." },
+  "iea-building-demand-model": { name: "IEA building level electricity access and demand model", publisher: "International Energy Agency and MIT", url: "https://www.iea.org/data-and-statistics/data-product/building-level-electricity-access-and-demand-model", categories: ["demand", "electrification"], continents: ["Africa"], countries: ["GH", "SN", "UG"], role: "demand", notes: "Modelled building level electricity access and demand estimates for Ghana, Senegal, and Uganda under CC BY 4.0." },
   "meta-richland-parish-2024": { publisher: "Meta", categories: ["digital_infrastructure", "projects", "demand"], continents: ["North America"], countries: ["US"], role: "project_evidence" },
   "aws-saudi-region-2024": { publisher: "Amazon Web Services", categories: ["digital_infrastructure", "projects", "demand"], continents: ["Asia"], countries: ["SA"], role: "project_evidence" },
   "aws-australia-investment-2025": { publisher: "Amazon Web Services", categories: ["digital_infrastructure", "projects", "demand"], continents: ["Oceania"], countries: ["AU"], role: "project_evidence" },

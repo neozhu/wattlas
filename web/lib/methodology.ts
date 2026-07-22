@@ -1,4 +1,4 @@
-import { ALL_SOURCE_CONTINENTS, METHODOLOGY_SOURCE_PROFILES } from "@/lib/methodology-source-profiles";
+import { ALL_SOURCE_CONTINENTS, METHODOLOGY_ADDITIONAL_REFERENCE_IDS, METHODOLOGY_SOURCE_PROFILES } from "@/lib/methodology-source-profiles";
 import type { EvidenceSource, SourceDescriptor } from "@/lib/snapshot/types";
 
 export type MethodologySourceRole = "supply" | "demand" | "regional" | "foundation" | "project_evidence";
@@ -60,7 +60,7 @@ export function buildMethodologySourceLibrary({
     publishedByFamily.set(family, (publishedByFamily.get(family) ?? 0) + count);
   }
   const catalogByFamily = new Map(catalogSources.map((source) => [sourceFamilyId(source.id), source]));
-  const familyIds = new Set([...catalogByFamily.keys(), ...evidenceByFamily.keys()]);
+  const familyIds = new Set([...catalogByFamily.keys(), ...evidenceByFamily.keys(), ...METHODOLOGY_ADDITIONAL_REFERENCE_IDS]);
   const sources: MethodologySource[] = [];
 
   for (const id of familyIds) {
@@ -68,7 +68,7 @@ export function buildMethodologySourceLibrary({
     const evidenceGroup = evidenceByFamily.get(id) ?? [];
     const evidence = evidenceGroup[0];
     const profile = METHODOLOGY_SOURCE_PROFILES[id];
-    if (!governed && !evidence) continue;
+    if (!governed && !evidence && !profile) continue;
     const globalProfile = profile?.continents === ALL_SOURCE_CONTINENTS || profile?.continents?.length === ALL_SOURCE_CONTINENTS.length;
     const continents = profile?.continents?.length
       ? [...profile.continents]
@@ -87,9 +87,9 @@ export function buildMethodologySourceLibrary({
           : "registered_option";
     sources.push({
       id,
-      name: profile?.name ?? governed?.name ?? evidence!.name,
+      name: profile?.name ?? governed?.name ?? evidence?.name ?? profile!.publisher,
       publisher: governed?.publisher ?? profile?.publisher ?? "Public source",
-      url: profile?.url ?? governed?.url ?? evidence!.url,
+      url: profile?.url ?? governed?.url ?? evidence?.url ?? "",
       categories,
       continents,
       countries: profile?.countries?.length ? [...profile.countries] : governed?.countries ?? [],
