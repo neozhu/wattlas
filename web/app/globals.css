@@ -678,30 +678,6 @@ button {
   text-transform: none;
 }
 
-.capacity-presets {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 3px;
-  margin-top: 8px;
-}
-
-.capacity-presets button {
-  min-width: 0;
-  padding: 4px 2px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: #fff;
-  color: var(--muted);
-  cursor: pointer;
-  font: 8px/1 var(--font-plex-mono), monospace;
-}
-
-.capacity-presets button[aria-pressed="true"] {
-  border-color: #167c68;
-  background: #eaf6f2;
-  color: #126553;
-}
-
 .capacity-range-track {
   position: relative;
   height: 24px;

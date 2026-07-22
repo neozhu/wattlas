@@ -4,7 +4,6 @@ import { useMemo, useState, type CSSProperties, type KeyboardEvent } from "react
 
 import {
   ALL_GENERATOR_CAPACITIES,
-  GENERATOR_CAPACITY_PRESETS_MW,
   GENERATOR_CAPACITY_SLIDER_STEPS,
   capacityRangeLabel,
   capacityToSliderPosition,
@@ -25,7 +24,6 @@ type Props = {
 };
 type ParsedCapacityDraft = { ok: true; value: GeneratorCapacityRange } | { ok: false; error: string };
 
-const presetLabel = (capacityMw: number): string => capacityMw === 0 ? "All" : formatGeneratorCapacity(capacityMw);
 const inputValue = (value: number): string => Number.isFinite(value) ? String(value) : "0";
 
 export function GeneratorCapacityFilter(props: Props) {
@@ -87,20 +85,6 @@ function GeneratorCapacityFilterEditor({ value, scaleMaximumMw, disabled = false
       <div className="capacity-filter-heading">
         <span>Plant capacity</span>
         <output aria-label="Active generator capacity range">{capacityRangeLabel(value)}</output>
-      </div>
-      <div className="capacity-presets" aria-label="Minimum capacity presets">
-        {GENERATOR_CAPACITY_PRESETS_MW.map((capacityMw) => (
-          <button
-            key={capacityMw}
-            type="button"
-            aria-label={`Minimum capacity ${presetLabel(capacityMw)}`}
-            aria-pressed={value.minMw === capacityMw}
-            disabled={disabled}
-            onClick={() => onChange({ minMw: capacityMw, maxMw: value.maxMw != null && value.maxMw < capacityMw ? null : value.maxMw })}
-          >
-            {capacityMw === 0 ? "All" : capacityMw === 1000 ? "1G" : capacityMw}
-          </button>
-        ))}
       </div>
       <div className="capacity-range-track" style={trackStyle}>
         <span aria-hidden="true" />

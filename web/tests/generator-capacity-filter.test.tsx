@@ -13,15 +13,15 @@ function ControlledFilter({ initial = { minMw: 0, maxMw: null }, disabled = fals
 }
 
 describe("GeneratorCapacityFilter", () => {
-  it("offers the approved minimum presets and preserves a compatible maximum", () => {
+  it("keeps precise range controls without quick preset buttons", () => {
     render(<ControlledFilter initial={{ minMw: 0, maxMw: 500 }} />);
-    for (const label of ["All", "10 MW", "25 MW", "50 MW", "100 MW", "250 MW", "500 MW", "1 GW"]) {
-      expect(screen.getByRole("button", { name: `Minimum capacity ${label}` })).toBeInTheDocument();
-    }
-    fireEvent.click(screen.getByRole("button", { name: "Minimum capacity 100 MW" }));
-    expect(screen.getByTestId("committed-range")).toHaveTextContent('{"minMw":100,"maxMw":500}');
-    fireEvent.click(screen.getByRole("button", { name: "Minimum capacity 1 GW" }));
-    expect(screen.getByTestId("committed-range")).toHaveTextContent('{"minMw":1000,"maxMw":null}');
+    expect(screen.queryByLabelText("Minimum capacity presets")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Minimum capacity 100 MW" })).not.toBeInTheDocument();
+    expect(screen.getByRole("slider", { name: "Minimum generator capacity" })).toBeInTheDocument();
+    expect(screen.getByRole("slider", { name: "Maximum generator capacity" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Minimum capacity (MW)" })).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Maximum capacity (MW)" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reset capacity range" })).toBeInTheDocument();
   });
 
   it("commits exact numeric minimum and maximum values on blur", () => {
