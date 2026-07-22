@@ -267,13 +267,15 @@ describe("OpportunityRadar", () => {
     expect(screen.queryByRole("heading", { name: "Rhine Solar" })).not.toBeInTheDocument();
   });
 
-  it("commits generator capacity presets, clears excluded selections, and preserves the range across layer toggles", () => {
+  it("commits an exact generator capacity, clears excluded selections, and preserves the range across layer toggles", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
     fireEvent.click(screen.getByRole("button", { name: "Select generator" }));
     expect(screen.getByRole("heading", { name: "Rhine Solar" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Minimum capacity 100 MW" }));
+    const minimumCapacity = screen.getByRole("spinbutton", { name: "Minimum capacity (MW)" });
+    fireEvent.change(minimumCapacity, { target: { value: "100" } });
+    fireEvent.blur(minimumCapacity);
 
     expect(screen.queryByRole("heading", { name: "Rhine Solar" })).not.toBeInTheDocument();
     expect(screen.getByTestId("global-map")).toHaveTextContent("capacity 100–unlimited");

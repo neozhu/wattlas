@@ -14,7 +14,7 @@ export function EvidenceDossier({ region, evidence, open, onClose }: Props) {
         <h3>Public sources</h3>
         {sources.length ? sources.map((source) => (
           <a className="source-row" href={source.url} target="_blank" rel="noreferrer" key={source.id}>
-            <span>Tier {source.tier}</span><strong>{source.name}</strong><small>{new Date(source.publishedAt).toLocaleDateString("en-GB")}</small>
+            <span>Tier {source.tier}</span><strong>{source.name}</strong><small>{source.publishedAt ? new Date(source.publishedAt).toLocaleDateString("en-GB") : "Date not reported"}</small>
           </a>
         )) : <p className="empty-evidence">No score sources are attached to this region yet.</p>}
       </aside>
