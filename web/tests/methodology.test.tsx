@@ -1,9 +1,11 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { MethodologyPage } from "@/components/methodology/methodology-page";
-import type { SourceCatalog, SourceCoverage } from "@/lib/snapshot/types";
-
+import type { EvidenceSource, SnapshotManifest, SourceCatalog, SourceCoverage } from "@/lib/snapshot/types";
 
 const catalog: SourceCatalog = {
   schemaVersion: "1.0",
@@ -26,78 +28,106 @@ const catalog: SourceCatalog = {
     },
   ],
 };
-
+const evidenceSources: EvidenceSource[] = [{ id: "meta-richland-parish-2024", name: "Meta Richland Parish data center", tier: "B", url: "https://example.com/meta", publishedAt: "2025-12-04T00:00:00Z" }];
 const sourceCoverage: SourceCoverage = {
   sourceCount: 24,
   sourcesByPublicationState: { publishable: 3, quarantined: 21 },
   sourcesByAccessMode: { automatic: 12, credentialled: 2, manual_snapshot: 8, metadata_only: 2 },
   connectorStates: { current: 10, failed: 1, not_configured: 7 },
   publishedRecords: 55_967,
-  publishedRecordsBySource: { osm_power: 55_967, "brazil-aneel-siga": 0, gem_power: 0 },
+  publishedRecordsBySource: { "brazil-aneel-siga": 55_967 },
 };
+
+function currentInputs() {
+  const root = join(process.cwd(), "public", "data");
+  const manifest = JSON.parse(readFileSync(join(root, "latest.json"), "utf8")) as SnapshotManifest;
+  const currentCatalog = JSON.parse(readFileSync(join(root, manifest.artifacts.sourceCatalog!), "utf8")) as SourceCatalog;
+  const evidence = JSON.parse(readFileSync(join(root, manifest.artifacts.evidence), "utf8")) as { sources: EvidenceSource[] };
+  return { manifest, currentCatalog, evidenceSources: evidence.sources };
+}
 
 afterEach(cleanup);
 
-
 describe("methodology and sources", () => {
   it("marks the page as a normally scrollable document", () => {
-    const { container } = render(<MethodologyPage catalog={catalog} generatedAt="2026-07-17T00:00:00Z" />);
+    const { container } = render(<MethodologyPage catalog={catalog} evidenceSources={evidenceSources} generatedAt="2026-07-17T00:00:00Z" />);
     expect(container.querySelector("main")).toHaveClass("methodology-page");
   });
 
-  it("distinguishes records on the map from registered and quarantined sources", () => {
-    render(<MethodologyPage catalog={catalog} generatedAt="2026-07-17T00:00:00Z" sourceCoverage={sourceCoverage} />);
-    expect(screen.getByText("55,967")).toBeInTheDocument();
-    expect(screen.getByText(/records currently published on the map/i)).toBeInTheDocument();
-    expect(screen.getByText("21")).toBeInTheDocument();
-    expect(screen.getByText(/sources quarantined/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/eligible for publication/i).length).toBeGreaterThan(0);
+  it("tells the human story and makes the project relationship clear", () => {
+    render(<MethodologyPage catalog={catalog} evidenceSources={evidenceSources} generatedAt="2026-07-17T00:00:00Z" />);
+
+    expect(screen.queryByText(/PUBLIC DATA · EXPLAINABLE METHODS/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Why I built Wattlas" })).toBeInTheDocument();
+    expect(screen.getByText(/predictive maintenance at Siemens Energy/i)).toBeInTheDocument();
+    expect(screen.getByText(/independent open source project/i)).toBeInTheDocument();
+    expect(screen.getByText(/not an official Siemens Energy product/i)).toBeInTheDocument();
   });
 
-  it("explains units, hierarchy, forecasts, and quarantine", () => {
-    render(<MethodologyPage catalog={catalog} generatedAt="2026-07-17T00:00:00Z" />);
-    expect(screen.getByText(/Demand is measured in GWh/i)).toBeInTheDocument();
-    expect(screen.getByText(/official observed measurements/i)).toBeInTheDocument();
-    expect(screen.getByText(/retirements reduce future supply/i)).toBeInTheDocument();
-    expect(screen.getByText(/Global Energy Monitor’s March 2026 integrated tracker/i)).toBeInTheDocument();
-    expect(screen.getByText(/Official EPE monthly state consumption/i)).toBeInTheDocument();
-    expect(screen.getByText(/62,001 existing and planned line features/i)).toBeInTheDocument();
-    expect(screen.getByText(/Source status from snapshot 17 Jul 2026, 00:00 UTC/i)).toBeInTheDocument();
-    expect(screen.getByText("SIGA")).toBeInTheDocument();
-    expect(screen.getByText("SAPP data")).toBeInTheDocument();
+  it("explains the regional expansion and industrial demand process in plain language", () => {
+    render(<MethodologyPage catalog={catalog} evidenceSources={evidenceSources} generatedAt="2026-07-17T00:00:00Z" />);
+
+    expect(screen.getByRole("heading", { name: "Adding more depth to regional data" })).toBeInTheDocument();
+    expect(screen.getByText(/Africa and South America/i)).toBeInTheDocument();
+    expect(screen.getByText(/Europe, North America, and Asia/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "How planned projects become future electricity demand" })).toBeInTheDocument();
+    expect(screen.getByText(/Read the reported project information/i)).toBeInTheDocument();
+    expect(screen.getByText(/Publish a low, central, and high estimate/i)).toBeInTheDocument();
   });
 
-  it("discloses industrial releases and governed ENTSO-E monthly evidence", () => {
-    render(<MethodologyPage catalog={catalog} generatedAt="2026-07-17T00:00:00Z" assetCoverage={{ industrialLoads: 4220, hydrogenInfrastructure: 808, forecastIndustrialLoads: 118 }} />);
+  it("keeps detailed methods, releases, limitations, and ENTSO E evidence", () => {
+    render(<MethodologyPage catalog={catalog} evidenceSources={evidenceSources} generatedAt="2026-07-17T00:00:00Z" assetCoverage={{ industrialLoads: 4220, hydrogenInfrastructure: 808, forecastIndustrialLoads: 118 }} />);
     for (const text of [
       /IEA Hydrogen Production Projects Database · June 2026/i,
       /IEA Hydrogen Infrastructure Projects Database · June 2026/i,
       /GEM Global Iron and Steel Tracker · June 2026/i,
       /GEM Global Cement and Concrete Tracker · July 2025/i,
       /CC BY 4.0/i,
-      /capacity MWel × 8.76 GWh\/MW-year × capacity factor × grid share/i,
-      /capacity kt\/year × electricity intensity MWh\/tonne/i,
-      /capacity Mt\/year × 1,000 × electricity intensity MWh\/tonne/i,
-      /Pipelines, storage, blending, and terminals never create an electricity-demand increment/i,
-      /Operating, Under construction, Pre-construction, Announced, and Retired/i,
-      /ENTSOE_SECURITY_TOKEN/i,
+      /capacity in MWel × 8.76 GWh per MW per year × capacity factor × grid share/i,
+      /capacity in kt per year × electricity intensity in MWh per tonne/i,
+      /capacity in Mt per year × 1,000 × electricity intensity in MWh per tonne/i,
+      /Pipelines, storage, blending, and terminals do not create an electricity demand increase by themselves/i,
+      /Operating, Under construction, Pre construction, Announced, and Retired/i,
       /previous complete UTC calendar month/i,
-      /MW intervals into GWh/i,
-      /bidding-zone boundaries do not always match countries/i,
+      /MW readings into GWh/i,
+      /bidding zone boundaries do not always match countries/i,
       /does not alter annual forecasts or Opportunity Radar scores/i,
-      /last successful aggregate/i,
+      /last successful monthly result/i,
     ]) expect(screen.getByText(text)).toBeInTheDocument();
     expect(screen.getByText("4,220")).toBeInTheDocument();
     expect(screen.getByText("808")).toBeInTheDocument();
     expect(screen.getByText("118")).toBeInTheDocument();
   });
 
-  it("filters sources by continent and publication state", () => {
-    render(<MethodologyPage catalog={catalog} generatedAt="2026-07-17T00:00:00Z" />);
+  it("distinguishes live records from registered and reference sources", () => {
+    render(<MethodologyPage catalog={catalog} evidenceSources={evidenceSources} generatedAt="2026-07-17T00:00:00Z" sourceCoverage={sourceCoverage} />);
+    expect(screen.getByText("55,967")).toBeInTheDocument();
+    expect(screen.getByText(/records currently published on the map/i)).toBeInTheDocument();
+    expect(screen.getByText(/source catalogue is only one part/i)).toBeInTheDocument();
+    expect(screen.getByText("SIGA")).toBeInTheDocument();
+    expect(screen.getByText("Meta Richland Parish data center")).toBeInTheDocument();
+  });
+
+  it("shows the verified current snapshot as 59 source families", () => {
+    const current = currentInputs();
+    render(<MethodologyPage catalog={current.currentCatalog} evidenceSources={current.evidenceSources} generatedAt={current.manifest.generatedAt} sourceCoverage={current.manifest.sourceCoverage ?? null} />);
+    expect(screen.getByRole("heading", { name: /59 source families/i })).toBeInTheDocument();
+  });
+
+  it("filters the complete source library by continent, role, and state", () => {
+    render(<MethodologyPage catalog={catalog} evidenceSources={evidenceSources} generatedAt="2026-07-17T00:00:00Z" />);
     fireEvent.change(screen.getByLabelText("Continent"), { target: { value: "Africa" } });
     expect(screen.queryByText("SIGA")).not.toBeInTheDocument();
     expect(screen.getByText("SAPP data")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Source role"), { target: { value: "supply" } });
+    expect(screen.getByText(/No sources match/i)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Source role"), { target: { value: "" } });
     fireEvent.change(screen.getByLabelText("Publication state"), { target: { value: "publishable" } });
     expect(screen.getByText(/No sources match/i)).toBeInTheDocument();
+  });
+
+  it("does not use em dash or en dash punctuation in authored page text", () => {
+    const { container } = render(<MethodologyPage catalog={catalog} evidenceSources={evidenceSources} generatedAt="2026-07-17T00:00:00Z" />);
+    expect(container.textContent).not.toMatch(/[—–]/);
   });
 });
