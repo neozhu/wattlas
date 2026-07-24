@@ -1,5 +1,6 @@
 import { GENERATOR_COLORS } from "@/lib/map/generator-colors";
 import type { GeneratorCapacityRange } from "@/lib/map/generator-capacity";
+import type { InfrastructureVisibility } from "@/lib/map/asset-filters";
 import type { GenerationTechnology, LensKey } from "@/lib/snapshot/types";
 import { useState, type ReactNode } from "react";
 import { GeneratorCapacityFilter } from "@/components/controls/generator-capacity-filter";
@@ -11,13 +12,7 @@ const lenses: Array<{ id: LensKey; label: string; description: string }> = [
   { id: "powerBalance", label: "Power Balance", description: "Demand versus dependable supply" },
 ];
 
-export type InfrastructureVisibility = {
-  dataCentres: boolean;
-  water: boolean;
-  industrial: boolean;
-  hydrogen: boolean;
-  generators: boolean;
-};
+export type { InfrastructureVisibility };
 export type LayerCounts = Partial<Record<keyof InfrastructureVisibility, number>>;
 type Props = {
   activeLens: LensKey; onChange: (lens: LensKey) => void;
