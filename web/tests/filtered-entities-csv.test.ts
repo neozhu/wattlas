@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  downloadCsv,
   filteredEntityFilename,
   selectFilteredEntities,
   serializeFilteredEntities,
@@ -12,6 +13,12 @@ import type {
   AssetProperties,
   GeneratorFeature,
 } from "@/lib/snapshot/types";
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 function asset(
   id: string,
@@ -214,6 +221,28 @@ describe("serializeFilteredEntities", () => {
     expect(filteredEntityFilename(new Date(2026, 6, 4))).toBe(
       "wattlas-filtered-entities-2026-07-04.csv",
     );
+  });
+});
+
+describe("downloadCsv", () => {
+  it("triggers a download before revoking its object URL", () => {
+    vi.useFakeTimers();
+    const createObjectURL = vi.fn(() => "blob:wattlas-csv");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined);
+
+    downloadCsv("\uFEFFid,name\r\n1,Alpha", "wattlas.csv");
+
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(click).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).not.toHaveBeenCalled();
+    expect(document.querySelector('a[download="wattlas.csv"]')).toBeNull();
+
+    vi.runAllTimers();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:wattlas-csv");
   });
 });
 
