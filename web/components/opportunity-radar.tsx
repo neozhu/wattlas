@@ -16,6 +16,7 @@ import { DataStatusDrawer } from "@/components/status/data-status-drawer";
 import { CountryIntelligence } from "@/components/intelligence/country-intelligence";
 import { AssetExplorerSummary } from "@/components/intelligence/asset-explorer-summary";
 import { geographyEntityType, trackWattlasAction } from "@/lib/analytics";
+import { downloadCsv, filteredEntityFilename, selectFilteredEntities, serializeFilteredEntities } from "@/lib/export/filtered-entities-csv";
 import { ALL_GENERATOR_CAPACITIES, generatorMatchesCapacity, isAllGeneratorCapacities, type GeneratorCapacityRange } from "@/lib/map/generator-capacity";
 import { buildCapacityFilteredGeneratorOverview, DEFAULT_GENERATOR_LIFECYCLES, generatorMatchesLifecycles } from "@/lib/map/generator-shards";
 import { geometryBounds, type SelectionTarget } from "@/lib/map/selection-flight";
@@ -181,6 +182,26 @@ export function OpportunityRadar({ snapshot }: Props) {
     && generatorCatalogueLoad.snapshotId === snapshot.manifest.snapshotId
     && generatorCatalogueLoad.state === "ready";
   const generatorCatalogue = generatorCatalogueReady ? generatorCatalogueLoad.features : EMPTY_GENERATOR_CATALOGUE;
+  const filteredExportEntities = useMemo(() => selectFilteredEntities({
+    assets: snapshot.assets,
+    generators: generatorCatalogue,
+    infrastructure,
+    technologies,
+    lifecycles,
+    capacityRange,
+  }), [capacityRange, generatorCatalogue, infrastructure, lifecycles, snapshot.assets, technologies]);
+  const filteredExportCount = filteredExportEntities.assets.length + filteredExportEntities.generators.length;
+  const filteredExportDisabled = filteredExportCount === 0 || (infrastructure.generators && !generatorCatalogueReady);
+  const downloadFilteredEntities = () => {
+    const date = new Date();
+    const csv = serializeFilteredEntities({
+      entities: filteredExportEntities,
+      exportedAt: date.toISOString(),
+      snapshotId: snapshot.manifest.snapshotId,
+      selectedYear: year,
+    });
+    downloadCsv(csv, filteredEntityFilename(date));
+  };
   const searchGenerators = useMemo(() => generatorCatalogue.filter((feature) => feature.properties.name && generatorMatchesCapacity(feature.properties.capacityMw, capacityRange)), [capacityRange, generatorCatalogue]);
   const capacityScaleMaximumMw = useMemo(() => {
     const largest = generatorCatalogue.reduce((maximum, feature) => Math.max(maximum, feature.properties.capacityMw), 0);
@@ -316,6 +337,9 @@ export function OpportunityRadar({ snapshot }: Props) {
           setSelectedGenerator((current) => current && !generatorMatchesCapacity(current.properties.capacityMw, next) ? null : current);
           trackWattlasAction("filter_changed", { filter_name: "generator_capacity", filter_value: `${next.minMw}:${next.maxMw ?? "unlimited"}` });
         }}
+        downloadCount={filteredExportCount}
+        downloadDisabled={filteredExportDisabled}
+        onDownload={downloadFilteredEntities}
       /> : <button className="show-filters" type="button" onClick={() => { setFiltersVisible(true); trackWattlasAction("filters_shown"); }} aria-label="Show filters" aria-expanded="false">Filters <span aria-hidden="true">→</span></button>}
       <GlobalMap countries={snapshot.countries} admin1={admin1} regions={snapshot.regions} assets={snapshot.assets} cities={cities} coverage={snapshot.manifest.coverage} lens={lens} year={year} selectedId={selectedId} focusTarget={mapFocusTarget} onSelect={selectEntity} onSelectCity={(city) => { trackWattlasAction("entity_selected", { entity_type: "city", entity_name: city.name, country: city.country }); }} onSelectGenerator={(generator) => { setSelectedGenerator(generator); setSelectedId(null); trackWattlasAction("entity_selected", { entity_type: "generator", entity_name: generator.properties.name ?? generator.properties.id, country: generator.properties.country, technology: generator.properties.technologies.join(",") }); }} onVisibleGeneratorsChange={(ids) => setSelectedGenerator((current) => current && !ids.has(current.properties.id) ? null : current)} infrastructure={infrastructure} technologies={technologies} lifecycles={lifecycles} capacityRange={capacityRange} generatorOverview={mapGeneratorOverview} generatorIndex={generatorIndex} snapshotRoot={snapshot.manifest.snapshotId ? `snapshots/${snapshot.manifest.snapshotId}` : null} />
       {mode === "explorer" && <AssetExplorerSummary coverage={{ countries: snapshot.manifest.coverage.countries, assets: snapshot.manifest.coverage.assets, dataCentres: snapshot.manifest.coverage.dataCentres, waterInfrastructure: snapshot.manifest.coverage.waterInfrastructure, industrialLoads: layerCounts.industrial ?? 0, hydrogenInfrastructure: layerCounts.hydrogen ?? 0, generators: layerCounts.generators ?? 0 }} statuses={explorerStatuses} />}
