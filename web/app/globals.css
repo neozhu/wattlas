@@ -657,6 +657,25 @@ button {
   color: var(--mint);
 }
 
+.download-csv-button {
+  display: flex;
+  width: calc(100% - 8px);
+  align-items: center;
+  justify-content: space-between;
+  min-height: 34px;
+  margin: 8px 4px 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--mint);
+  border-radius: 5px;
+  background: rgb(114 217 189 / 8%);
+  color: var(--mint);
+  cursor: pointer;
+  font: 10px var(--font-plex-mono), monospace;
+}
+
+.download-csv-button:hover:not(:disabled) { background: rgb(114 217 189 / 14%); }
+.download-csv-button:disabled { border-color: var(--line-bright); color: var(--muted); cursor: not-allowed; opacity: .6; }
+
 .generator-swatch {
   display: inline-block;
   width: 8px;
@@ -2200,6 +2219,7 @@ button {
   .infrastructure-controls .tech-row { min-height: 36px; }
   .infrastructure-controls .tech-row::before { display: none; }
   .infrastructure-controls .advanced-filter-toggle { width: auto; margin: 0 4px; }
+  .infrastructure-controls .download-csv-button { width: auto; gap: 8px; margin: 0 4px; }
   .infrastructure-controls .lifecycle-tree p { margin: 0 6px 0 0; }
 
   .rail-section {
