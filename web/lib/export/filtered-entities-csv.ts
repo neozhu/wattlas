@@ -253,3 +253,18 @@ export function filteredEntityFilename(date: Date): string {
   const day = String(date.getDate()).padStart(2, "0");
   return `wattlas-filtered-entities-${year}-${month}-${day}.csv`;
 }
+
+export function downloadCsv(csv: string, filename: string): void {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  try {
+    anchor.click();
+  } finally {
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+}
