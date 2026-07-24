@@ -1,65 +1,60 @@
-# Filtered CSV Download Design
+# Download filtered data as CSV
 
-## Goal
+This design adds an English-language **Download CSV** action. It exports every infrastructure asset and generator that matches the current filters, without limiting results to the map viewport.
 
-Add an English-language `Download CSV` action that exports the complete global
-set of entities matching the current Asset Explorer filters.
+## Goal and audience
 
-## Scope
+The action helps analysts open filtered Wattlas data in spreadsheet software. It creates a comma-separated values (CSV) file from data already loaded by the browser.
 
-The export covers the entity layers already available to the client:
+## Export scope
 
-- infrastructure assets enabled by the current layer switches;
-- generators matching the current technology, lifecycle, and capacity filters.
+The export includes these client-side entity layers:
 
-The export is global, not limited to the current map viewport. It uses the
-already-loaded asset collection and generator catalogue, so it does not add an
-API route, refetch snapshot files, or depend on MapLibre cluster state.
+- Infrastructure assets enabled by the current layer switches
+- Generators matching the current technology, lifecycle, and capacity filters
 
-The feature does not export regions, scores, cities, grid geometry, hidden
-layers, or upstream source files.
+The export excludes regions, scores, cities, grid geometry, hidden layers, and upstream source files. Panning and zooming do not change the exported results.
 
-## User Interface
+The browser uses the loaded asset collection and generator catalogue. The feature does not add an API route, refetch snapshot files, or read MapLibre cluster state.
 
-Add a `Download CSV` button to the filter rail's action area. The button is
-available wherever the filter rail is shown and follows the existing control
-styling.
+## Download control
 
-The button is disabled while the generator catalogue is still loading when the
-generator layer is enabled. It is also disabled when the current filters produce
-no rows. Its accessible label includes the exported row count.
+Add a **Download CSV** button to the filter rail’s action area. Show the button wherever the filter rail appears and match the existing control styles.
 
-Clicking the button downloads a file named:
+Disable the button in either condition:
+
+- The current filters produce no rows
+- The generator layer is enabled, but the generator catalogue is loading or unavailable
+
+Keep the button enabled when the generator layer is disabled and matching infrastructure assets exist. Include the export row count in the accessible label.
+
+Clicking the button downloads a file with a concrete date:
 
 ```text
-wattlas-filtered-assets-<YYYY-MM-DD>.csv
+wattlas-filtered-entities-2026-07-24.csv
 ```
 
-No modal or configuration step is added.
+Build the actual filename from the current local date. Do not add a modal or configuration step.
 
-## Data Selection
+## Filter matching
 
-Use the same predicates as the map:
+Reuse the map’s existing filter predicates:
 
-- infrastructure category switches select data centres, water infrastructure,
-  industrial loads, and hydrogen infrastructure;
-- lifecycle selection applies to both infrastructure assets and generators;
-- generator technology and capacity filters reuse the existing generator
-  matching functions;
-- a disabled layer contributes no rows.
+- Infrastructure switches select data centres, water infrastructure, industrial loads, and hydrogen infrastructure
+- Lifecycle selection applies to infrastructure assets and generators
+- Generator technology and capacity filters call the existing generator matching functions
+- Disabled layers contribute no rows
 
-The export operates on the full client-side collections rather than the visible
-map shards, ensuring that panning and zooming do not change the downloaded
-result.
+Apply these predicates to the complete client-side collections. Do not use visible map shards or clusters.
 
-## CSV Schema
+## Stable CSV columns
 
-Columns are stable and written in this order:
+Write columns in this order:
 
 ```text
 exported_at
 snapshot_id
-filter_year
+selected_year
 id
 name
 entity_type
@@ -98,75 +93,64 @@ source_url
 last_observed_at
 ```
 
-Generator rows use `entity_type=generator` and
-`category=power_generation`. Infrastructure rows use
-`entity_type=asset`, their snapshot category, and their optional subtype.
+The `selected_year` column records the interface context. It does not imply that the year filters assets or generators.
 
-Nested values are flattened:
+Generator rows use `entity_type=generator` and `category=power_generation`. Infrastructure rows use `entity_type=asset`, the snapshot category, and the optional subtype.
 
-- coordinate pairs become `latitude` and `longitude`;
-- low/central/high ranges become separate numeric columns;
-- arrays are joined with semicolons;
-- address parts are joined into one readable field;
-- missing values remain empty and are never converted to zero.
+Flatten nested data with these rules:
 
-For generators, `annualGenerationGwh` populates annual energy. For
-infrastructure assets, `annualDemandGwh` populates the same generic annual
-energy columns.
+- Split coordinate pairs into `latitude` and `longitude`
+- Split low, central, and high ranges into numeric columns
+- Join arrays with semicolons
+- Join address parts into one readable field
+- Keep missing values empty instead of converting them to zero
 
-## CSV Safety and Compatibility
+Map generator `annualGenerationGwh` values to the annual energy columns. Map infrastructure `annualDemandGwh` values to the same columns.
 
-The file starts with a UTF-8 byte-order mark so Excel opens non-ASCII text
-correctly. Values containing commas, quotes, or line breaks use standard CSV
-quoting, with embedded quotes doubled.
+## Excel compatibility and CSV safety
 
-Text cells beginning with `=`, `+`, `-`, or `@` are prefixed with an apostrophe
-to prevent spreadsheet formula execution. Numeric values remain numeric.
+Start the file with a UTF-8 byte-order mark so Excel opens non-ASCII text correctly. Apply standard CSV quoting to values that contain commas, quotes, or line breaks. Double embedded quotes.
 
-The browser download uses a temporary object URL, triggers one anchor download,
-and revokes the URL immediately afterward.
+Protect text cells from spreadsheet formula execution. Ignore leading spaces and control characters when checking whether the first meaningful character is `=`, `+`, `-`, or `@`. Prefix unsafe text with an apostrophe. Preserve numeric values, including negative numbers, as numbers.
 
-## Architecture
+Create a temporary object URL and click a temporary anchor. Remove the anchor after the click, then schedule `URL.revokeObjectURL` with `setTimeout` so the browser can start reading the URL.
 
-Add a focused, dependency-free CSV module under `web/lib/export/`. It converts
-filtered GeoJSON features into normalized rows, serializes those rows, and
-builds the download filename. Keeping these pure operations outside React makes
-the schema and safety rules directly testable.
+## Client-side architecture
 
-`OpportunityRadar` derives the export rows from existing state with `useMemo`
-and passes a row count and click handler to `LayerRail`. `LayerRail` only renders
-the button and does not own snapshot or filtering logic.
+Add a dependency-free CSV module under `web/lib/export/`. Keep row normalization, serialization, filename creation, and safety rules in pure functions.
 
-No third-party package is introduced.
+`OpportunityRadar` uses `useMemo` only for filtered feature collections and the row count. It creates normalized rows and serializes the CSV inside the download click handler. This avoids allocating a second 39-column representation of up to 154,211 generators during render or after every filter change.
 
-## Error Handling
+`OpportunityRadar` passes the row count, disabled state, and click handler to `LayerRail`. `LayerRail` renders the control without owning snapshot or filtering logic.
 
-An unavailable generator catalogue disables export only when generators are
-part of the requested result. Existing generator retry behavior remains the
-source of recovery.
+Do not add a third-party package.
 
-Browser download failures are not hidden. The click handler logs the error and
-leaves the application usable; no success message is shown unless a download is
-actually triggered.
+## Failure behavior
 
-## Testing
+When the generator layer needs an unavailable catalogue, disable the download and rely on the existing generator retry control. Do not block infrastructure-only exports when the generator layer is disabled.
 
-Unit tests cover:
+If the browser cannot create or trigger the download, log the error and keep the interface usable. Do not show a success message before the browser receives the download request.
 
-- mapping generator and infrastructure features into the stable schema;
-- applying current layer, lifecycle, technology, and capacity filters;
-- preserving empty values instead of writing zero;
-- coordinates, ranges, arrays, and addresses;
-- commas, quotes, newlines, UTF-8 BOM, and formula-injection protection;
-- deterministic column order and filename.
+## Test coverage
 
-Component tests cover:
+Unit tests verify:
 
-- the English `Download CSV` control;
-- the disabled state while required generator data is loading;
-- the disabled state for zero matching rows;
-- invoking the supplied handler when enabled.
+- Generator and infrastructure mapping into the stable schema
+- Layer, lifecycle, technology, and capacity filtering
+- Empty values remain empty instead of becoming zero
+- Coordinate, range, array, and address flattening
+- Comma, quote, newline, and UTF-8 byte-order mark handling
+- Formula protection after spaces and control characters
+- Negative numeric values remain numeric
+- Deterministic column order and filename
+- Row construction occurs on demand instead of during render
 
-Verification runs the targeted export and control tests, the full frontend test
-suite, lint, and a production build. Pre-existing unrelated test failures, if
-they remain, are reported separately rather than masked.
+Component tests verify:
+
+- The English **Download CSV** control
+- Disabled state while an enabled generator layer waits for its catalogue
+- Enabled state while the generator catalogue loads but the generator layer is disabled
+- Disabled state for zero matching rows
+- Handler invocation when the button is enabled
+
+Run targeted export and control tests, the full frontend test suite, lint, and a production build. Record the existing `snapshot.test.ts` failures as the pre-change baseline, and do not classify them as feature regressions unless their output changes.
