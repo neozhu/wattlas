@@ -13,6 +13,8 @@ export type WattlasAction =
   | "comparison_added"
   | "filters_hidden"
   | "filters_shown"
+  | "details_hidden"
+  | "details_shown"
   | "year_changed"
   | "inspector_resized"
   | "data_status_opened"

@@ -1,6 +1,12 @@
-import type { AssetFeature, GeneratorFeature } from "@/lib/snapshot/types";
+import type { AssetFeature, GeneratorFeature, GeographyFeature, RegionFeature } from "@/lib/snapshot/types";
 
-type Props = { asset?: AssetFeature | null; generator?: GeneratorFeature | null };
+type Props = {
+  asset?: AssetFeature | null;
+  generator?: GeneratorFeature | null;
+  geography?: GeographyFeature | RegionFeature | null;
+  detailsVisible?: boolean;
+  onMoreDetails?: () => void;
+};
 
 const humanize = (value: string) => value.replaceAll("_", " ").replace(/^./, (letter) => letter.toUpperCase());
 const number = (value: number) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value);
@@ -20,8 +26,17 @@ function FullDossierLink({ url }: { url: string | null }) {
     : <a href="#wattlas-dossier" aria-label="Open full dossier">Full dossier <span aria-hidden="true">→</span></a>;
 }
 
-export function ProjectSummaryCard({ asset, generator }: Props) {
-  if (!asset && !generator) return null;
+function SummaryActions({ dossierUrl, detailsVisible, onMoreDetails }: { dossierUrl?: string | null; detailsVisible: boolean; onMoreDetails?: () => void }) {
+  return (
+    <div className="project-summary-actions">
+      {!detailsVisible && onMoreDetails && <button type="button" onClick={onMoreDetails}>More details <span aria-hidden="true">→</span></button>}
+      {dossierUrl !== undefined && <FullDossierLink url={dossierUrl} />}
+    </div>
+  );
+}
+
+export function ProjectSummaryCard({ asset, generator, geography, detailsVisible = true, onMoreDetails }: Props) {
+  if (!asset && !generator && !geography) return null;
   if (generator) {
     const properties = generator.properties;
     const generatorName = properties.name || properties.id;
@@ -32,7 +47,20 @@ export function ProjectSummaryCard({ asset, generator }: Props) {
       <section className="project-summary-card" aria-label="Selected project summary">
         <div><small>Power generator · {properties.country}</small><strong>{generatorName}</strong></div>
         <dl><div><dt>Technology</dt><dd>{properties.technologies.map(humanize).join(", ")}</dd></div><div><dt>Capacity</dt><dd>{number(properties.capacityMw)} MW</dd></div><div><dt>Status</dt><dd>{properties.lifecycle ? humanize(properties.lifecycle) : "Unavailable"}</dd></div></dl>
-        <FullDossierLink url={dossierUrl} />
+        <SummaryActions dossierUrl={dossierUrl} detailsVisible={detailsVisible} onMoreDetails={onMoreDetails} />
+      </section>
+    );
+  }
+  if (geography && !asset) {
+    const properties = geography.properties;
+    const regionType = "level" in properties
+      ? properties.level === "country" ? "Country" : properties.level === "admin_1" ? "State / province" : "Region"
+      : "Region";
+    return (
+      <section className="project-summary-card geography-summary-card" aria-label="Selected region summary">
+        <div><small>{regionType} · {properties.country}</small><strong>{properties.name}</strong></div>
+        <dl><div><dt>Population</dt><dd>{properties.population == null ? "Unavailable" : number(properties.population)}</dd></div><div><dt>Confidence</dt><dd>{properties.confidence}%</dd></div><div><dt>Coverage</dt><dd>{properties.coverage}%</dd></div></dl>
+        <SummaryActions detailsVisible={detailsVisible} onMoreDetails={onMoreDetails} />
       </section>
     );
   }
@@ -48,7 +76,7 @@ export function ProjectSummaryCard({ asset, generator }: Props) {
     <section className="project-summary-card" aria-label="Selected project summary">
       <div><small>{category} · {properties.country}</small><strong>{properties.name}</strong></div>
       <dl><div><dt>Type</dt><dd>{properties.subtype ? humanize(properties.subtype) : category}</dd></div><div><dt>Capacity / demand</dt><dd>{primaryValue}</dd></div><div><dt>Status</dt><dd>{humanize(properties.lifecycle)}</dd></div><div><dt>Year</dt><dd>{properties.targetYear ?? "—"}</dd></div></dl>
-      <FullDossierLink url={dossierUrl} />
+      <SummaryActions dossierUrl={dossierUrl} detailsVisible={detailsVisible} onMoreDetails={onMoreDetails} />
     </section>
   );
 }

@@ -15,7 +15,7 @@ vi.mock("@/lib/analytics", () => ({
   geographyEntityType: (properties: { level?: string }) => properties.level === "country" ? "country" : properties.level === "admin_1" ? "state" : "region",
 }));
 
-afterEach(() => { cleanup(); localStorage.clear(); mockTrackWattlasAction.mockClear(); });
+afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); mockTrackWattlasAction.mockClear(); });
 
 vi.mock("@/components/map/global-map", () => ({
   GlobalMap: ({ lens, year, capacityRange, onSelect, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; year: number; capacityRange?: { minMw: number; maxMw: number | null }; onSelect: (id: string) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens} · year {year} · capacity {capacityRange?.minMw ?? 0}–{capacityRange?.maxMw ?? "unlimited"}<button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM")}>Select Assam</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
@@ -154,6 +154,21 @@ describe("OpportunityRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
     expect(screen.getByRole("complementary", { name: "Map controls" })).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Solar" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("keeps the details panel hidden across selections and restores it from the summary", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    fireEvent.click(screen.getByRole("button", { name: "Hide details" }));
+    expect(screen.queryByRole("heading", { name: "Darmstadt" })).not.toBeInTheDocument();
+    expect(sessionStorage.getItem("wattlas:details-visible")).toBe("false");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select facility" }));
+    expect(screen.queryByRole("heading", { name: "Alpha DC" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Selected project summary" })).toHaveTextContent("Alpha DC");
+
+    fireEvent.click(screen.getByRole("button", { name: "More details" }));
+    expect(screen.getByRole("heading", { name: "Alpha DC" })).toBeInTheDocument();
+    expect(sessionStorage.getItem("wattlas:details-visible")).toBe("true");
   });
 
   it("searches places and facilities, then opens the matching inspector", async () => {

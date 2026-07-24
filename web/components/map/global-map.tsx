@@ -11,6 +11,7 @@ import { generatorColorExpression, generatorTechnologyExpression } from "@/lib/m
 import { ALL_GENERATOR_CAPACITIES, type GeneratorCapacityRange } from "@/lib/map/generator-capacity";
 import { countriesInBounds, createGeneratorShardController, DEFAULT_GENERATOR_LIFECYCLES, filterGeneratorOverview, filterGenerators, generatorSelection, type MapBounds } from "@/lib/map/generator-shards";
 import { admin1LineOpacityExpression, admin1LineWidthExpression, assetColor, countryBorderWidthExpression, mapColorExpression } from "@/lib/map/expressions";
+import { planSelectionFlight, type SelectionTarget } from "@/lib/map/selection-flight";
 import type {
   AssetCollection,
   CityCollection,
@@ -33,8 +34,9 @@ type Props = {
   lens: LensKey;
   year: number;
   selectedId: string | null;
-  focusTarget?: { nonce: number; coordinates?: [number, number]; bbox?: [number, number, number, number] } | null;
+  focusTarget?: ({ nonce: number } & SelectionTarget) | null;
   onSelect: (id: string) => void;
+  onSelectCity?: (city: { id: string; name: string; country: string; coordinates: [number, number] }) => void;
   coverage: SnapshotManifest["coverage"];
   infrastructure?: InfrastructureVisibility;
   technologies?: ReadonlySet<GenerationTechnology>;
@@ -99,10 +101,11 @@ const EMPTY_OVERVIEW: GeneratorOverviewCollection = { type: "FeatureCollection",
 const EMPTY_CITIES: CityCollection = { type: "FeatureCollection", features: [] };
 const cityClass = (cities: CityCollection, value: "million_plus" | "german_large_city"): CityCollection => ({ ...cities, features: cities.features.filter((feature) => feature.properties.classes.includes(value)) });
 
-export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_CITIES, lens, year, selectedId, focusTarget = null, onSelect, coverage, infrastructure = { dataCentres: true, water: true, industrial: true, hydrogen: true, generators: false }, technologies = new Set<GenerationTechnology>(), lifecycles = new Set(DEFAULT_GENERATOR_LIFECYCLES), capacityRange = ALL_GENERATOR_CAPACITIES, generatorOverview = null, generatorIndex = null, snapshotRoot = null, onSelectGenerator, onVisibleGeneratorsChange }: Props) {
+export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_CITIES, lens, year, selectedId, focusTarget = null, onSelect, onSelectCity, coverage, infrastructure = { dataCentres: true, water: true, industrial: true, hydrogen: true, generators: false }, technologies = new Set<GenerationTechnology>(), lifecycles = new Set(DEFAULT_GENERATOR_LIFECYCLES), capacityRange = ALL_GENERATOR_CAPACITIES, generatorOverview = null, generatorIndex = null, snapshotRoot = null, onSelectGenerator, onVisibleGeneratorsChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const onSelectRef = useRef(onSelect);
+  const onSelectCityRef = useRef(onSelectCity);
   const onSelectGeneratorRef = useRef(onSelectGenerator);
   const onVisibleGeneratorsChangeRef = useRef(onVisibleGeneratorsChange);
   const infrastructureRef = useRef(infrastructure);
@@ -124,6 +127,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
 
   useEffect(() => {
     onSelectRef.current = onSelect;
+    onSelectCityRef.current = onSelectCity;
     onSelectGeneratorRef.current = onSelectGenerator;
     onVisibleGeneratorsChangeRef.current = onVisibleGeneratorsChange;
     countriesRef.current = preparedCountries;
@@ -135,7 +139,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
     infrastructureRef.current = infrastructure;
     generatorOverviewRef.current = preparedGeneratorOverview;
     citiesRef.current = cities;
-  }, [capacityRange, cities, infrastructure, lens, lifecycles, onSelect, onSelectGenerator, onVisibleGeneratorsChange, preparedAdmin1, preparedCountries, preparedGeneratorOverview, preparedRegions, selectedId, technologies]);
+  }, [capacityRange, cities, infrastructure, lens, lifecycles, onSelect, onSelectCity, onSelectGenerator, onVisibleGeneratorsChange, preparedAdmin1, preparedCountries, preparedGeneratorOverview, preparedRegions, selectedId, technologies]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -348,7 +352,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
       map.addLayer({ id: "german-city-points", type: "circle", source: "german-cities", minzoom: 5.3, paint: { "circle-color": "#AFC3BE", "circle-radius": 3, "circle-opacity": 0.8, "circle-stroke-color": "#07100F", "circle-stroke-width": 1 } });
       map.addLayer({ id: "german-city-labels", type: "symbol", source: "german-cities", minzoom: 5.3, layout: { "text-field": ["get", "name"], "text-size": 10, "text-optional": true, "text-allow-overlap": false, "text-ignore-placement": false }, paint: { "text-color": "#B8C8C4", "text-halo-color": "#07100F", "text-halo-width": 1 } });
 
-      for (const layer of ["countries-fill", "admin1-fill", "regions-fill", "asset-clusters", "data-centre-assets", "water-assets", "industrial-assets", "hydrogen-assets", "generator-overview-markers", "generator-clusters", "generator-assets"]) {
+      for (const layer of ["countries-fill", "admin1-fill", "regions-fill", "asset-clusters", "data-centre-assets", "water-assets", "industrial-assets", "hydrogen-assets", "generator-overview-markers", "generator-clusters", "generator-assets", "million-city-points", "million-city-labels", "german-city-points", "german-city-labels"]) {
         map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
         map.on("mouseleave", layer, () => { map.getCanvas().style.cursor = ""; });
       }
@@ -389,6 +393,22 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
       map.on("click", "water-assets", selectAsset);
       map.on("click", "industrial-assets", selectAsset);
       map.on("click", "hydrogen-assets", selectAsset);
+      const selectCity = (event: MapMouseEvent & { features?: MapGeoJSONFeature[] }) => {
+        const feature = event.features?.[0];
+        const properties = feature?.properties;
+        const coordinates = feature?.geometry.type === "Point" ? feature.geometry.coordinates : null;
+        if (!properties?.id || !coordinates) return;
+        onSelectCityRef.current?.({
+          id: properties.id,
+          name: properties.name,
+          country: properties.country,
+          coordinates: [coordinates[0], coordinates[1]],
+        });
+      };
+      map.on("click", "million-city-points", selectCity);
+      map.on("click", "million-city-labels", selectCity);
+      map.on("click", "german-city-points", selectCity);
+      map.on("click", "german-city-labels", selectCity);
       map.on("click", "generator-assets", (event) => {
         const id = event.features?.[0]?.properties?.id;
         const generator = generatorSelection(activeGeneratorsRef.current, id);
@@ -502,15 +522,61 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !focusTarget) return;
-    if (focusTarget.coordinates) {
-      map.easeTo({ center: focusTarget.coordinates, zoom: Math.max(map.getZoom(), 7), duration: 700 });
-      return;
-    }
-    if (focusTarget.bbox) {
-      const [west, south, east, north] = focusTarget.bbox;
-      if (west === east && south === north) map.easeTo({ center: [west, south], zoom: Math.max(map.getZoom(), 6), duration: 700 });
-      else map.fitBounds([[west, south], [east, north]], { padding: 72, maxZoom: 7, duration: 700 });
-    }
+    const current = map.getCenter();
+    const reducedMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const target: SelectionTarget = "coordinates" in focusTarget
+      ? { coordinates: focusTarget.coordinates, zoom: focusTarget.zoom }
+      : { bbox: focusTarget.bbox, maxZoom: focusTarget.maxZoom };
+    const stages = planSelectionFlight({
+      currentCenter: [current.lng, current.lat],
+      currentZoom: map.getZoom(),
+      target,
+      reducedMotion,
+    });
+    let cancelled = false;
+    map.stop();
+    const animate = async () => {
+      for (const stage of stages) {
+        if (cancelled) return;
+        await new Promise<void>((resolve) => {
+          let timer = 0;
+          const finish = () => {
+            window.clearTimeout(timer);
+            map.off("moveend", finish);
+            resolve();
+          };
+          map.once("moveend", finish);
+          timer = window.setTimeout(finish, stage.duration + 300);
+          if (stage.kind === "camera") {
+            map.easeTo({ center: stage.center, zoom: stage.zoom, duration: stage.duration, easing: (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2 });
+          } else if (stage.kind === "bounds") {
+            const [west, south, east, north] = stage.bbox;
+            map.fitBounds([[west, south], [east, north]], { padding: stage.padding, maxZoom: stage.maxZoom, duration: stage.duration });
+          } else if ("coordinates" in stage.target) {
+            map.flyTo({
+              center: stage.target.coordinates,
+              zoom: stage.target.zoom ?? 7,
+              duration: stage.duration,
+              minZoom: stage.minZoom,
+              essential: true,
+            });
+          } else {
+            const [west, south, east, north] = stage.target.bbox;
+            const camera = map.cameraForBounds([[west, south], [east, north]], { padding: 72, maxZoom: stage.target.maxZoom ?? 7 });
+            if (!camera) {
+              finish();
+              return;
+            }
+            map.flyTo({ ...camera, duration: stage.duration, minZoom: stage.minZoom, essential: true });
+          }
+        });
+      }
+    };
+    void animate();
+    return () => {
+      cancelled = true;
+      map.stop();
+    };
   }, [focusTarget]);
 
   const label = lens === "infrastructureDemand"

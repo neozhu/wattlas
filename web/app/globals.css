@@ -78,6 +78,22 @@ button {
   grid-template-columns: minmax(480px, 1fr) var(--inspector);
 }
 
+.radar-shell.details-hidden {
+  grid-template-areas:
+    "command command"
+    "rail map"
+    "rail timeline";
+  grid-template-columns: var(--rail) minmax(480px, 1fr);
+}
+
+.radar-shell.filters-hidden.details-hidden {
+  grid-template-areas:
+    "command"
+    "map"
+    "timeline";
+  grid-template-columns: minmax(480px, 1fr);
+}
+
 .snapshot-loader {
   display: grid;
   place-items: center;
@@ -1040,6 +1056,25 @@ button {
 
 .inspector-resizer:hover::after,
 .inspector-resizer:focus-visible::after { background: var(--mint); }
+
+.hide-details {
+  z-index: 24;
+  grid-area: inspector;
+  align-self: start;
+  justify-self: end;
+  margin: 9px 10px 0 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line-bright);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+  font: 600 8px/1 var(--font-plex-mono), monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.hide-details:hover { border-color: var(--mint); color: var(--mint); }
 
 .region-inspector.empty {
   display: grid;
@@ -2091,6 +2126,25 @@ button {
     grid-template-rows: 48px minmax(0, 1fr) 58px;
   }
 
+  .radar-shell.details-hidden {
+    grid-template-areas:
+      "command"
+      "rail"
+      "map"
+      "timeline";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 48px 104px minmax(0, 1fr) 58px;
+  }
+
+  .radar-shell.filters-hidden.details-hidden {
+    grid-template-areas:
+      "command"
+      "map"
+      "timeline";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 48px minmax(0, 1fr) 58px;
+  }
+
   .inspector-resizer { display: none; }
 
   .command-bar {
@@ -2281,6 +2335,25 @@ button {
       "timeline";
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 48px 58vh auto 58px;
+  }
+
+  .radar-shell.details-hidden {
+    grid-template-areas:
+      "command"
+      "rail"
+      "map"
+      "timeline";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 48px auto 58vh 58px;
+  }
+
+  .radar-shell.filters-hidden.details-hidden {
+    grid-template-areas:
+      "command"
+      "map"
+      "timeline";
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 48px 58vh 58px;
   }
 
   .command-bar {
@@ -2855,7 +2928,7 @@ body,
 .mode-switch button { padding: 5px 9px; border-radius: 6px; background: transparent; color: var(--muted); font: 600 9px/1 var(--font-plex-mono), monospace; letter-spacing: .025em; text-transform: uppercase; cursor: pointer; }
 .mode-switch button[aria-pressed="true"] { background: #fff; color: #176b5b; box-shadow: 0 1px 5px rgb(40 64 56 / 12%); }
 .mode-summary { color: var(--muted); font-size: 9px; text-transform: none; }
-.methodology-link { border-color: var(--line); color: var(--muted); background: #fff; }
+.methodology-link { border-color: #87938f; color: #4f5c58; background: #fff; box-shadow: 0 1px 3px rgb(42 61 54 / 8%); }
 .freshness-control { color: var(--text); }
 .freshness-control:hover { background: #f7faf9; }
 
@@ -2930,7 +3003,11 @@ body,
 .project-summary-card strong { overflow: hidden; font: 600 15px/1.15 var(--font-plex-condensed), sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .project-summary-card dl { display: grid; grid-template-columns: repeat(4, minmax(70px, 1fr)); gap: 10px; margin: 0; }
 .project-summary-card dd { margin: 3px 0 0; overflow: hidden; color: var(--text); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
-.project-summary-card > a { padding: 8px 10px; border: 1px solid #176b5b; border-radius: 7px; color: #176b5b; font: 600 9px/1 var(--font-plex-mono), monospace; text-decoration: none; white-space: nowrap; }
+.project-summary-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+.project-summary-actions > a,
+.project-summary-actions > button { padding: 8px 10px; border: 1px solid #176b5b; border-radius: 7px; background: #fff; color: #176b5b; font: 600 9px/1 var(--font-plex-mono), monospace; text-decoration: none; white-space: nowrap; cursor: pointer; }
+.project-summary-actions > button { background: #176b5b; color: #fff; }
+.geography-summary-card dl { grid-template-columns: repeat(3, minmax(70px, 1fr)); }
 
 .asset-explorer-summary {
   grid-area: map;
@@ -2942,7 +3019,7 @@ body,
   gap: 18px;
   align-items: center;
   width: min(900px, calc(100% - 48px));
-  margin-top: 18px;
+  margin-top: 78px;
   padding: 10px 12px;
   border: 1px solid rgb(154 172 165 / 72%);
   border-radius: 12px;
