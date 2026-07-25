@@ -70,7 +70,7 @@ describe("GlobalMap", () => {
     );
 
     expect(GLOBAL_VIEW.zoom).toBeCloseTo(2.25);
-    expect(GLOBAL_VIEW.center).toEqual([78.9629, 20.5937]);
+    expect(GLOBAL_VIEW.center).toEqual([10.4515, 51.1657]);
     expect(screen.getByRole("region", { name: "Global opportunity map" })).toBeInTheDocument();
     expect(screen.getByText(/246 countries · 14 infrastructure assets/i)).toBeInTheDocument();
     expect(screen.queryByLabelText("Map data and project attribution")).not.toBeInTheDocument();

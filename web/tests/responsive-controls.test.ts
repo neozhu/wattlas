@@ -36,4 +36,17 @@ describe("responsive map controls", () => {
     const tablet = css.match(/@media \(max-width: 1024px\)([\s\S]*?)@media \(max-width: 680px\)/)?.[1] ?? "";
     expect(tablet).toMatch(/\.inspector-resizer\s*\{[\s\S]*display:\s*none/);
   });
+
+  it("centres persistent search and compacts the desktop filter rail", () => {
+    expect(css).toMatch(/\.command-search\s*\{[\s\S]*position:\s*absolute;[\s\S]*left:\s*50%;[\s\S]*transform:\s*translateX\(-50%\)/);
+    expect(css).toMatch(/\.freshness-control\s*\{[\s\S]*border-left:\s*0/);
+    expect(css).toMatch(/\.tech-tree\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    expect(css).toMatch(/\.lens-list\s*\{[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+  });
+
+  it("keeps search visible in the mobile command bar", () => {
+    const mobile = css.match(/@media \(max-width: 680px\)([\s\S]*?)@media \(prefers-reduced-motion/ )?.[1] ?? "";
+    expect(mobile).toMatch(/\.command-search\s*\{[\s\S]*display:\s*block/);
+    expect(mobile).toMatch(/\.command-search\s*\{[\s\S]*grid-area:\s*search/);
+  });
 });

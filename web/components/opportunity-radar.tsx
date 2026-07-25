@@ -39,7 +39,7 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [lens, setLens] = useState<LensKey>("infrastructureDemand");
   const [mode, setMode] = useState<"radar" | "explorer">("radar");
   const [year, setYear] = useState(snapshot.manifest.activeYears[0] ?? 2026);
-  const initialId = snapshot.countries.features.find((feature) => feature.properties.id === "IN")?.properties.id
+  const initialId = snapshot.countries.features.find((feature) => feature.properties.id === "DE")?.properties.id
     ?? snapshot.countries.features.find((feature) => feature.properties.scores.infrastructureDemand != null)?.properties.id
     ?? snapshot.countries.features[0]?.properties.id
     ?? null;
@@ -261,7 +261,7 @@ export function OpportunityRadar({ snapshot }: Props) {
 
   return (
     <main className={["radar-shell", filtersVisible ? "" : "filters-hidden", detailsVisible ? "" : "details-hidden"].filter(Boolean).join(" ")} style={{ "--inspector": `${inspectorWidth}px` } as CSSProperties}>
-      <CommandBar manifest={snapshot.manifest} mode={mode} onModeChange={(next) => {
+      <CommandBar manifest={snapshot.manifest} searchSlot={<SearchBox index={searchIndex} onSelect={selectSearchResult} />} mode={mode} onModeChange={(next) => {
         setMode(next);
         if (next === "explorer") {
           setInfrastructure({ dataCentres: true, water: true, industrial: true, hydrogen: true, generators: true });
@@ -273,7 +273,6 @@ export function OpportunityRadar({ snapshot }: Props) {
         activeLens={lens}
         onChange={(next) => { setLens(next); if (next !== lens) trackWattlasAction("lens_changed", { lens: next }); }}
         onHide={() => { setFiltersVisible(false); trackWattlasAction("filters_hidden"); }}
-        searchSlot={<SearchBox index={searchIndex} onSelect={selectSearchResult} />}
         onAdvancedOpen={() => trackWattlasAction("advanced_filters_opened")}
         infrastructure={infrastructure}
         counts={layerCounts}

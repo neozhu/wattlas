@@ -85,21 +85,38 @@ const snapshot: SnapshotData = {
 } as unknown as SnapshotData;
 
 describe("OpportunityRadar", () => {
-  it("selects India on first load when the country is available", () => {
-    const indiaSnapshot = structuredClone(snapshot);
-    indiaSnapshot.countries.features.push({
-      ...indiaSnapshot.countries.features[0],
+  it("selects Germany on first load when Germany and India are available", () => {
+    const globalSnapshot = structuredClone(snapshot);
+    globalSnapshot.countries.features.push({
+      ...globalSnapshot.countries.features[0],
       id: "IN",
-      properties: { ...indiaSnapshot.countries.features[0].properties, id: "IN", name: "India", country: "IN" },
+      properties: { ...globalSnapshot.countries.features[0].properties, id: "IN", name: "India", country: "IN" },
     });
-    render(<OpportunityRadar snapshot={indiaSnapshot} />);
-    expect(screen.getByRole("heading", { name: "India" })).toBeInTheDocument();
+    globalSnapshot.countries.features.push({
+      ...globalSnapshot.countries.features[0],
+      id: "DE",
+      properties: { ...globalSnapshot.countries.features[0].properties, id: "DE", name: "Germany", country: "DE" },
+    });
+    render(<OpportunityRadar snapshot={globalSnapshot} />);
+    expect(screen.getByRole("heading", { name: "Germany" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "India" })).not.toBeInTheDocument();
+  });
+
+  it("provides full generator technology names as hover labels", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+
+    expect(screen.getByRole("switch", { name: "Nuclear" })).toHaveAttribute("title", "Nuclear");
+    expect(screen.getByRole("switch", { name: "Biomass" })).toHaveAttribute("title", "Biomass");
+    expect(screen.getByRole("switch", { name: "Geothermal" })).toHaveAttribute("title", "Geothermal");
   });
 
   it("preserves production controls without redundant active-view or grid sections", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     expect(screen.getByRole("combobox", { name: "Search Wattlas" })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Map controls" }).querySelector('[aria-label="Search Wattlas"]')).toBeNull();
     expect(screen.getByRole("link", { name: "Methodology and sources" })).toHaveAttribute("href", "/methodology");
+    expect(screen.queryByText("Global")).not.toBeInTheDocument();
+    expect(screen.queryByText(/sources? need attention/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Active filters")).not.toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: "Grid intelligence" })).not.toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: "Cities · 1M+" })).not.toBeInTheDocument();
@@ -151,6 +168,7 @@ describe("OpportunityRadar", () => {
     expect(solar).toHaveAttribute("aria-checked", "true");
     fireEvent.click(screen.getByRole("button", { name: "Hide filters" }));
     expect(screen.queryByRole("complementary", { name: "Map controls" })).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Search Wattlas" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
     expect(screen.getByRole("complementary", { name: "Map controls" })).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Solar" })).toHaveAttribute("aria-checked", "true");
