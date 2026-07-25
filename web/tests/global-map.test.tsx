@@ -70,7 +70,7 @@ describe("GlobalMap", () => {
     );
 
     expect(GLOBAL_VIEW.zoom).toBeCloseTo(2.25);
-    expect(GLOBAL_VIEW.center).toEqual([78.9629, 20.5937]);
+    expect(GLOBAL_VIEW.center).toEqual([10.4515, 51.1657]);
     expect(screen.getByRole("region", { name: "Global opportunity map" })).toBeInTheDocument();
     expect(screen.getByText(/246 countries · 14 infrastructure assets/i)).toBeInTheDocument();
     expect(screen.queryByLabelText("Map data and project attribution")).not.toBeInTheDocument();
@@ -104,6 +104,31 @@ describe("GlobalMap", () => {
       "hydrogen-assets",
     ]));
     expect(mapCalls.layers.find((layer) => layer.id === "data-centre-assets")?.paint).toMatchObject({ "circle-radius": 4 });
+  });
+
+  it("marks every direct map selection as camera-preserving", () => {
+    const onSelect = vi.fn();
+    render(
+      <GlobalMap
+        countries={{ type: "FeatureCollection", features: [] }}
+        admin1={{ type: "FeatureCollection", features: [] }}
+        regions={{ type: "FeatureCollection", features: [] }}
+        assets={{ type: "FeatureCollection", features: [] }}
+        lens="infrastructureDemand"
+        year={2030}
+        selectedId={null}
+        onSelect={onSelect}
+        coverage={{ countries: 1, regions: 0, admin1Regions: 0, countriesWithAdmin1: 0, assets: 1, dataCentres: 1, waterInfrastructure: 0 }}
+      />,
+    );
+
+    const selectAsset = mapCalls.handlers.find(([event, layer]) => event === "click" && layer === "data-centre-assets")?.[2] as ((event: unknown) => void);
+    const selectCountry = mapCalls.handlers.find(([event, layer]) => event === "click" && layer === "countries-fill")?.[2] as ((event: unknown) => void);
+    act(() => selectAsset({ features: [{ properties: { id: "plant-1" } }] }));
+    act(() => selectCountry({ features: [{ properties: { id: "DE" } }] }));
+
+    expect(onSelect).toHaveBeenNthCalledWith(1, "plant-1", false);
+    expect(onSelect).toHaveBeenNthCalledWith(2, "DE", false);
   });
 
   it("shows fixed-size city dots and names only after regional zoom", () => {

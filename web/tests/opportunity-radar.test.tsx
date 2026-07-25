@@ -18,7 +18,7 @@ vi.mock("@/lib/analytics", () => ({
 afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); mockTrackWattlasAction.mockClear(); });
 
 vi.mock("@/components/map/global-map", () => ({
-  GlobalMap: ({ lens, year, capacityRange, onSelect, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; year: number; capacityRange?: { minMw: number; maxMw: number | null }; onSelect: (id: string) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens} · year {year} · capacity {capacityRange?.minMw ?? 0}–{capacityRange?.maxMw ?? "unlimited"}<button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM")}>Select Assam</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
+  GlobalMap: ({ lens, year, capacityRange, focusTarget, onSelect, onSelectCity, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; year: number; capacityRange?: { minMw: number; maxMw: number | null }; focusTarget?: unknown; onSelect: (id: string, shouldFocus?: boolean) => void; onSelectCity?: (city: { id: string; name: string; country: string; coordinates: [number, number] }) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens} · year {year} · capacity {capacityRange?.minMw ?? 0}–{capacityRange?.maxMw ?? "unlimited"}<span data-testid="map-focus-state">{focusTarget ? "focused" : "unchanged"}</span><button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM", false)}>Select Assam</button><button type="button" onClick={() => onSelectCity?.({ id: "city-hamburg", name: "Hamburg", country: "DE", coordinates: [9.99, 53.55] })}>Select city</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
 }));
 
 const generator = { type: "Feature", id: "generator-1", geometry: { type: "Point", coordinates: [8, 50] }, properties: { id: "generator-1", name: "Rhine Solar", category: "power_generation", country: "DE", geographyId: "DE-X", lifecycle: "operational", technologies: ["solar"], capacityMw: 80, operatingCapacityMw: 80, plannedCapacityMw: 0, technologyMixMw: { solar: 80 }, sourceIds: ["registry"], gemWikiUrl: "https://www.gem.wiki/Rhine_Solar" } } as import("@/lib/snapshot/types").GeneratorFeature;
@@ -85,21 +85,38 @@ const snapshot: SnapshotData = {
 } as unknown as SnapshotData;
 
 describe("OpportunityRadar", () => {
-  it("selects India on first load when the country is available", () => {
-    const indiaSnapshot = structuredClone(snapshot);
-    indiaSnapshot.countries.features.push({
-      ...indiaSnapshot.countries.features[0],
+  it("selects Germany on first load when Germany and India are available", () => {
+    const globalSnapshot = structuredClone(snapshot);
+    globalSnapshot.countries.features.push({
+      ...globalSnapshot.countries.features[0],
       id: "IN",
-      properties: { ...indiaSnapshot.countries.features[0].properties, id: "IN", name: "India", country: "IN" },
+      properties: { ...globalSnapshot.countries.features[0].properties, id: "IN", name: "India", country: "IN" },
     });
-    render(<OpportunityRadar snapshot={indiaSnapshot} />);
-    expect(screen.getByRole("heading", { name: "India" })).toBeInTheDocument();
+    globalSnapshot.countries.features.push({
+      ...globalSnapshot.countries.features[0],
+      id: "DE",
+      properties: { ...globalSnapshot.countries.features[0].properties, id: "DE", name: "Germany", country: "DE" },
+    });
+    render(<OpportunityRadar snapshot={globalSnapshot} />);
+    expect(screen.getByRole("heading", { name: "Germany" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "India" })).not.toBeInTheDocument();
+  });
+
+  it("provides full generator technology names as hover labels", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+
+    expect(screen.getByRole("switch", { name: "Nuclear" })).toHaveAttribute("title", "Nuclear");
+    expect(screen.getByRole("switch", { name: "Biomass" })).toHaveAttribute("title", "Biomass");
+    expect(screen.getByRole("switch", { name: "Geothermal" })).toHaveAttribute("title", "Geothermal");
   });
 
   it("preserves production controls without redundant active-view or grid sections", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
     expect(screen.getByRole("combobox", { name: "Search Wattlas" })).toBeInTheDocument();
+    expect(screen.getByRole("complementary", { name: "Map controls" }).querySelector('[aria-label="Search Wattlas"]')).toBeNull();
     expect(screen.getByRole("link", { name: "Methodology and sources" })).toHaveAttribute("href", "/methodology");
+    expect(screen.queryByText("Global")).not.toBeInTheDocument();
+    expect(screen.queryByText(/sources? need attention/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Active filters")).not.toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: "Grid intelligence" })).not.toBeInTheDocument();
     expect(screen.queryByRole("switch", { name: "Cities · 1M+" })).not.toBeInTheDocument();
@@ -151,6 +168,7 @@ describe("OpportunityRadar", () => {
     expect(solar).toHaveAttribute("aria-checked", "true");
     fireEvent.click(screen.getByRole("button", { name: "Hide filters" }));
     expect(screen.queryByRole("complementary", { name: "Map controls" })).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Search Wattlas" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Show filters" }));
     expect(screen.getByRole("complementary", { name: "Map controls" })).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Solar" })).toHaveAttribute("aria-checked", "true");
@@ -247,6 +265,51 @@ describe("OpportunityRadar", () => {
     expect(screen.getByRole("region", { name: "Selected project summary" })).toHaveTextContent("Alpha DC");
     expect(screen.getByRole("link", { name: "Open full dossier" })).toHaveAttribute("href", "https://www.openstreetmap.org/node/101");
     expect(screen.getByRole("link", { name: "Open full dossier" })).toHaveAttribute("target", "_blank");
+  });
+
+  it("preserves the map camera when a facility marker is selected", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select facility" }));
+
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+  });
+
+  it("preserves the map camera when a generator marker is selected", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select generator" }));
+
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+  });
+
+  it("preserves the map camera when a geography on the map is selected", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Assam" }));
+
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+  });
+
+  it("preserves the map camera when a city label is selected", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select city" }));
+
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+  });
+
+  it("still moves the map when navigation is triggered from search", async () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    const search = screen.getByRole("combobox", { name: "Search Wattlas" });
+    fireEvent.change(search, { target: { value: "alpha" } });
+    fireEvent.click(await screen.findByRole("option", { name: /Alpha DC/i }));
+
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("focused");
   });
 
   it("selects and inspects a global first-level region", () => {

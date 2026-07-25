@@ -107,7 +107,7 @@ export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvanced
           <LayerRow id="generators" label="Power generators" count={counts.generators} checked={infrastructure.generators} onToggle={() => onInfrastructureChange({ ...infrastructure, generators: !infrastructure.generators })} />
           {technologies && onTechnologiesChange && <div className="tech-tree" aria-label="Generator technology filters">
             {(Object.keys(technologyLabels) as GenerationTechnology[]).map((technology) => (
-              <button key={technology} type="button" className="tech-row" role="switch" aria-label={technologyLabels[technology]} aria-checked={technologies.has(technology)} onClick={() => { const next = new Set(technologies); if (next.has(technology)) next.delete(technology); else next.add(technology); onTechnologiesChange(next); }}>
+              <button key={technology} type="button" className="tech-row" role="switch" aria-label={technologyLabels[technology]} title={technologyLabels[technology]} aria-checked={technologies.has(technology)} onClick={() => { const next = new Set(technologies); if (next.has(technology)) next.delete(technology); else next.add(technology); onTechnologiesChange(next); }}>
                 <span aria-hidden="true" className="generator-swatch" style={{ backgroundColor: GENERATOR_COLORS[technology] }} />
                 <span className="tech-name">{technologyLabels[technology]}</span>
                 <Switch checked={technologies.has(technology)} />

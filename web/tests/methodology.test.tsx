@@ -75,6 +75,20 @@ describe("methodology and sources", () => {
     expect(screen.getByText(/Publish a low, central, and high estimate/i)).toBeInTheDocument();
   });
 
+  it("explains the two workspaces and all four map views in plain language", () => {
+    render(<MethodologyPage catalog={catalog} evidenceSources={evidenceSources} generatedAt="2026-07-17T00:00:00Z" />);
+
+    expect(screen.getByRole("heading", { name: "What each Wattlas view is for" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Asset Explorer" })).toBeInTheDocument();
+    expect(screen.getByText(/What facilities exist or are planned here/i)).toBeInTheDocument();
+    expect(screen.getByText(/Where might the strongest opportunities or constraints be/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Infrastructure Demand" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Site Attractiveness" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "System Risk" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Power Balance" })).toBeInTheDocument();
+    expect(screen.getByText(/power surplus, a comfortable margin, or growing supply pressure/i)).toBeInTheDocument();
+  });
+
   it("keeps detailed methods, releases, limitations, and ENTSO E evidence", () => {
     render(<MethodologyPage catalog={catalog} evidenceSources={evidenceSources} generatedAt="2026-07-17T00:00:00Z" assetCoverage={{ industrialLoads: 4220, hydrogenInfrastructure: 808, forecastIndustrialLoads: 118 }} />);
     for (const text of [
