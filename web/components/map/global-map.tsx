@@ -35,7 +35,7 @@ type Props = {
   year: number;
   selectedId: string | null;
   focusTarget?: ({ nonce: number } & SelectionTarget) | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, shouldFocus?: boolean) => void;
   onSelectCity?: (city: { id: string; name: string; country: string; coordinates: [number, number] }) => void;
   coverage: SnapshotManifest["coverage"];
   infrastructure?: InfrastructureVisibility;
@@ -371,11 +371,11 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         const properties = event.features?.[0]?.properties;
         const id = properties?.id;
         if (!id) return;
-        onSelectRef.current(id);
+        onSelectRef.current(id, true);
       };
       const selectAsset = (event: MapMouseEvent & { features?: MapGeoJSONFeature[] }) => {
         const id = event.features?.[0]?.properties?.id;
-        if (id) onSelectRef.current(id);
+        if (id) onSelectRef.current(id, false);
       };
       map.on("click", "asset-clusters", async (event) => {
         const feature = event.features?.[0];
