@@ -35,7 +35,7 @@ type Props = {
   year: number;
   selectedId: string | null;
   focusTarget?: ({ nonce: number } & SelectionTarget) | null;
-  onSelect: (id: string) => void;
+  onSelect: (id: string, shouldFocus?: boolean) => void;
   onSelectCity?: (city: { id: string; name: string; country: string; coordinates: [number, number] }) => void;
   coverage: SnapshotManifest["coverage"];
   infrastructure?: InfrastructureVisibility;
@@ -49,7 +49,7 @@ type Props = {
   onVisibleGeneratorsChange?: (ids: ReadonlySet<string>) => void;
 };
 
-export const GLOBAL_VIEW = { center: [78.9629, 20.5937] as [number, number], zoom: 2.25 };
+export const GLOBAL_VIEW = { center: [10.4515, 51.1657] as [number, number], zoom: 2.25 };
 const INFRASTRUCTURE_OUTLINE = "#59635F";
 
 function activeCountries(countries: GeographyCollection, lens: LensKey, year: number): GeoJSON.FeatureCollection {
@@ -356,11 +356,11 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         const properties = event.features?.[0]?.properties;
         const id = properties?.id;
         if (!id) return;
-        onSelectRef.current(id);
+        onSelectRef.current(id, false);
       };
       const selectAsset = (event: MapMouseEvent & { features?: MapGeoJSONFeature[] }) => {
         const id = event.features?.[0]?.properties?.id;
-        if (id) onSelectRef.current(id);
+        if (id) onSelectRef.current(id, false);
       };
       map.on("click", "asset-clusters", async (event) => {
         const feature = event.features?.[0];

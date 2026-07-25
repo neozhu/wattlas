@@ -40,7 +40,7 @@ export function OpportunityRadar({ snapshot }: Props) {
   const [lens, setLens] = useState<LensKey>("infrastructureDemand");
   const [mode, setMode] = useState<"radar" | "explorer">("radar");
   const [year, setYear] = useState(snapshot.manifest.activeYears[0] ?? 2026);
-  const initialId = snapshot.countries.features.find((feature) => feature.properties.id === "IN")?.properties.id
+  const initialId = snapshot.countries.features.find((feature) => feature.properties.id === "DE")?.properties.id
     ?? snapshot.countries.features.find((feature) => feature.properties.scores.infrastructureDemand != null)?.properties.id
     ?? snapshot.countries.features[0]?.properties.id
     ?? null;
@@ -249,7 +249,7 @@ export function OpportunityRadar({ snapshot }: Props) {
   const focusMap = (target: SelectionTarget) => {
     setMapFocusTarget((current) => ({ nonce: (current?.nonce ?? 0) + 1, ...target }));
   };
-  const selectEntity = (id: string, shouldFocus = true) => {
+  const selectEntity = (id: string, shouldFocus = false) => {
     setCountryIntelligenceOpen(false);
     setSelectedGenerator(null);
     setSelectedId(id);
@@ -282,7 +282,7 @@ export function OpportunityRadar({ snapshot }: Props) {
 
   return (
     <main className={["radar-shell", filtersVisible ? "" : "filters-hidden", detailsVisible ? "" : "details-hidden"].filter(Boolean).join(" ")} style={{ "--inspector": `${inspectorWidth}px` } as CSSProperties}>
-      <CommandBar manifest={snapshot.manifest} mode={mode} onModeChange={(next) => {
+      <CommandBar manifest={snapshot.manifest} searchSlot={<SearchBox index={searchIndex} onSelect={selectSearchResult} />} mode={mode} onModeChange={(next) => {
         setMode(next);
         if (next === "explorer") {
           setInfrastructure({ dataCentres: true, water: true, industrial: true, hydrogen: true, generators: true });
@@ -294,7 +294,6 @@ export function OpportunityRadar({ snapshot }: Props) {
         activeLens={lens}
         onChange={(next) => { setLens(next); if (next !== lens) trackWattlasAction("lens_changed", { lens: next }); }}
         onHide={() => { setFiltersVisible(false); trackWattlasAction("filters_hidden"); }}
-        searchSlot={<SearchBox index={searchIndex} onSelect={selectSearchResult} />}
         onAdvancedOpen={() => trackWattlasAction("advanced_filters_opened")}
         infrastructure={infrastructure}
         counts={layerCounts}
@@ -342,7 +341,7 @@ export function OpportunityRadar({ snapshot }: Props) {
         downloadDisabled={filteredExportDisabled}
         onDownload={downloadFilteredEntities}
       /> : <button className="show-filters" type="button" onClick={() => { setFiltersVisible(true); trackWattlasAction("filters_shown"); }} aria-label="Show filters" aria-expanded="false">Filters <span aria-hidden="true">→</span></button>}
-      <GlobalMap countries={snapshot.countries} admin1={admin1} regions={snapshot.regions} assets={snapshot.assets} cities={cities} coverage={snapshot.manifest.coverage} lens={lens} year={year} selectedId={selectedId} focusTarget={mapFocusTarget} onSelect={selectEntity} onSelectCity={(city) => { focusMap({ coordinates: city.coordinates, zoom: 7 }); trackWattlasAction("entity_selected", { entity_type: "city", entity_name: city.name, country: city.country }); }} onSelectGenerator={(generator) => { setSelectedGenerator(generator); setSelectedId(null); focusMap({ coordinates: [generator.geometry.coordinates[0], generator.geometry.coordinates[1]], zoom: 8 }); trackWattlasAction("entity_selected", { entity_type: "generator", entity_name: generator.properties.name ?? generator.properties.id, country: generator.properties.country, technology: generator.properties.technologies.join(",") }); }} onVisibleGeneratorsChange={(ids) => setSelectedGenerator((current) => current && !ids.has(current.properties.id) ? null : current)} infrastructure={infrastructure} technologies={technologies} lifecycles={lifecycles} capacityRange={capacityRange} generatorOverview={mapGeneratorOverview} generatorIndex={generatorIndex} snapshotRoot={snapshot.manifest.snapshotId ? `snapshots/${snapshot.manifest.snapshotId}` : null} />
+      <GlobalMap countries={snapshot.countries} admin1={admin1} regions={snapshot.regions} assets={snapshot.assets} cities={cities} coverage={snapshot.manifest.coverage} lens={lens} year={year} selectedId={selectedId} focusTarget={mapFocusTarget} onSelect={selectEntity} onSelectCity={(city) => { trackWattlasAction("entity_selected", { entity_type: "city", entity_name: city.name, country: city.country }); }} onSelectGenerator={(generator) => { setSelectedGenerator(generator); setSelectedId(null); trackWattlasAction("entity_selected", { entity_type: "generator", entity_name: generator.properties.name ?? generator.properties.id, country: generator.properties.country, technology: generator.properties.technologies.join(",") }); }} onVisibleGeneratorsChange={(ids) => setSelectedGenerator((current) => current && !ids.has(current.properties.id) ? null : current)} infrastructure={infrastructure} technologies={technologies} lifecycles={lifecycles} capacityRange={capacityRange} generatorOverview={mapGeneratorOverview} generatorIndex={generatorIndex} snapshotRoot={snapshot.manifest.snapshotId ? `snapshots/${snapshot.manifest.snapshotId}` : null} />
       {mode === "explorer" && <AssetExplorerSummary coverage={{ countries: snapshot.manifest.coverage.countries, assets: snapshot.manifest.coverage.assets, dataCentres: snapshot.manifest.coverage.dataCentres, waterInfrastructure: snapshot.manifest.coverage.waterInfrastructure, industrialLoads: layerCounts.industrial ?? 0, hydrogenInfrastructure: layerCounts.hydrogen ?? 0, generators: layerCounts.generators ?? 0 }} statuses={explorerStatuses} />}
       <ProjectSummaryCard asset={selectedAsset} generator={selectedGenerator} geography={selectedGeography} detailsVisible={detailsVisible} onMoreDetails={() => setDetailsPanelVisible(true)} />
       {detailsVisible && <InspectorResizer width={inspectorWidth} min={MIN_INSPECTOR_WIDTH} max={MAX_INSPECTOR_WIDTH} onChange={setInspectorWidth} onCommit={(width) => trackWattlasAction("inspector_resized", { panel_width: width })} />}

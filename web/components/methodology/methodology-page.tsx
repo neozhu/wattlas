@@ -113,9 +113,53 @@ export function MethodologyPage({
         </div>
       </section>
 
-      <section className={styles.regionalSection} aria-labelledby="regional-heading">
+      <section className={styles.viewGuide} aria-labelledby="view-guide-heading">
         <div className={styles.sectionLead}>
           <span>03</span>
+          <h2 id="view-guide-heading">What each Wattlas view is for</h2>
+          <p>The map has two workspaces and four ways to read a region. Each one answers a different question.</p>
+        </div>
+        <div className={styles.workspaceGuide}>
+          <article>
+            <span>Infrastructure inventory</span>
+            <h3>Asset Explorer</h3>
+            <strong>What facilities exist or are planned here?</strong>
+            <p>Asset Explorer turns on the infrastructure layers together and summarizes facilities by type and project status. Use it when you want to find data centres, water plants, industrial projects, hydrogen infrastructure, or power generators in a place.</p>
+          </article>
+          <article>
+            <span>Regional intelligence</span>
+            <h3>Opportunity Radar</h3>
+            <strong>Where might the strongest opportunities or constraints be?</strong>
+            <p>Opportunity Radar compares regions rather than simply counting facilities. It combines public evidence into explainable scores that help you decide where to look more closely.</p>
+          </article>
+        </div>
+        <div className={styles.viewCards}>
+          <article>
+            <b>01</b>
+            <h3>Infrastructure Demand</h3>
+            <p>Shows where electricity demand is likely to grow because of new data centres, industrial projects, water plants, hydrogen projects, and similar infrastructure.</p>
+          </article>
+          <article>
+            <b>02</b>
+            <h3>Site Attractiveness</h3>
+            <p>Shows how practical a location appears for developing new infrastructure, based on the public evidence and local conditions available to Wattlas.</p>
+          </article>
+          <article>
+            <b>03</b>
+            <h3>System Risk</h3>
+            <p>Shows where grid constraints, limited resilience, or rapidly increasing electricity demand may create greater risk.</p>
+          </article>
+          <article>
+            <b>04</b>
+            <h3>Power Balance</h3>
+            <p>Compares electricity demand with dependable local generation. It helps identify areas that may have a power surplus, a comfortable margin, or growing supply pressure.</p>
+          </article>
+        </div>
+      </section>
+
+      <section className={styles.regionalSection} aria-labelledby="regional-heading">
+        <div className={styles.sectionLead}>
+          <span>04</span>
           <h2 id="regional-heading">Adding more depth to regional data</h2>
           <p>Early versions had stronger detail in Europe, North America, and Asia. Coverage in Africa and South America was more uneven, so I added regional and country sources to close some of those gaps.</p>
         </div>
@@ -129,7 +173,7 @@ export function MethodologyPage({
 
       <section className={styles.industrialMethod} aria-labelledby="industrial-heading">
         <header className={styles.sectionLead}>
-          <span>04</span>
+          <span>05</span>
           <h2 id="industrial-heading">How planned projects become future electricity demand</h2>
           <p>A project only changes the forecast when Wattlas has enough information to connect its size, technology, location, timing, and power source.</p>
         </header>
@@ -193,7 +237,7 @@ export function MethodologyPage({
       </section>
 
       <section className={styles.supportingReferences} aria-labelledby="references-heading">
-        <div className={styles.sectionLead}><span>05</span><h2 id="references-heading">Map and method references</h2><p>These sources support boundaries, regional context, and conversion assumptions. They sit outside the {sources.length} project and data source families above.</p></div>
+        <div className={styles.sectionLead}><span>06</span><h2 id="references-heading">Map and method references</h2><p>These sources support boundaries, regional context, and conversion assumptions. They sit outside the {sources.length} project and data source families above.</p></div>
         <div>{SUPPORTING_REFERENCES.map((source) => <article key={source.name}><h3>{source.name}</h3><p>{source.publisher}</p><span>{source.use}</span><a href={source.url} target="_blank" rel="noreferrer">Open source ↗</a></article>)}</div>
       </section>
     </main>
