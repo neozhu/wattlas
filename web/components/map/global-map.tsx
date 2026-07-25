@@ -371,7 +371,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
         const properties = event.features?.[0]?.properties;
         const id = properties?.id;
         if (!id) return;
-        onSelectRef.current(id, true);
+        onSelectRef.current(id, false);
       };
       const selectAsset = (event: MapMouseEvent & { features?: MapGeoJSONFeature[] }) => {
         const id = event.features?.[0]?.properties?.id;

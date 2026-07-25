@@ -106,7 +106,7 @@ describe("GlobalMap", () => {
     expect(mapCalls.layers.find((layer) => layer.id === "data-centre-assets")?.paint).toMatchObject({ "circle-radius": 4 });
   });
 
-  it("marks direct facility clicks as camera-preserving while geography clicks may navigate", () => {
+  it("marks every direct map selection as camera-preserving", () => {
     const onSelect = vi.fn();
     render(
       <GlobalMap
@@ -128,7 +128,7 @@ describe("GlobalMap", () => {
     act(() => selectCountry({ features: [{ properties: { id: "DE" } }] }));
 
     expect(onSelect).toHaveBeenNthCalledWith(1, "plant-1", false);
-    expect(onSelect).toHaveBeenNthCalledWith(2, "DE", true);
+    expect(onSelect).toHaveBeenNthCalledWith(2, "DE", false);
   });
 
   it("shows fixed-size city dots and names only after regional zoom", () => {

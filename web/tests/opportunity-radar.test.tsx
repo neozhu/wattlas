@@ -18,7 +18,7 @@ vi.mock("@/lib/analytics", () => ({
 afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); mockTrackWattlasAction.mockClear(); });
 
 vi.mock("@/components/map/global-map", () => ({
-  GlobalMap: ({ lens, year, capacityRange, focusTarget, onSelect, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; year: number; capacityRange?: { minMw: number; maxMw: number | null }; focusTarget?: unknown; onSelect: (id: string, shouldFocus?: boolean) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens} · year {year} · capacity {capacityRange?.minMw ?? 0}–{capacityRange?.maxMw ?? "unlimited"}<span data-testid="map-focus-state">{focusTarget ? "focused" : "unchanged"}</span><button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM", true)}>Select Assam</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
+  GlobalMap: ({ lens, year, capacityRange, focusTarget, onSelect, onSelectCity, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; year: number; capacityRange?: { minMw: number; maxMw: number | null }; focusTarget?: unknown; onSelect: (id: string, shouldFocus?: boolean) => void; onSelectCity?: (city: { id: string; name: string; country: string; coordinates: [number, number] }) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens} · year {year} · capacity {capacityRange?.minMw ?? 0}–{capacityRange?.maxMw ?? "unlimited"}<span data-testid="map-focus-state">{focusTarget ? "focused" : "unchanged"}</span><button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM", false)}>Select Assam</button><button type="button" onClick={() => onSelectCity?.({ id: "city-hamburg", name: "Hamburg", country: "DE", coordinates: [9.99, 53.55] })}>Select city</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
 }));
 
 const generator = { type: "Feature", id: "generator-1", geometry: { type: "Point", coordinates: [8, 50] }, properties: { id: "generator-1", name: "Rhine Solar", category: "power_generation", country: "DE", geographyId: "DE-X", lifecycle: "operational", technologies: ["solar"], capacityMw: 80, operatingCapacityMw: 80, plannedCapacityMw: 0, technologyMixMw: { solar: 80 }, sourceIds: ["registry"], gemWikiUrl: "https://www.gem.wiki/Rhine_Solar" } } as import("@/lib/snapshot/types").GeneratorFeature;
@@ -283,6 +283,33 @@ describe("OpportunityRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select generator" }));
 
     expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+  });
+
+  it("preserves the map camera when a geography on the map is selected", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select Assam" }));
+
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+  });
+
+  it("preserves the map camera when a city label is selected", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+
+    fireEvent.click(screen.getByRole("button", { name: "Select city" }));
+
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+  });
+
+  it("still moves the map when navigation is triggered from search", async () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    const search = screen.getByRole("combobox", { name: "Search Wattlas" });
+    fireEvent.change(search, { target: { value: "alpha" } });
+    fireEvent.click(await screen.findByRole("option", { name: /Alpha DC/i }));
+
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("focused");
   });
 
   it("selects and inspects a global first-level region", () => {
