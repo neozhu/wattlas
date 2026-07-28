@@ -23,6 +23,7 @@ make test
 cd web && npm run build
 ```
 
+
 ## Monthly governed data model
 
 The browser never queries upstream sources directly. The Python pipeline fetches public sources, validates and scores them, and atomically publishes an immutable JSON/GeoJSON snapshot. The interface always reads `web/public/data/latest.json`, so a connector failure does not erase the last useful map.
