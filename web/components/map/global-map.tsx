@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef } from "react";
 import maplibregl, { type ExpressionSpecification, type GeoJSONSource, type MapGeoJSONFeature, type MapMouseEvent } from "maplibre-gl";
 
 import { baseMapStyle } from "@/components/map/map-style";
-import type { InfrastructureVisibility } from "@/components/controls/layer-rail";
+import { filterInfrastructureAssets, type InfrastructureVisibility } from "@/lib/map/asset-filters";
 import { generatorColorExpression, generatorTechnologyExpression } from "@/lib/map/generator-colors";
 import { ALL_GENERATOR_CAPACITIES, type GeneratorCapacityRange } from "@/lib/map/generator-capacity";
 import { countriesInBounds, createGeneratorShardController, DEFAULT_GENERATOR_LIFECYCLES, filterGeneratorOverview, filterGenerators, generatorSelection, type MapBounds } from "@/lib/map/generator-shards";
@@ -51,21 +51,6 @@ type Props = {
 
 export const GLOBAL_VIEW = { center: [10.4515, 51.1657] as [number, number], zoom: 2.25 };
 const INFRASTRUCTURE_OUTLINE = "#59635F";
-
-function visibleAssets(assets: AssetCollection, infrastructure: InfrastructureVisibility, lifecycles: ReadonlySet<string>): AssetCollection {
-  return { ...assets, features: assets.features.filter(({ properties }) => {
-    const categoryVisible = properties.category === "data_centre"
-      ? infrastructure.dataCentres
-      : properties.category === "water_infrastructure"
-        ? infrastructure.water
-        : properties.category === "industrial_load"
-          ? infrastructure.industrial
-          : properties.category === "hydrogen_infrastructure"
-            ? infrastructure.hydrogen
-            : false;
-    return categoryVisible && lifecycles.has(properties.lifecycle ?? "unknown");
-  }) };
-}
 
 function activeCountries(countries: GeographyCollection, lens: LensKey, year: number): GeoJSON.FeatureCollection {
   return {
@@ -167,7 +152,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
       map.addSource("german-cities", { type: "geojson", data: cityClass(citiesRef.current, "german_large_city") });
       map.addSource("assets", {
         type: "geojson",
-        data: visibleAssets(assets, infrastructureRef.current, generatorFiltersRef.current.lifecycles),
+        data: filterInfrastructureAssets(assets, infrastructureRef.current, generatorFiltersRef.current.lifecycles),
         cluster: true,
         clusterRadius: 48,
         clusterMaxZoom: 6,
@@ -478,7 +463,7 @@ export function GlobalMap({ countries, admin1, regions, assets, cities = EMPTY_C
     const filtered = filterGenerators(activeGeneratorsRef.current, technologies, lifecycles, capacityRange);
     (map.getSource("generators") as GeoJSONSource | undefined)?.setData(filtered);
     onVisibleGeneratorsChangeRef.current?.(new Set(filtered.features.map((feature) => feature.properties.id)));
-    (map.getSource("assets") as GeoJSONSource | undefined)?.setData(visibleAssets(assets, infrastructure, lifecycles));
+    (map.getSource("assets") as GeoJSONSource | undefined)?.setData(filterInfrastructureAssets(assets, infrastructure, lifecycles));
     for (const id of ["data-centre-assets"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", infrastructure.dataCentres ? "visible" : "none");
     for (const id of ["water-assets"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", infrastructure.water ? "visible" : "none");
     for (const id of ["industrial-assets"]) if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", infrastructure.industrial ? "visible" : "none");

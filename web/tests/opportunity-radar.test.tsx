@@ -6,16 +6,21 @@ import type { SnapshotData } from "@/lib/snapshot/types";
 
 const mockLoadRegionalEnergy = vi.hoisted(() => vi.fn());
 const mockTrackWattlasAction = vi.hoisted(() => vi.fn());
+const mockDownloadCsv = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/snapshot/generators", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/snapshot/generators")>()),
   loadRegionalEnergy: mockLoadRegionalEnergy,
+}));
+vi.mock("@/lib/export/filtered-entities-csv", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/export/filtered-entities-csv")>()),
+  downloadCsv: mockDownloadCsv,
 }));
 vi.mock("@/lib/analytics", () => ({
   trackWattlasAction: mockTrackWattlasAction,
   geographyEntityType: (properties: { level?: string }) => properties.level === "country" ? "country" : properties.level === "admin_1" ? "state" : "region",
 }));
 
-afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); mockTrackWattlasAction.mockClear(); });
+afterEach(() => { cleanup(); localStorage.clear(); sessionStorage.clear(); mockTrackWattlasAction.mockClear(); mockDownloadCsv.mockClear(); });
 
 vi.mock("@/components/map/global-map", () => ({
   GlobalMap: ({ lens, year, capacityRange, focusTarget, onSelect, onSelectCity, onSelectGenerator, onVisibleGeneratorsChange }: { lens: string; year: number; capacityRange?: { minMw: number; maxMw: number | null }; focusTarget?: unknown; onSelect: (id: string, shouldFocus?: boolean) => void; onSelectCity?: (city: { id: string; name: string; country: string; coordinates: [number, number] }) => void; onSelectGenerator: (feature: import("@/lib/snapshot/types").GeneratorFeature) => void; onVisibleGeneratorsChange: (ids: ReadonlySet<string>) => void }) => <div data-testid="global-map">Map lens: {lens} · year {year} · capacity {capacityRange?.minMw ?? 0}–{capacityRange?.maxMw ?? "unlimited"}<span data-testid="map-focus-state">{focusTarget ? "focused" : "unchanged"}</span><button type="button" onClick={() => onSelect("osm-node-101")}>Select facility</button><button type="button" onClick={() => onSelect("IN-ASSAM", false)}>Select Assam</button><button type="button" onClick={() => onSelectCity?.({ id: "city-hamburg", name: "Hamburg", country: "DE", coordinates: [9.99, 53.55] })}>Select city</button><button type="button" onClick={() => onSelectGenerator(generator)}>Select generator</button><button type="button" onClick={() => onVisibleGeneratorsChange(new Set())}>Move away</button></div>,
@@ -432,6 +437,46 @@ describe("OpportunityRadar", () => {
     for (const lifecycle of ["Operating", "Under construction", "Pre-construction", "Announced", "Retired", "Other / unknown"]) {
       expect(screen.getByRole("switch", { name: lifecycle })).toHaveAttribute("aria-checked", "true");
     }
+  });
+
+  it("downloads the current filtered entities with snapshot and year context", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    const download = screen.getByRole("button", {
+      name: "Download 1 filtered row as CSV",
+    });
+    expect(download).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "2031" }));
+    fireEvent.click(download);
+
+    expect(mockDownloadCsv).toHaveBeenCalledOnce();
+    const [csv, filename] = mockDownloadCsv.mock.calls[0] as [string, string];
+    expect(csv).toContain("exported_at,snapshot_id,selected_year");
+    expect(csv).toContain("2026-06-27T04-12-00Z,2031");
+    expect(csv).toContain("Alpha DC");
+    expect(filename).toMatch(
+      /^wattlas-filtered-entities-\d{4}-\d{2}-\d{2}\.csv$/,
+    );
+  });
+
+  it("disables download for zero results or an enabled loading generator layer", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    const download = screen.getByRole("button", {
+      name: "Download 1 filtered row as CSV",
+    });
+    expect(download).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
+    expect(download).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("switch", { name: "Power generators" }));
+    expect(download).toBeEnabled();
+    fireEvent.click(screen.getByRole("switch", { name: "Data centres" }));
+    expect(
+      screen.getByRole("button", {
+        name: "Download 0 filtered rows as CSV",
+      }),
+    ).toBeDisabled();
   });
 
   it("switches between Opportunity Radar and Asset Explorer without losing the selected year", () => {

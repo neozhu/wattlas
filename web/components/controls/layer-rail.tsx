@@ -1,5 +1,6 @@
 import { GENERATOR_COLORS } from "@/lib/map/generator-colors";
 import type { GeneratorCapacityRange } from "@/lib/map/generator-capacity";
+import type { InfrastructureVisibility } from "@/lib/map/asset-filters";
 import type { GenerationTechnology, LensKey } from "@/lib/snapshot/types";
 import { useState, type ReactNode } from "react";
 import { GeneratorCapacityFilter } from "@/components/controls/generator-capacity-filter";
@@ -11,13 +12,7 @@ const lenses: Array<{ id: LensKey; label: string; description: string }> = [
   { id: "powerBalance", label: "Power Balance", description: "Demand versus dependable supply" },
 ];
 
-export type InfrastructureVisibility = {
-  dataCentres: boolean;
-  water: boolean;
-  industrial: boolean;
-  hydrogen: boolean;
-  generators: boolean;
-};
+export type { InfrastructureVisibility };
 export type LayerCounts = Partial<Record<keyof InfrastructureVisibility, number>>;
 type Props = {
   activeLens: LensKey; onChange: (lens: LensKey) => void;
@@ -31,6 +26,7 @@ type Props = {
   capacityScaleMaximumMw?: number; generatorCatalogueReady?: boolean;
   generatorCatalogueError?: string | null; onRetryGeneratorCatalogue?: () => void;
   counts?: LayerCounts;
+  downloadCount?: number; downloadDisabled?: boolean; onDownload?: () => void;
 };
 
 const technologyLabels: Record<GenerationTechnology, string> = { solar: "Solar", wind: "Wind", hydro: "Hydro", nuclear: "Nuclear", gas: "Gas", coal: "Coal", oil: "Oil", biomass: "Biomass", geothermal: "Geothermal", other: "Other" };
@@ -91,7 +87,7 @@ function LayerRow({ id, label, checked, count, onToggle }: { id: keyof Infrastru
   );
 }
 
-export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvancedOpen, infrastructure, onInfrastructureChange, technologies, onTechnologiesChange, lifecycles, onLifecyclesChange, capacityRange, onCapacityRangeChange, capacityScaleMaximumMw = 25_000, generatorCatalogueReady = false, generatorCatalogueError = null, onRetryGeneratorCatalogue, counts = {} }: Props) {
+export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvancedOpen, infrastructure, onInfrastructureChange, technologies, onTechnologiesChange, lifecycles, onLifecyclesChange, capacityRange, onCapacityRangeChange, capacityScaleMaximumMw = 25_000, generatorCatalogueReady = false, generatorCatalogueError = null, onRetryGeneratorCatalogue, counts = {}, downloadCount = 0, downloadDisabled = false, onDownload }: Props) {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   return (
     <aside className="layer-rail" aria-label="Map controls">
@@ -125,6 +121,9 @@ export function LayerRail({ activeLens, onChange, onHide, searchSlot, onAdvanced
               </button>
             ); })}
           </div>}
+          {onDownload && <button className="download-csv-button" type="button" disabled={downloadDisabled || downloadCount === 0} aria-label={`Download ${downloadCount.toLocaleString()} filtered ${downloadCount === 1 ? "row" : "rows"} as CSV`} onClick={onDownload}>
+            Download CSV <span aria-hidden="true">{downloadCount.toLocaleString()}</span>
+          </button>}
         </div>
       </div>}
       <div className="rail-section">
