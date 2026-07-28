@@ -36,7 +36,7 @@ test("keeps the map primary at every approved phone viewport", async ({ page }) 
 test("uses shared mobile layers, view and year controls", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-390", "full mobile interaction runs once");
 
-  await page.getByRole("button", { name: /Layers, .* active filters/ }).click();
+  await page.getByRole("button", { name: /Filters, .* active filters/ }).click();
   const layers = page.getByRole("dialog", { name: "Map layers" });
   await expect(layers).toBeVisible();
   await expect(layers.getByRole("switch", { name: "Data centres" })).toHaveAttribute("aria-checked", "true");

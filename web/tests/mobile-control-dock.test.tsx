@@ -16,7 +16,7 @@ describe("MobileControlDock", () => {
         onOpen={() => undefined}
       />,
     );
-    expect(screen.getByRole("button", { name: /Layers, 7 active filters/ })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: /Filters, 7 active filters/ })).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByRole("button", { name: /View, Power Balance/ })).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: /Year, 2028/ })).toHaveAttribute("aria-expanded", "false");
   });
@@ -32,7 +32,7 @@ describe("MobileControlDock", () => {
         onOpen={onOpen}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /Layers/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
     fireEvent.click(screen.getByRole("button", { name: /View/ }));
     fireEvent.click(screen.getByRole("button", { name: /Year/ }));
     expect(onOpen.mock.calls.map(([value]) => value)).toEqual(["layers", "view", "year"]);

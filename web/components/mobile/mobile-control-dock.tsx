@@ -40,12 +40,12 @@ export function MobileControlDock({ activeSheet, activeFilterCount, lensLabel, y
     <nav className="mobile-control-dock" aria-label="Mobile map controls">
       <button
         type="button"
-        aria-label={`Layers, ${filterLabel}`}
+        aria-label={`Filters, ${filterLabel}`}
         aria-expanded={activeSheet === "layers"}
         onClick={() => onOpen("layers")}
       >
         <LayersIcon />
-        <span>Layers</span>
+        <span>Filters</span>
         <small>{activeFilterCount}</small>
       </button>
       <button

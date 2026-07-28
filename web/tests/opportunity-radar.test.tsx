@@ -192,7 +192,7 @@ describe("OpportunityRadar", () => {
   it("opens mobile layers, views, and years without duplicating analytical state", () => {
     render(<OpportunityRadar snapshot={snapshot} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Layers, .* active filters/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Filters, .* active filters/ }));
     const layerDialog = screen.getByRole("dialog", { name: "Map layers" });
     fireEvent.click(within(layerDialog).getByRole("button", { name: "Clear all" }));
     expect(within(layerDialog).getByRole("switch", { name: "Data centres" })).toHaveAttribute("aria-checked", "false");
