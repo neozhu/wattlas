@@ -90,8 +90,8 @@ test("keeps the analytical canvas usable in the in-app pane", async ({ page }, t
 
 test("methodology page uses normal document scrolling", async ({ page }) => {
   await page.goto("/methodology", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "How Wattlas builds the Opportunity Radar" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /governed sources/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "How Wattlas puts the energy picture together" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /source families in one place/ })).toBeVisible();
 
   const before = await page.evaluate(() => ({
     scrollY: window.scrollY,
