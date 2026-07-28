@@ -3,6 +3,7 @@ import { type ReactNode } from "react";
 import { formatSnapshotTime } from "@/lib/format";
 import type { SnapshotManifest } from "@/lib/snapshot/types";
 import { WattlasBrand } from "@/components/branding/wattlas-brand";
+import { MobileOverflowMenu } from "@/components/mobile/mobile-overflow-menu";
 
 type Props = {
   manifest: SnapshotManifest;
@@ -32,6 +33,7 @@ export function CommandBar({ manifest, onOpenStatus, mode = "radar", onModeChang
           <small>{formatSnapshotTime(manifest.generatedAt)}</small>
         </span>
       </button>
+      <MobileOverflowMenu mode={mode} onModeChange={onModeChange} onOpenStatus={onOpenStatus} />
     </header>
   );
 }

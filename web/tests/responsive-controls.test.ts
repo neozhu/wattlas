@@ -3,17 +3,20 @@ import { describe, expect, it } from "vitest";
 
 describe("responsive map controls", () => {
   const css = readFileSync("app/globals.css", "utf8");
+  const mobile = css.split("/* Mobile map-first workspace */")[1]?.split("/* Mobile landscape refinement */")[0] ?? "";
+  const desktop = css.split("/* Mobile map-first workspace */")[0];
 
   it("keeps the tablet rail reachable by horizontal scrolling", () => {
-    const tablet = css.match(/@media \(max-width: 1024px\)([\s\S]*?)@media \(max-width: 680px\)/)?.[1] ?? "";
+    const tablet = desktop.match(/@media \(max-width: 1024px\)([\s\S]*?)$/)?.[1] ?? "";
     expect(tablet).toMatch(/\.layer-rail\s*\{[\s\S]*overflow-x:\s*auto/);
     expect(tablet).not.toMatch(/\.layer-rail\s*\{[\s\S]*overflow:\s*hidden/);
   });
 
-  it("provides 44px mobile touch targets for every rail control", () => {
-    const mobile = css.match(/@media \(max-width: 680px\)([\s\S]*?)@media \(prefers-reduced-motion/ )?.[1] ?? "";
-    expect(mobile).toMatch(/\.layer-rail button\s*\{[\s\S]*min-height:\s*44px/);
-    expect(mobile).toMatch(/\.layer-rail\s*>\s*\.rail-section:first-child,[\s\S]*\.layer-rail\s*>\s*\.infrastructure-controls\s*\{[\s\S]*flex:\s*1 1 auto/);
+  it("replaces the stacked mobile rail with map-first 44px controls", () => {
+    expect(mobile).toMatch(/\.layer-rail,[\s\S]*\.timeline[\s\S]*\{[\s\S]*display:\s*none/);
+    expect(mobile).toMatch(/\.mobile-control-dock button\s*\{[\s\S]*min-height:\s*44px/);
+    expect(mobile).toMatch(/\.radar-shell,[\s\S]*\.radar-shell\.filters-hidden[\s\S]*\{[\s\S]*grid-template-areas:\s*"command"\s*"map"/);
+    expect(mobile).toMatch(/padding-bottom:\s*env\(safe-area-inset-bottom/);
   });
 
   it("keeps the restore control on the left without rendering the obsolete composition note", () => {
@@ -33,7 +36,7 @@ describe("responsive map controls", () => {
   });
 
   it("hides the desktop inspector resizer in stacked layouts", () => {
-    const tablet = css.match(/@media \(max-width: 1024px\)([\s\S]*?)@media \(max-width: 680px\)/)?.[1] ?? "";
+    const tablet = desktop.match(/@media \(max-width: 1024px\)([\s\S]*?)$/)?.[1] ?? "";
     expect(tablet).toMatch(/\.inspector-resizer\s*\{[\s\S]*display:\s*none/);
   });
 
@@ -45,8 +48,18 @@ describe("responsive map controls", () => {
   });
 
   it("keeps search visible in the mobile command bar", () => {
-    const mobile = css.match(/@media \(max-width: 680px\)([\s\S]*?)@media \(prefers-reduced-motion/ )?.[1] ?? "";
     expect(mobile).toMatch(/\.command-search\s*\{[\s\S]*display:\s*block/);
     expect(mobile).toMatch(/\.command-search\s*\{[\s\S]*grid-area:\s*search/);
+  });
+
+  it("keeps mobile-only controls out of the desktop layout", () => {
+    expect(desktop).toMatch(/\.mobile-control-dock,[\s\S]*\.mobile-overflow,[\s\S]*\.mobile-sheet-layer\s*\{[\s\S]*display:\s*none/);
+    expect(desktop).toMatch(/\.mobile-detail-shell\s*\{[\s\S]*display:\s*contents/);
+  });
+
+  it("uses fixed bottom sheets and a full mobile details surface", () => {
+    expect(mobile).toMatch(/\.mobile-sheet-layer\s*\{[\s\S]*position:\s*fixed/);
+    expect(mobile).toMatch(/\.mobile-sheet\s*\{[\s\S]*bottom:\s*0/);
+    expect(mobile).toMatch(/\.mobile-detail-shell\.open\s*\{[\s\S]*position:\s*fixed/);
   });
 });

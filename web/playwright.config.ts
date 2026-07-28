@@ -23,8 +23,20 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"], viewport: { width: 760, height: 820 } },
     },
     {
-      name: "mobile",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 } },
+      name: "mobile-390",
+      use: { ...devices["Pixel 5"], viewport: { width: 390, height: 844 } },
+    },
+    {
+      name: "mobile-430",
+      use: { ...devices["Pixel 5"], viewport: { width: 430, height: 932 } },
+    },
+    {
+      name: "mobile-360",
+      use: { ...devices["Pixel 5"], viewport: { width: 360, height: 800 } },
+    },
+    {
+      name: "mobile-landscape",
+      use: { ...devices["Pixel 5"], viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true },
     },
   ],
   webServer: process.env.GRID_SCOPE_REUSE_SERVER ? undefined : {
