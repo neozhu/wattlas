@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { OpportunityRadar } from "@/components/opportunity-radar";
@@ -187,6 +187,39 @@ describe("OpportunityRadar", () => {
     fireEvent.click(screen.getByRole("button", { name: "More details" }));
     expect(screen.getByRole("heading", { name: "Alpha DC" })).toBeInTheDocument();
     expect(sessionStorage.getItem("wattlas:details-visible")).toBe("true");
+  });
+
+  it("opens mobile layers, views, and years without duplicating analytical state", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Layers, .* active filters/ }));
+    const layerDialog = screen.getByRole("dialog", { name: "Map layers" });
+    fireEvent.click(within(layerDialog).getByRole("button", { name: "Clear all" }));
+    expect(within(layerDialog).getByRole("switch", { name: "Data centres" })).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(within(layerDialog).getByRole("button", { name: "Restore defaults" }));
+    expect(within(layerDialog).getByRole("switch", { name: "Data centres" })).toHaveAttribute("aria-checked", "true");
+    expect(within(layerDialog).getByRole("switch", { name: "Power generators" })).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(within(layerDialog).getByRole("button", { name: "Show results" }));
+    expect(screen.queryByRole("dialog", { name: "Map layers" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /View, Infrastructure Demand/ }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Choose map view" })).getByRole("button", { name: "System Risk" }));
+    expect(screen.getByTestId("global-map")).toHaveTextContent("systemRisk");
+
+    fireEvent.click(screen.getByRole("button", { name: /Year, 2026/ }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Choose analysis year" })).getByRole("button", { name: "2031" }));
+    expect(screen.getByTestId("global-map")).toHaveTextContent("year 2031");
+  });
+
+  it("opens shared details as a mobile sheet and preserves the map camera", () => {
+    render(<OpportunityRadar snapshot={snapshot} />);
+    fireEvent.click(screen.getByRole("button", { name: "Hide details" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select facility" }));
+    fireEvent.click(screen.getByRole("button", { name: "More details" }));
+    expect(screen.getByRole("dialog", { name: "Alpha DC details" })).toBeInTheDocument();
+    expect(screen.getByTestId("map-focus-state")).toHaveTextContent("unchanged");
+    fireEvent(window, new PopStateEvent("popstate"));
+    expect(screen.queryByRole("dialog", { name: "Alpha DC details" })).not.toBeInTheDocument();
   });
 
   it("searches places and facilities, then opens the matching inspector", async () => {
