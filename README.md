@@ -1,5 +1,6 @@
 # Wattlas
 
+
 Wattlas is a global Opportunity Radar for examining where data-centre, water, hydrogen, steel, and cement growth may create electricity demand, opportunity, or constraint from 2026–2031—and how operating, planned, and retiring generation may change the balance.
 
 The working version combines a light physical-geography MapLibre globe, strong national boundaries, 3,229 global ADM1 states/provinces, 334 European NUTS-2 regions, an explainable Infrastructure Demand score, supporting Site Attractiveness and System Risk lenses, an Asset Explorer, a Country Intelligence drill-down, rich facility provenance, source status, evidence dossiers, and regional comparison.
