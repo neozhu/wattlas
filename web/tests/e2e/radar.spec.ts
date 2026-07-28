@@ -10,7 +10,7 @@ test("renders the map and updates the analytical view", async ({ page }, testInf
   page.on("pageerror", (error) => errors.push(error.message));
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page).toHaveTitle("Wattlas · Global Infrastructure Opportunity Radar");
+  await expect(page).toHaveTitle("Wattlas | Global Energy Infrastructure Map");
   await expect(page.getByText("Monthly refreshed", { exact: true })).toBeVisible();
   await expect(page.locator(".maplibregl-canvas")).toBeVisible();
   await expect(page.locator(".map-container")).toHaveAttribute("data-map-loaded", "true");

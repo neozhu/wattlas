@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import {
   IBM_Plex_Mono,
@@ -27,9 +27,27 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Wattlas · Global Infrastructure Opportunity Radar",
+  applicationName: "Wattlas",
+  title: "Wattlas | Global Energy Infrastructure Map",
   description:
-    "A monthly-refreshed, explainable view of global electricity demand from data centres and water infrastructure.",
+    "Explore global energy demand, power generation, infrastructure projects and regional electricity opportunities on one interactive map.",
+  openGraph: {
+    title: "Wattlas | Global Energy Infrastructure Map",
+    description:
+      "Explore energy demand, generation capacity and infrastructure opportunities across countries and regions worldwide.",
+    siteName: "Wattlas",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Wattlas | Global Energy Infrastructure Map",
+    description:
+      "Explore energy demand, generation capacity and infrastructure opportunities across countries and regions worldwide.",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#167C68",
 };
 
 export default function RootLayout({
