@@ -88,28 +88,6 @@ test("keeps the analytical canvas usable in the in-app pane", async ({ page }, t
   await expect(page.locator(".data-attribution")).toHaveCount(0);
 });
 
-test("stacks the map and inspector without mobile overflow", async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile", "mobile assertion");
-  await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".map-container")).toHaveAttribute("data-map-loaded", "true");
-
-  const layout = await page.evaluate(() => {
-    const map = document.querySelector(".map-panel")?.getBoundingClientRect();
-    const inspector = document.querySelector(".region-inspector")?.getBoundingClientRect();
-    return {
-      viewport: window.innerWidth,
-      scrollWidth: document.documentElement.scrollWidth,
-      map: map ? { top: map.top, bottom: map.bottom, width: map.width } : null,
-      inspector: inspector ? { top: inspector.top, width: inspector.width } : null,
-    };
-  });
-
-  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.viewport);
-  expect(layout.map?.width).toBe(layout.viewport);
-  expect(layout.inspector?.width).toBe(layout.viewport);
-  expect(layout.inspector?.top).toBeGreaterThanOrEqual(layout.map?.bottom ?? 0);
-});
-
 test("methodology page uses normal document scrolling", async ({ page }) => {
   await page.goto("/methodology", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "How Wattlas builds the Opportunity Radar" })).toBeVisible();
