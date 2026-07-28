@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   applicationName: "Wattlas",
   title: "Wattlas | Global Energy Infrastructure Map",
   description:
-    "Explore global energy demand, power generation, infrastructure projects and regional electricity opportunities on one interactive map.",
+    "Explore global energy demand, power generation, infrastructure projects and regional electricity opportunities on one monthly-refreshed interactive map.",
   openGraph: {
     title: "Wattlas | Global Energy Infrastructure Map",
     description:
